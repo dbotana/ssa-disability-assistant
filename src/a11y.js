@@ -68,3 +68,33 @@ export function formatMonthYear(value) {
   if (!m) return String(value);
   return `${MONTHS[+m[2] - 1]} ${m[1]}`;
 }
+
+/**
+ * A spoken estimate of time remaining, or null when there is nothing honest
+ * to say. Callers fall back to the percentage.
+ *
+ * Rounded hard on purpose. The estimate is a median of at most a dozen
+ * samples extrapolated over dozens of questions, and it is wrong by minutes;
+ * reading out "about 23 minutes" claims a precision it does not have and
+ * invites the user to notice when it slips. Buckets that grow with the
+ * estimate — five-minute steps under an hour, half-hours above — degrade
+ * quietly instead, and "less than a minute" covers the tail where a
+ * percentage would be reading 99 for a while.
+ */
+export function formatTimeRemaining(seconds) {
+  if (seconds == null || !Number.isFinite(seconds) || seconds < 0) return null;
+  if (seconds < 60) return 'less than a minute';
+  const minutes = seconds / 60;
+  if (minutes < 2.5) return 'about two minutes';
+  if (minutes < 60) {
+    const step = Math.max(5, Math.round(minutes / 5) * 5);
+    return `about ${step} minutes`;
+  }
+  const halves = Math.round(minutes / 30) / 2;
+  if (halves <= 1) return 'about an hour';
+  const whole = Math.floor(halves);
+  if (!(halves % 1)) return `about ${whole} hours`;
+  return whole === 1
+    ? 'about an hour and a half'
+    : `about ${whole} and a half hours`;
+}

@@ -1,11 +1,15 @@
 # Next steps
 
-Status: the site is complete and works end to end. Everything below is either
-verification that still needs a human, a known limitation, or an improvement.
+Status: the site is complete and works end to end. Everything still open is
+either verification that needs a human, a known limitation, or an improvement.
 
-Ordered roughly by what would block real use.
+Open items come first, ordered roughly by what would block real use. Closed
+items are kept below with the detail of what was actually done, so a later
+change can tell whether it is undoing a decision or fixing an oversight.
 
 ---
+
+# Open
 
 ## 1. Verification that still needs a human
 
@@ -31,7 +35,47 @@ screen reader. These are the highest-value next actions.
       one digit at a time. If accuracy is poor, the `hintFor()` prompts in
       [src/llm.js](src/llm.js) are the first thing to adjust.
 
-## 2. Known gaps in the question script — CLOSED
+## 2. Security — before this goes near real claimants
+
+- [ ] **Move the API key server-side.** The single most important change. A
+      small token-minting backend removes the key from the browser entirely.
+      Until then this is a personal-use tool. See the README's privacy section.
+- [ ] **Decide whether SSN and bank numbers belong in `localStorage` at all.**
+      Right now the saved-session blob contains them in plain text. An option to
+      resume *without* persisting sensitive fields would be a reasonable middle
+      ground.
+- [ ] **Consider redacting sensitive fields from the PDF by default**, with an
+      explicit opt-in to include them. Someone will email this file to
+      themselves.
+
+## 3. Usability improvements
+
+- [ ] **No way to re-import a saved JSON file.** `downloadJson()` exists; the
+      load side doesn't. Useful for resuming on a different device.
+
+## 4. Testing
+
+- [ ] **Add browser-level tests.** The three end-to-end runs used during the
+      build were scratch scripts against a DOM shim and weren't kept. Playwright
+      would make them permanent, at the cost of adding a dev dependency to a
+      site that currently has none.
+- [ ] **Test the error recovery paths.** Expired key mid-interview, mic revoked
+      mid-interview, offline mid-interview. Each has a spoken recovery path in
+      `handleLlmError()` — none has been exercised against a real failure.
+- [ ] **Test with a very long answer set** — 20 providers, 15 jobs — to confirm
+      PDF pagination holds up beyond the 12-provider case that was checked.
+
+## 5. Deployment
+
+- [ ] **Enable Pages in repo settings** — Settings → Pages → Source:
+      **GitHub Actions**. The workflow cannot do this itself; until it is set,
+      the deploy step fails.
+
+---
+
+# Closed
+
+## 6. Gaps in the question script
 
 All five gaps below are now encoded in [src/schema.js](src/schema.js), with
 wording taken from the official worksheet's own column headers (extracted from
@@ -62,20 +106,7 @@ Two things fell out of this work:
   "May 2023". Fixed for `date` and `monthyear`. This also cleans up the job
   start/end columns and date of birth, which had the same problem all along.
 
-## 3. Security — before this goes near real claimants
-
-- [ ] **Move the API key server-side.** The single most important change. A
-      small token-minting backend removes the key from the browser entirely.
-      Until then this is a personal-use tool. See the README's privacy section.
-- [ ] **Decide whether SSN and bank numbers belong in `localStorage` at all.**
-      Right now the saved-session blob contains them in plain text. An option to
-      resume *without* persisting sensitive fields would be a reasonable middle
-      ground.
-- [ ] **Consider redacting sensitive fields from the PDF by default**, with an
-      explicit opt-in to include them. Someone will email this file to
-      themselves.
-
-## 4. Usability improvements
+## 7. Usability improvements
 
 - [x] **Correcting a specific answer by voice.** Done. [src/correct.js](src/correct.js)
       maps a spoken field name to a question id — labels, per-field aliases,
@@ -91,8 +122,6 @@ Two things fell out of this work:
       reported as a miss rather than silently correcting item 1. Reachable by
       voice, the `correct` command, the C key, and the review screen button.
       Covered by [tests/correct-match.js](tests/correct-match.js).
-- [ ] **No way to re-import a saved JSON file.** `downloadJson()` exists; the
-      load side doesn't. Useful for resuming on a different device.
 - [x] **Loop entries can be deleted.** Done. `engine.removeItem()` splices the
       item and repairs every cursor that indexes into that loop — the live one
       *and* every snapshot in the undo history — since removing an element
@@ -111,30 +140,42 @@ Two things fell out of this work:
       command needs both a removal verb and a real named group, so "they
       removed my gallbladder" stays an answer. Covered by
       [tests/delete-item.js](tests/delete-item.js).
-- [ ] **Progress percentage is coarse.** Loops count as one unit regardless of
-      how many items they hold, so the percentage stalls during a long provider
-      list. Deliberate — a percentage that jumps backward is worse — but worth
-      revisiting.
-- [ ] **Add a spoken estimate of time remaining**, which is more useful than a
-      percentage when the interview is this long.
+- [x] **Progress percentage is coarse.** Done. `engine.progress()` now counts
+      individual questions instead of schema nodes: a loop contributes its real
+      item count times its askable fields, so the 46-node schema reads as 69
+      questions on a minimal walk and 167 on one with eight providers and five
+      jobs. Branches the user has closed off drop out of the total, and a loop
+      not yet reached is budgeted at one item so walking into it is not a
+      surprise. That makes the honest fraction dip when a ninth provider is
+      added, so the *spoken* percentage is a high-water mark held in state — it
+      holds still rather than retreating, which is the correct failure for
+      someone who genuinely is not getting closer to the end. `rawPercent`
+      carries the un-clamped value. The provider list now moves the number from
+      13 to 51 percent where it used to sit still.
+- [x] **Add a spoken estimate of time remaining.** Done. The engine samples the
+      wall-clock gap between serving a question and receiving its answer, and
+      extrapolates the median over the questions left. Measured rather than
+      assumed, because a hands-free user and a fast typist differ by more than
+      a factor of three. A gap longer than three minutes is discarded as a
+      break rather than an answer, the last dozen samples are what count so the
+      pace tracks the user rather than their first nervous minute, and nothing
+      is said below four samples — two answers are not a pace. Timing is not
+      persisted, so a resumed interview does not count the hours the page was
+      closed as one very slow answer. `formatTimeRemaining()` in
+      [src/a11y.js](src/a11y.js) buckets hard on purpose (five-minute steps
+      under an hour, half-hours above); "about 23 minutes" claims a precision a
+      twelve-sample median does not have. Spoken on demand via "where am I",
+      offered at a section break only when the bucket has changed, and shown
+      continuously in an `aria-hidden` on-screen line so a screen reader is not
+      made to narrate a number that barely moved. Covered by
+      [tests/progress-estimate.js](tests/progress-estimate.js).
 
-## 5. Testing
+## 8. Deployment
 
-- [ ] **Add browser-level tests.** The three end-to-end runs used during the
-      build were scratch scripts against a DOM shim and weren't kept. Playwright
-      would make them permanent, at the cost of adding a dev dependency to a
-      site that currently has none.
-- [ ] **Test the error recovery paths.** Expired key mid-interview, mic revoked
-      mid-interview, offline mid-interview. Each has a spoken recovery path in
-      `handleLlmError()` — none has been exercised against a real failure.
-- [ ] **Test with a very long answer set** — 20 providers, 15 jobs — to confirm
-      PDF pagination holds up beyond the 12-provider case that was checked.
-
-## 6. Deployment
-
-- [ ] **Pick a host.** Any static host works (GitHub Pages, Netlify). Note that
-      `getUserMedia` requires HTTPS or localhost — the mic will silently fail
-      over plain HTTP.
-- [ ] **Add a `.gitignore`** — nothing needs ignoring yet, but a stray
-      downloaded worksheet with a real SSN in the repo would be bad.
-- [ ] **Nothing is committed yet.** The repo still has no commits.
+- [x] **Pick a host.** GitHub Pages, deployed by `.github/workflows/pages.yml`
+      on every push to `main`. The workflow runs the tests first, then publishes
+      the repo root minus tests, Markdown, and the reference starter-kit PDF.
+      Pages serves over HTTPS, which `getUserMedia` requires — the mic would
+      silently fail over plain HTTP.
+- [x] **Add a `.gitignore`** — covers downloaded worksheets, which may carry a
+      real SSN.

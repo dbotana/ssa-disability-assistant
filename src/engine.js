@@ -9,7 +9,8 @@
 //     answers: { [id]: value, [loopId]: [ {field: value}, ... ] },
 //     cursor:  { node: <index into nodes>, phase, loopIndex, fieldIndex },
 //     history: [ <cursor snapshots, most recent last> ],
-//     skipped: [ <question ids> ]
+//     skipped: [ <question ids> ],
+//     pace:    { samples: [ <seconds per answered question> ], peak: <percent> }
 //   }
 //
 // Loop phases:
@@ -27,8 +28,14 @@ export function createEngine(sections = SECTIONS, savedState = null) {
         answers: {},
         cursor: { node: 0, phase: null, loopIndex: 0, fieldIndex: 0 },
         history: [],
-        skipped: []
+        skipped: [],
+        pace: { samples: [], peak: 0 }
       };
+
+  // A state saved before pace tracking existed has neither field.
+  if (!state.pace || !Array.isArray(state.pace.samples)) {
+    state.pace = { samples: [], peak: 0 };
+  }
 
   // -- helpers --------------------------------------------------------------
 
@@ -56,6 +63,42 @@ export function createEngine(sections = SECTIONS, savedState = null) {
     } catch {
       return true; // a throwing predicate must never strand the interview
     }
+  }
+
+  // -- pacing ---------------------------------------------------------------
+  //
+  // The estimate of time remaining is built from how long *this* user has
+  // actually been taking, not from a fixed guess: a hands-free user on a slow
+  // connection and a fast typist differ by more than a factor of three, and a
+  // single number for both is worse than no number at all.
+  //
+  // Only the wall-clock gap between serving a question and receiving its
+  // answer is sampled. It is deliberately not persisted across a save/resume
+  // gap, and a sample longer than IDLE_CUTOFF is dropped entirely — a user who
+  // walks away mid-interview would otherwise poison the average with a
+  // twenty-minute "answer".
+
+  const IDLE_CUTOFF = 180; // seconds; longer than this is a break, not thinking
+  const PACE_WINDOW = 12;  // samples kept; recent pace beats lifetime average
+  const now = () => Date.now() / 1000;
+
+  // Not part of `state`: a resumed interview starts timing fresh rather than
+  // counting the hours the page was closed as one very slow answer.
+  let lastAskedAt = null;
+
+  /** Called when a question is handed to the caller, to start its clock. */
+  function markAsked() {
+    lastAskedAt = now();
+  }
+
+  /** Called when an answer arrives, to close the clock opened by markAsked. */
+  function recordPace() {
+    if (lastAskedAt == null) return;
+    const elapsed = now() - lastAskedAt;
+    lastAskedAt = null;
+    if (!(elapsed > 0) || elapsed > IDLE_CUTOFF) return;
+    state.pace.samples.push(elapsed);
+    if (state.pace.samples.length > PACE_WINDOW) state.pace.samples.shift();
   }
 
   function snapshot() {
@@ -175,8 +218,27 @@ export function createEngine(sections = SECTIONS, savedState = null) {
 
   // -- public surface -------------------------------------------------------
 
-  /** The question to ask right now, or null when the interview is complete. */
+  /**
+   * The question to ask right now, or null when the interview is complete.
+   *
+   * Callers poll this freely (the UI re-reads it on repeat, on redraw, after a
+   * correction), so the pacing clock is armed only when the question actually
+   * changes. Re-arming on every call would reset the timer each time the user
+   * asked for a repeat and make them look artificially fast.
+   */
   function current() {
+    const q = buildCurrent();
+    const key = q ? q.path.join('/') : null;
+    if (key !== currentKey) {
+      currentKey = key;
+      if (q) markAsked(); else lastAskedAt = null;
+    }
+    return q;
+  }
+
+  let currentKey = null;
+
+  function buildCurrent() {
     const node = nodeAt(state.cursor.node);
     if (!node) return null;
 
@@ -238,6 +300,7 @@ export function createEngine(sections = SECTIONS, savedState = null) {
   function submit(value) {
     const node = nodeAt(state.cursor.node);
     if (!node) return null;
+    recordPace();
     snapshot();
 
     if (node.type !== 'loop') {
@@ -432,13 +495,38 @@ export function createEngine(sections = SECTIONS, savedState = null) {
   }
 
   /**
-   * Coarse progress. Loop questions count as one unit each regardless of how
-   * many items they hold — a percentage that jumps backward as the user adds
-   * providers is worse than useless when it is being read aloud.
+   * Progress, counted in individual questions rather than schema nodes.
+   *
+   * A loop is not one unit: a provider list with eight entries is forty
+   * questions, and counting it as one made the percentage sit still for
+   * several minutes in the middle of the interview. So each loop contributes
+   * its *actual* items times its askable fields, plus one entry prompt per
+   * item and one closing "any more?".
+   *
+   * That makes the denominator grow as the user adds items, which is exactly
+   * the thing that would make a spoken percentage walk backward. Two things
+   * keep it from doing so:
+   *
+   *   - a loop not yet reached is budgeted at one item, so arriving at it and
+   *     saying yes does not come as a surprise to the total;
+   *   - the reported `percent` is a high-water mark held in state. When the
+   *     honest fraction dips because a ninth provider was added, the spoken
+   *     number holds still instead of retreating. `rawPercent` carries the
+   *     un-clamped value for anything that would rather have the truth.
+   *
+   * Holding still is the correct failure: the user who keeps adding items is
+   * genuinely not getting closer to the end, and "still about 60 percent" is
+   * an honest thing to hear.
    */
   function progress() {
-    const total = nodes.length;
-    const done = Math.min(state.cursor.node, total);
+    const { answered, total } = countQuestions();
+    const done = Math.min(answered, total);
+    const raw = total ? Math.round((done / total) * 100) : 100;
+
+    // Never announce a smaller number than last time.
+    if (raw > state.pace.peak) state.pace.peak = raw;
+    const percent = Math.min(state.pace.peak, 100);
+
     const node = nodeAt(state.cursor.node);
     return {
       section: node?.section ?? null,
@@ -446,9 +534,129 @@ export function createEngine(sections = SECTIONS, savedState = null) {
       sectionNumber: node ? sections.findIndex(s => s.id === node.section) + 1 : sections.length,
       sectionCount: sections.length,
       answered: done,
+      remaining: Math.max(0, total - done),
       total,
-      percent: total ? Math.round((done / total) * 100) : 100
+      percent,
+      rawPercent: raw,
+      secondsRemaining: estimateSeconds(Math.max(0, total - done))
     };
+  }
+
+  /**
+   * Walk the whole schema and count questions on both sides of the cursor.
+   *
+   * askIf predicates are evaluated as they would be at ask time, so a branch
+   * the user has already closed off (no workers' comp claim, no spouse) drops
+   * out of the total rather than sitting in it as work that will never happen.
+   * Predicates for questions not yet reached are evaluated against the answers
+   * so far, which is the best guess available; they are re-evaluated on every
+   * call, so the estimate sharpens as the interview goes.
+   */
+  function countQuestions() {
+    let total = 0;
+    let answered = 0;
+    const cursor = state.cursor;
+
+    for (let i = 0; i < nodes.length; i++) {
+      const node = nodes[i];
+      const past = i < cursor.node;
+      const current = i === cursor.node;
+
+      if (node.type !== 'loop') {
+        if (!shouldAsk(node, state.answers)) continue;
+        total += 1;
+        if (past) answered += 1;
+        continue;
+      }
+
+      const items = Array.isArray(state.answers[node.id]) ? state.answers[node.id] : null;
+
+      // Fields of an item, counting only those its own answers keep askable.
+      const fieldsFor = item =>
+        node.fields.reduce((n, f) => n + (shouldAsk(f, item ?? {}) ? 1 : 0), 0);
+
+      // An entry prompt that doubles as its first field is one question, not
+      // two — the engine stores nothing for it and steps straight to fields.
+      const entryCost = node.entryIsFirstField ? 0 : 1;
+
+      if (past) {
+        // Settled: however many items it ended up with, plus the entry prompt
+        // for each and the final "no". All of it is behind the cursor.
+        const list = items ?? [];
+        let cost = entryCost; // the closing "any more?", answered no
+        for (const item of list) cost += entryCost + fieldsFor(item);
+        total += cost;
+        answered += cost;
+        continue;
+      }
+
+      if (!current) {
+        // Not yet reached. Budget one item so that walking into it and saying
+        // yes does not inflate the total mid-interview. A loop the user will
+        // decline costs one question instead of the budgeted item — an
+        // over-estimate, which is the safe direction for a time estimate.
+        total += entryCost + fieldsFor(null);
+        continue;
+      }
+
+      // The loop the cursor is inside. Completed items are fully counted and
+      // fully answered; the open item is counted whole and credited for the
+      // fields already walked past.
+      const list = items ?? [];
+      const openIndex = cursor.phase === 'field' ? cursor.loopIndex : -1;
+
+      list.forEach((item, idx) => {
+        const cost = entryCost + fieldsFor(item);
+        total += cost;
+        if (idx < openIndex || cursor.phase === 'entry') answered += cost;
+        else if (idx === openIndex) answered += entryCost + fieldsAnsweredIn(node, item);
+      });
+
+      if (cursor.phase === 'entry') {
+        // Sitting on "another one?". Budget one more item if the loop is
+        // empty (they will almost certainly say yes to the first), otherwise
+        // just the entry prompt itself.
+        total += list.length === 0 ? entryCost + fieldsFor(null) : entryCost;
+      } else {
+        total += entryCost; // the closing "any more?" still to come
+      }
+    }
+
+    return { answered, total };
+  }
+
+  /** Fields of the open item the cursor has already walked past. */
+  function fieldsAnsweredIn(node, item) {
+    let n = 0;
+    for (let i = 0; i < state.cursor.fieldIndex && i < node.fields.length; i++) {
+      if (shouldAsk(node.fields[i], item ?? {})) n += 1;
+    }
+    return n;
+  }
+
+  /**
+   * Seconds of interview left, or null until there is enough evidence.
+   *
+   * Two samples is not a pace — the first question of the interview is always
+   * slow (the user is still working out what the tone means) and the second is
+   * often fast. Below MIN_SAMPLES the honest answer is "I do not know yet",
+   * and callers say so rather than reading out a number built from noise.
+   *
+   * The median is used rather than the mean because one 90-second answer —
+   * hunting for an insurance card, re-reading a prompt — should not double the
+   * estimate for the remaining forty questions.
+   */
+  const MIN_SAMPLES = 4;
+
+  function estimateSeconds(remaining) {
+    const samples = state.pace.samples;
+    if (samples.length < MIN_SAMPLES) return null;
+    const sorted = [...samples].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    const median = sorted.length % 2
+      ? sorted[mid]
+      : (sorted[mid - 1] + sorted[mid]) / 2;
+    return Math.round(median * remaining);
   }
 
   /** Required questions with no recorded answer, for the review pass. */
@@ -496,6 +704,8 @@ export function createEngine(sections = SECTIONS, savedState = null) {
       state.cursor = { node: 0, phase: nodes[0]?.type === 'loop' ? 'entry' : null, loopIndex: 0, fieldIndex: 0 };
       state.history = [];
       state.skipped = [];
+      state.pace = { samples: [], peak: 0 };
+      lastAskedAt = null;
       return current();
     }
   };

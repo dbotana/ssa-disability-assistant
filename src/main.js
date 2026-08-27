@@ -6,7 +6,7 @@
 
 import { SECTIONS } from './schema.js';
 import { createEngine } from './engine.js';
-import { initA11y, announce, focusMain, speakableValue } from './a11y.js';
+import { initA11y, announce, focusMain, speakableValue, formatTimeRemaining } from './a11y.js';
 import * as store from './store.js';
 import * as audio from './audio.js';
 import * as speech from './speech.js';
@@ -55,6 +55,7 @@ function boot() {
     resume: el('resume-button'),
     discard: el('discard-button'),
     sectionLabel: el('section-label'),
+    progressLine: el('progress-line'),
     question: el('question-heading'),
     hint: el('hint'),
     status: el('status'),
@@ -181,10 +182,20 @@ async function askCurrent({ announceSection = false, prefix = '' } = {}) {
     spoken += `Section ${p.sectionNumber} of ${p.sectionCount}. ${q.sectionTitle}. `;
     ui.sectionLabel.textContent = `Section ${p.sectionNumber} of ${p.sectionCount} — ${q.sectionTitle}`;
     askCurrent.lastSection = q.section;
+    // Offer the estimate at a section break, but only when it has actually
+    // changed since the last time it was spoken. There are nineteen sections;
+    // hearing "about 40 minutes left" at four of them in a row is nagging, and
+    // it is the *change* that carries information.
+    const left = formatTimeRemaining(p.secondsRemaining);
+    if (left && left !== askCurrent.lastSpokenEstimate) {
+      spoken += `${left} left. `;
+      askCurrent.lastSpokenEstimate = left;
+    }
   }
   // A correction re-asks one known field, so the section preamble and the
   // "next I will need…" warning are both noise — the user asked for this
   // question by name and has already heard its current value read back.
+  updateProgressLine();
   if (q.warn && !correcting) spoken += `${q.warn} `;
   if (!correcting && q.loopPhase === 'field' && q.itemNumber > 1 && isFirstFieldOfItem(q)) {
     spoken += `${titleCase(q.itemLabel)} ${q.itemNumber}. `;
@@ -201,6 +212,21 @@ async function askCurrent({ announceSection = false, prefix = '' } = {}) {
   if (mode === 'text') { ui.textAnswer.value = ''; ui.textAnswer.focus(); }
   else if (mode === 'handsfree') listenHandsFree();
   else focusMain();
+}
+
+/**
+ * Redraw the on-screen progress line. Silent by design: it is aria-hidden and
+ * outside the live regions, so it updates every question without a screen
+ * reader narrating a number that barely moved. The spoken version is the
+ * "where am I" command, which the user asks for when they want it.
+ */
+function updateProgressLine() {
+  if (!ui.progressLine) return;
+  const p = engine.progress();
+  const left = formatTimeRemaining(p.secondsRemaining);
+  ui.progressLine.textContent = left
+    ? `${p.percent}% done \u00b7 ${left} left`
+    : `${p.percent}% done`;
 }
 
 function isFirstFieldOfItem(q) {
@@ -336,7 +362,15 @@ async function runCommand(cmd) {
       return;
     case 'where': {
       const p = engine.progress();
-      const msg = `You are in section ${p.sectionNumber} of ${p.sectionCount}, ${p.sectionTitle}. About ${p.percent} percent done.`;
+      // The estimate is the useful half of this answer once it exists — a
+      // percentage does not tell someone whether they can finish before they
+      // have to leave. It is still read after the percentage rather than
+      // instead of it, since the percentage is the number that never moves
+      // backward and is the one worth trusting.
+      const left = formatTimeRemaining(p.secondsRemaining);
+      const msg = `You are in section ${p.sectionNumber} of ${p.sectionCount}, `
+        + `${p.sectionTitle}. About ${p.percent} percent done`
+        + (left ? `, ${left} left at the pace you have been going.` : '.');
       announce(msg, true);
       await speech.speak(msg);
       if (mode === 'handsfree') listenHandsFree();

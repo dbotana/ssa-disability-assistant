@@ -126,6 +126,11 @@ button:disabled { opacity: .5; cursor: not-allowed; }
   font-size: .9rem;
   margin: 0 0 .5rem;
 }
+.progress-line {
+  color: var(--muted);
+  font-size: .9rem;
+  margin: 0 0 .75rem;
+}
 .question { font-size: 1.7rem; line-height: 1.35; }
 .status { color: var(--muted); min-height: 1.6em; margin: 1rem 0 0; }
 

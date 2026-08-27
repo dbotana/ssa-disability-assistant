@@ -1,0 +1,6 @@
+# A downloaded worksheet may contain a real SSN. Never commit one.
+disability-worksheet*.pdf
+
+.DS_Store
+node_modules/
+_site/
