@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Voice Assistant for Social Security Disability Prep</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- Screen-reader announcement channels. Exactly one of each. -->
+<div id="live-polite" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
+<div id="live-assertive" class="visually-hidden" aria-live="assertive" aria-atomic="true"></div>
+
+<a class="skip-link" href="#main">Skip to the interview</a>
+
+<header>
+  <h1>Social Security Disability Prep</h1>
+  <p class="tagline">Answer by voice. Get a worksheet you can bring to your application.</p>
+</header>
+
+<main id="main" tabindex="-1">
+
+  <!-- ---------- Setup ---------- -->
+  <section id="setup-panel" aria-labelledby="setup-heading">
+    <h2 id="setup-heading">Before we start</h2>
+
+    <div class="callout" role="note">
+      <h3>Please read this first</h3>
+      <p>
+        This page runs entirely in your browser. Your answers are stored on this
+        device only and are never sent to any server except OpenAI, which
+        receives one question and one answer at a time so it can understand what
+        you said.
+      </p>
+      <p>
+        Because there is no server, your OpenAI key is held in this browser tab.
+        <strong>Use this on a device you trust and do not use it on a shared or
+        public computer.</strong> This tool asks for your Social Security number
+        and bank account numbers. You can say <em>skip</em> at any of those
+        questions and fill them in by hand later.
+      </p>
+      <p>
+        This is a preparation worksheet. It is not an application, and it does
+        not send anything to the Social Security Administration.
+      </p>
+    </div>
+
+    <div class="field">
+      <label for="api-key">OpenAI API key</label>
+      <input type="password" id="api-key" autocomplete="off" spellcheck="false"
+             aria-describedby="api-key-help" placeholder="sk-...">
+      <p id="api-key-help" class="help">
+        Kept in this tab only and erased when you close it. Leave this blank to
+        use typing mode with your browser's built-in voice.
+      </p>
+    </div>
+
+    <fieldset class="field">
+      <legend>How do you want to answer?</legend>
+      <label class="radio">
+        <input type="radio" name="mode" value="voice" checked>
+        Voice — hold the space bar to talk
+      </label>
+      <label class="radio">
+        <input type="radio" name="mode" value="handsfree">
+        Hands free — I start listening after each question
+      </label>
+      <label class="radio">
+        <input type="radio" name="mode" value="text">
+        Typing — no microphone
+      </label>
+    </fieldset>
+
+    <div id="resume-row" hidden>
+      <p id="resume-text"></p>
+      <button type="button" id="resume-button" class="secondary">Resume my saved session</button>
+      <button type="button" id="discard-button" class="secondary">Start over instead</button>
+    </div>
+
+    <button type="button" id="start-button" class="primary">Start the interview</button>
+  </section>
+
+  <!-- ---------- Interview ---------- -->
+  <section id="interview-panel" aria-labelledby="question-heading" hidden>
+    <p id="section-label" class="section-label"></p>
+    <h2 id="question-heading" class="question"></h2>
+    <p id="hint" class="help"></p>
+
+    <p id="status" class="status" role="status"></p>
+
+    <div class="controls">
+      <button type="button" id="talk-button" class="primary talk">
+        Hold to talk
+      </button>
+
+      <div id="text-entry" class="field" hidden>
+        <label for="text-answer">Your answer</label>
+        <input type="text" id="text-answer" autocomplete="off">
+        <button type="button" id="text-submit" class="primary">Submit</button>
+      </div>
+    </div>
+
+    <div class="secondary-controls">
+      <button type="button" data-command="repeat" class="secondary">Repeat (Enter)</button>
+      <button type="button" data-command="back" class="secondary">Go back (B)</button>
+      <button type="button" data-command="skip" class="secondary">Skip (S)</button>
+      <button type="button" data-command="where" class="secondary">Where am I (W)</button>
+      <button type="button" data-command="correct" class="secondary">Change an answer (C)</button>
+      <button type="button" data-command="finish" class="secondary">Finish early</button>
+    </div>
+
+    <details class="help-details">
+      <summary>Things you can say at any time</summary>
+      <ul>
+        <li><strong>Repeat that</strong> — hear the question again</li>
+        <li><strong>Go back</strong> — return to the previous question</li>
+        <li><strong>Skip this</strong> — leave it blank and move on</li>
+        <li><strong>Where am I</strong> — hear your progress</li>
+        <li><strong>Read back my answers</strong> — hear what you have given so far</li>
+        <li><strong>Save and quit</strong> — stop and keep your place</li>
+        <li><strong>Start over</strong> — erase everything and begin again</li>
+      </ul>
+    </details>
+  </section>
+
+  <!-- ---------- Review and export ---------- -->
+  <section id="review-panel" aria-labelledby="review-heading" hidden>
+    <h2 id="review-heading">Your worksheet is ready</h2>
+    <p id="review-intro"></p>
+
+    <div class="secondary-controls">
+      <button type="button" id="download-pdf" class="primary">Download the PDF worksheet</button>
+      <button type="button" id="download-json" class="secondary">Save my answers as a file</button>
+      <button type="button" id="read-back" class="secondary">Read my answers aloud</button>
+      <button type="button" id="fix-answer" class="secondary">Change an answer</button>
+    </div>
+
+    <div id="summary" class="summary"></div>
+
+    <button type="button" id="clear-data" class="danger">Erase everything from this device</button>
+  </section>
+
+</main>
+
+<script type="module" src="src/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,167 @@
+/* Visual design is secondary to the audio experience: large type, high
+   contrast, and unmistakable focus rings for anyone with partial vision or a
+   sighted helper. Nothing here is required to complete the interview. */
+
+:root {
+  --bg: #10151c;
+  --panel: #1a222d;
+  --ink: #f2f6fa;
+  --muted: #b6c2d1;
+  --accent: #6db3ff;
+  --accent-ink: #06101c;
+  --danger: #ff8f7a;
+  --line: #33445a;
+  --focus: #ffd166;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f6f8fb;
+    --panel: #ffffff;
+    --ink: #10151c;
+    --muted: #4a5a6d;
+    --accent: #14508f;
+    --accent-ink: #ffffff;
+    --danger: #9a2b12;
+    --line: #c6d2e0;
+    --focus: #8a5a00;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 0 1rem 4rem;
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 1.25rem/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+header, main { max-width: 44rem; margin: 0 auto; }
+header { padding: 2rem 0 1rem; }
+h1 { font-size: 1.9rem; margin: 0 0 .25rem; }
+.tagline { color: var(--muted); margin: 0; }
+
+section {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+h2 { font-size: 1.5rem; margin: 0 0 1rem; }
+h3 { font-size: 1.15rem; margin: 0 0 .5rem; }
+
+.callout {
+  border-left: 6px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  padding: 1rem 1.25rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+}
+.callout p { margin: 0 0 .75rem; }
+.callout p:last-child { margin-bottom: 0; }
+
+.field { margin: 1.5rem 0; }
+label, legend { display: block; font-weight: 600; margin-bottom: .4rem; }
+fieldset { border: 1px solid var(--line); border-radius: 8px; padding: 1rem; }
+
+input[type="text"], input[type="password"] {
+  width: 100%;
+  padding: .75rem;
+  font-size: 1.15rem;
+  color: var(--ink);
+  background: var(--bg);
+  border: 2px solid var(--line);
+  border-radius: 8px;
+}
+
+.radio {
+  font-weight: 400;
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  padding: .4rem 0;
+}
+.radio input { width: 1.35rem; height: 1.35rem; }
+
+.help { color: var(--muted); font-size: 1rem; margin: .4rem 0 0; }
+
+button {
+  font: inherit;
+  font-weight: 600;
+  padding: .8rem 1.4rem;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  margin: .3rem .3rem .3rem 0;
+}
+button.primary { background: var(--accent); color: var(--accent-ink); }
+button.secondary { background: transparent; color: var(--ink); border-color: var(--line); }
+button.danger { background: transparent; color: var(--danger); border-color: var(--danger); }
+button:disabled { opacity: .5; cursor: not-allowed; }
+
+.talk {
+  width: 100%;
+  padding: 2rem;
+  font-size: 1.5rem;
+  margin-top: 1rem;
+}
+.talk[data-recording="true"] {
+  background: var(--danger);
+  color: var(--bg);
+}
+
+:focus-visible {
+  outline: 4px solid var(--focus);
+  outline-offset: 3px;
+}
+
+.section-label {
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  font-size: .9rem;
+  margin: 0 0 .5rem;
+}
+.question { font-size: 1.7rem; line-height: 1.35; }
+.status { color: var(--muted); min-height: 1.6em; margin: 1rem 0 0; }
+
+.secondary-controls { margin-top: 1.5rem; }
+.help-details { margin-top: 1.5rem; color: var(--muted); }
+.help-details summary { cursor: pointer; font-weight: 600; padding: .4rem 0; }
+.help-details ul { margin: .5rem 0 0; padding-left: 1.4rem; }
+.help-details li { margin-bottom: .35rem; }
+
+.summary { margin-top: 2rem; }
+.summary h3 { margin-top: 1.75rem; border-bottom: 1px solid var(--line); padding-bottom: .35rem; }
+.summary dl { margin: 0 0 1rem; }
+.summary dt { font-weight: 600; margin-top: .75rem; }
+.summary dd { margin: .15rem 0 0; color: var(--muted); }
+.summary .empty { color: var(--muted); font-style: italic; }
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  padding: .75rem 1rem;
+  border-radius: 0 0 8px 0;
+}
+.skip-link:focus { left: 0; top: 0; }
+
+.visually-hidden {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
