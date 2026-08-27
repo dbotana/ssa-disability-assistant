@@ -78,6 +78,23 @@ export function isRecording() {
   return recorder?.state === 'recording';
 }
 
+// Whether the last capture contained anything above the noise floor.
+//
+// Only meaningful when autoStop was on — push-to-talk never runs the level
+// meter, so it stays true there and the size guard is the only filter. Read
+// via lastCaptureHadSpeech() after stopRecording().
+let heardSpeech = true;
+
+/**
+ * Did the capture that just ended actually contain speech?
+ *
+ * Used to skip paying to transcribe a hands-free turn that auto-stopped on a
+ * cough, a door, or a hot mic in a quiet room.
+ */
+export function lastCaptureHadSpeech() {
+  return heardSpeech;
+}
+
 /**
  * Start recording.
  * @param {object} opts
@@ -94,6 +111,9 @@ export async function startRecording({
   if (isRecording()) return;
 
   chunks = [];
+  // Push-to-talk runs no level meter, so nothing would ever set this. Assume
+  // speech there and let the blob-size guard do the filtering.
+  heardSpeech = !autoStop;
   const mimeType = pickMime();
   recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
   recorder.ondataavailable = e => { if (e.data?.size) chunks.push(e.data); };
@@ -108,18 +128,26 @@ export async function startRecording({
 }
 
 function watchForSilence(silenceMs, onAutoStop) {
-  const SPEECH = 0.045;   // RMS above this counts as speech
-  let heardSpeech = false;
+  const SPEECH = 0.045;   // RMS above this ends the turn when it goes quiet
+  // Deliberately lower than SPEECH. This one only decides whether to spend
+  // money transcribing, and the cost of the two mistakes is not symmetric:
+  // a wasted API call is pennies, while telling a soft-spoken user "I did not
+  // hear anything" when they did speak is a loop they cannot escape. Bias
+  // hard toward believing there was speech.
+  const AUDIBLE = 0.03;
+  let endedOnSilence = false;
   let quietSince = null;
 
   const tick = () => {
     if (!isRecording()) return;
     const level = inputLevel();
 
+    if (level > AUDIBLE) heardSpeech = true;
+
     if (level > SPEECH) {
-      heardSpeech = true;
+      endedOnSilence = true;
       quietSince = null;
-    } else if (heardSpeech) {
+    } else if (endedOnSilence) {
       quietSince ??= performance.now();
       if (performance.now() - quietSince > silenceMs) { onAutoStop?.(); return; }
     }

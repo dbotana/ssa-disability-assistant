@@ -150,38 +150,66 @@ const EXTRACT_SCHEMA = {
   required: ['command', 'value', 'confidence', 'needsClarification', 'clarifyPrompt']
 };
 
+/** Type-specific normalization rules. Only the relevant line is sent. */
+const TYPE_RULES = {
+  date: '- Return the date as YYYY-MM-DD.',
+  monthyear: '- Return the month as YYYY-MM. If the user says "still working", "still seeing them",\n  "ongoing", or "present" for an end date, return the string "present".',
+  ssn: '- Return digits only, no spaces or dashes.',
+  routing: '- Return digits only, no spaces or dashes.',
+  account: '- Return digits only, no spaces or dashes.',
+  phone: '- Return exactly 10 digits, no formatting.',
+  yesno: '- Return boolean true or false.',
+  money: '- Return a plain number, no currency symbol or commas.',
+  number: '- Return a plain number, no currency symbol or commas.',
+  text: '- Return the answer only, cleaned of filler words, with proper capitalization.'
+};
+
+const SENSITIVE = new Set(['ssn', 'routing', 'account']);
+
+/**
+ * The instruction for one turn.
+ *
+ * Deliberately short. Every call re-sends this in full — there is no
+ * conversation to amortize it against, and at a few hundred tokens it sits
+ * well under the 1024-token minimum for automatic prompt caching, so length
+ * here is a cost paid on every single turn with nothing reclaiming it.
+ * Shipping the other ten types' rules on a question that has one type was the
+ * bulk of it.
+ *
+ * Note for anyone who later tries to make this cacheable: the interpolated
+ * question would have to move to the very end. A prefix that changes per call
+ * is a prefix that never matches.
+ */
 function systemPrompt(question) {
-  return [
-    'You extract a single answer from a spoken transcript for one form question',
-    'on a Social Security disability preparation worksheet. Return JSON only.',
+  const lines = [
+    'Extract the answer to one question on a Social Security disability worksheet. Return JSON only.',
     '',
     `Question: ${question.prompt}`,
     `Expected type: ${question.type}`,
     '',
-    'If the transcript is a navigation command rather than an answer, set "command"',
-    'to one of: repeat (say the question again), back (previous question),',
-    'skip (leave blank), where (progress), readback (read my answers),',
-    'correct (change a previously given answer, e.g. "change my phone number"),',
-    'restart (start over), save_quit (stop for now), help, clear_data (erase everything).',
-    'Set value to null when you set a command.',
+    TYPE_RULES[question.type] ?? TYPE_RULES.text,
     '',
-    'Normalize the value by type:',
-    '- date -> YYYY-MM-DD. monthyear -> YYYY-MM. If the user says "still working",',
-    '  "still seeing them", "ongoing", or "present" for an end date, return the',
-    '  string "present".',
-    '- ssn, routing, account -> digits only, no spaces or dashes.',
-    '- phone -> exactly 10 digits, no formatting.',
-    '- yesno -> boolean true or false.',
-    '- money, number -> a plain number, no currency symbol or commas.',
-    '- text -> the answer only, cleaned of filler words, with proper capitalization.',
+    'Set confidence between 0 and 1. Set needsClarification true when the transcript is',
+    'empty, off topic, ambiguous, or is not an answer of the expected type, and write a',
+    'short spoken clarifyPrompt asking for exactly what is missing.'
+  ];
+
+  if (SENSITIVE.has(question.type)) {
+    lines.push(
+      'Never guess: if the digits are incomplete or unclear, set needsClarification',
+      'rather than returning a value.'
+    );
+  }
+
+  // Navigation words are matched locally before this is ever called, so the
+  // full vocabulary does not need explaining — only the fact that a command
+  // is possible, for the phrasings the local matcher does not cover.
+  lines.push(
     '',
-    'Set confidence between 0 and 1.',
-    'Set needsClarification true when the transcript is empty, off topic, ambiguous,',
-    'or does not contain an answer of the expected type, and write a short spoken',
-    'clarifyPrompt asking for exactly what is missing.',
-    'Never guess a Social Security number, routing number, or account number: if the',
-    'digits are incomplete or unclear, set needsClarification instead of returning a value.'
-  ].join('\n');
+    `If the transcript is a navigation request rather than an answer, set command to one of: ${COMMANDS.join(', ')}, and set value to null.`
+  );
+
+  return lines.join('\n');
 }
 
 /**

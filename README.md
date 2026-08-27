@@ -43,8 +43,21 @@ free, <kbd>T</kbd> typing mode, <kbd>Esc</kbd> cancel recording.
 ## Privacy, and a real limitation
 
 Everything runs in the browser. Answers are stored in `localStorage` on the
-device and are never uploaded. The API key is held in `sessionStorage` and
-erased when the tab closes.
+device, and nothing is ever sent to the Social Security Administration. The API
+key is held in `sessionStorage` and erased when the tab closes.
+
+Audio is a separate question from stored answers. In voice modes the recording
+of each answer is sent somewhere to be turned into text:
+
+- **To OpenAI**, by default, using your key.
+- **To your browser's maker** — Google in Chrome and Edge, Apple in Safari — if
+  you tick *use my browser's speech recognition*. It is faster and does not
+  spend your key, but it is a third party you did not otherwise choose, so it
+  is off unless you turn it on. Spoken answers to the Social Security and bank
+  number questions are re-sent to OpenAI when the browser's transcript is not
+  cleanly a number of the expected shape.
+
+Typing mode sends no audio anywhere, and works with no API key at all.
 
 **This design is appropriate for personal use, not for real claimants.** With
 no backend, the API key lives in the browser, and this form collects Social
@@ -53,6 +66,26 @@ extension, or an XSS bug would expose both. Before putting this in front of
 actual applicants, move the key to a small server that mints short-lived
 tokens. Users can say `skip` at any sensitive question and fill those fields in
 by hand.
+
+## Regenerating the spoken audio
+
+The interview script is fixed, so every question, warning, and section header
+is synthesized once at build time into `audio/` and served as a static file.
+That is most of what the app says, so most of what it says costs nothing to
+say, works offline, and works with no API key at all.
+
+```sh
+OPENAI_API_KEY=sk-... node tools/build-audio.mjs
+```
+
+Only clips that are missing get synthesized, so editing one prompt costs one
+clip. Add `--prune` to delete clips nothing references any more, or `--dry-run`
+to see what would be generated. Commit the result: `tests/audio-manifest.js`
+fails if a spoken string has no clip, which is what catches a prompt edited
+without a rebuild.
+
+Anything containing a user's answer — read-backs, the summary — is synthesized
+at runtime and cached in the browser instead.
 
 ## How it works
 

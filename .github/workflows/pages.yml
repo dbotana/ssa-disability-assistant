@@ -35,7 +35,7 @@ jobs:
         run: |
           mkdir _site
           rsync -a --exclude '.git' --exclude '.github' --exclude '_site' \
-                --exclude 'tests' --exclude '*.md' \
+                --exclude 'tests' --exclude 'tools' --exclude '*.md' \
                 --exclude 'adult-disability-starter-kit-*.pdf' ./ _site/
           touch _site/.nojekyll
 

@@ -17,6 +17,9 @@ import {
   isDeletionPhrase, resolveDeletion, describeItem
 } from './correct.js';
 import { downloadPdf } from './pdf.js';
+import * as say from './phrases.js';
+import { parseLocal } from './parse.js';
+import * as stt from './stt.js';
 
 const el = id => document.getElementById(id);
 
@@ -26,6 +29,14 @@ let mode = 'voice';               // voice | handsfree | text
 let busy = false;
 let pending = null;               // { question, value } awaiting confirmation
 let lastSpoken = '';
+let lastSegments = [];            // the same utterance, unjoined, for `repeat`
+
+// Browser speech recognition runs alongside the recorder, not instead of it.
+// If it returns a transcript the recording is discarded unheard; if it returns
+// nothing, the audio is already captured and the paid API takes the turn. That
+// costs nothing extra and means a recognition failure never loses what the
+// user just said.
+let sttAttempt = null;            // { promise, controller }
 
 // Correction state. Exactly one of these is active at a time: the user is
 // naming a field, choosing between candidates, or answering the re-asked
@@ -44,6 +55,9 @@ let awaitingFieldName = false;    // the "which answer?" prompt is open
 
 function boot() {
   initA11y();
+  // Warm the pre-synthesized clip index before the first question. play()
+  // awaits it anyway; doing it here keeps that await off the first utterance.
+  speech.loadManifest();
   Object.assign(ui, {
     setup: el('setup-panel'),
     interview: el('interview-panel'),
@@ -64,8 +78,12 @@ function boot() {
     textAnswer: el('text-answer'),
     textSubmit: el('text-submit'),
     summary: el('summary'),
-    reviewIntro: el('review-intro')
+    reviewIntro: el('review-intro'),
+    sttRow: el('stt-row'),
+    useBrowserStt: el('use-browser-stt')
   });
+
+  if (stt.isSupported()) ui.sttRow.hidden = false;
 
   const saved = store.loadState();
   if (saved) {
@@ -112,6 +130,7 @@ function boot() {
 async function start(resume) {
   const key = ui.apiKey.value.trim();
   mode = document.querySelector('input[name="mode"]:checked').value;
+  stt.setPermitted(ui.useBrowserStt?.checked);
 
   if (key) {
     store.setApiKey(key);
@@ -126,10 +145,20 @@ async function start(resume) {
       return;
     }
   } else if (mode !== 'text') {
-    mode = 'text';
-    document.querySelector('input[name="mode"][value="text"]').checked = true;
-    announce('No API key given, so I switched to typing mode with your browser voice.', true);
-    speech.forceFallback(true);
+    // With browser recognition allowed, a voice interview needs no key at all:
+    // speech comes from the pre-synthesized clips, listening from the browser,
+    // and answers from the local parser. Questions it cannot parse become a
+    // re-ask rather than a model call.
+    if (stt.isPermitted()) {
+      speech.forceFallback(true);
+      announce('No API key given. I will use your browser to listen and speak. '
+        + 'Some answers may need a second try.', true);
+    } else {
+      mode = 'text';
+      document.querySelector('input[name="mode"][value="text"]').checked = true;
+      announce('No API key given, so I switched to typing mode with your browser voice.', true);
+      speech.forceFallback(true);
+    }
   }
 
   if (mode !== 'text') {
@@ -158,9 +187,7 @@ async function start(resume) {
 }
 
 function introFor(m) {
-  if (m === 'text') return 'Typing mode. I will ask a question, you type the answer and press Enter. You can type skip, back, or repeat at any time.';
-  if (m === 'handsfree') return 'Hands free mode. I will ask a question, then start listening on my own. Just answer when you hear the tone. Say repeat, go back, or skip at any time.';
-  return 'Voice mode. Hold the space bar while you answer, and let go when you are done. Say repeat, go back, or skip at any time.';
+  return say.INTRO[m] ?? say.INTRO.voice;
 }
 
 // -- the turn loop ---------------------------------------------------------
@@ -171,7 +198,11 @@ async function askCurrent({ announceSection = false, prefix = '' } = {}) {
 
   if (!q) { await finishInterview(); return; }
 
-  let spoken = '';
+  // Spoken as separate utterances rather than one concatenated string. Each
+  // segment is a fixed phrase that tools/build-audio.mjs has already
+  // synthesized, so each is an independent cache hit; joined into one string
+  // it would be a unique combination every time and never reuse anything.
+  const segments = [];
   // A correction is a detour, not progress through the form. Announcing the
   // section it happens to land in is confusing, and recording it as the
   // current section would suppress the real header on the next question.
@@ -179,7 +210,7 @@ async function askCurrent({ announceSection = false, prefix = '' } = {}) {
     ui.sectionLabel.textContent = `Changing an answer — ${q.sectionTitle}`;
   } else if (announceSection || q.section !== askCurrent.lastSection) {
     const p = engine.progress();
-    spoken += `Section ${p.sectionNumber} of ${p.sectionCount}. ${q.sectionTitle}. `;
+    segments.push(`Section ${p.sectionNumber} of ${p.sectionCount}.`, `${q.sectionTitle}.`);
     ui.sectionLabel.textContent = `Section ${p.sectionNumber} of ${p.sectionCount} — ${q.sectionTitle}`;
     askCurrent.lastSection = q.section;
     // Offer the estimate at a section break, but only when it has actually
@@ -188,7 +219,7 @@ async function askCurrent({ announceSection = false, prefix = '' } = {}) {
     // it is the *change* that carries information.
     const left = formatTimeRemaining(p.secondsRemaining);
     if (left && left !== askCurrent.lastSpokenEstimate) {
-      spoken += `${left} left. `;
+      segments.push(`${left} left.`);
       askCurrent.lastSpokenEstimate = left;
     }
   }
@@ -196,22 +227,37 @@ async function askCurrent({ announceSection = false, prefix = '' } = {}) {
   // "next I will need…" warning are both noise — the user asked for this
   // question by name and has already heard its current value read back.
   updateProgressLine();
-  if (q.warn && !correcting) spoken += `${q.warn} `;
+  if (q.warn && !correcting) segments.push(q.warn);
   if (!correcting && q.loopPhase === 'field' && q.itemNumber > 1 && isFirstFieldOfItem(q)) {
-    spoken += `${titleCase(q.itemLabel)} ${q.itemNumber}. `;
+    segments.push(`${titleCase(q.itemLabel)} ${q.itemNumber}.`);
   }
-  spoken += prefix ? `${prefix} ${q.prompt}` : q.prompt;
+  if (prefix) segments.push(prefix);
+  segments.push(q.prompt);
 
   ui.question.textContent = q.prompt;
   ui.hint.textContent = q.hint || '';
-  lastSpoken = spoken;
-
-  announce(spoken);
-  await speech.speak(spoken);
+  announce(segments.join(' '));
+  await speakSegments(segments);
 
   if (mode === 'text') { ui.textAnswer.value = ''; ui.textAnswer.focus(); }
   else if (mode === 'handsfree') listenHandsFree();
   else focusMain();
+}
+
+/**
+ * Speak a sequence of fixed phrases as separate utterances.
+ *
+ * Each one is looked up in the pre-synthesized clip index independently, so a
+ * question preceded by a section header costs nothing even though that exact
+ * combination has never been spoken before. Only the first call interrupts;
+ * the rest queue behind it, or they would cancel each other.
+ */
+async function speakSegments(segments) {
+  lastSegments = segments.filter(Boolean);
+  lastSpoken = lastSegments.join(' ');
+  for (const [i, text] of lastSegments.entries()) {
+    await speech.speak(text, { interrupt: i === 0 });
+  }
 }
 
 /**
@@ -252,18 +298,46 @@ async function handleTranscript(transcript) {
     return;
   }
 
+  // Navigation words are matched locally on the voice path too, not only when
+  // typed. "Go back" is a fixed vocabulary; paying a model to recognize it
+  // adds a network round trip to the least ambiguous thing a user can say.
+  if (!pending) {
+    const cmd = localCommand(transcript);
+    if (cmd) { setStatus(''); await runCommand(cmd); return; }
+  }
+
   const q = pending?.question ?? engine.current();
   if (!q) return;
 
-  setStatus('Thinking…');
-  audio.earcon('think');
+  // A confirmation read-back is a yes/no question about the value just heard,
+  // which is why it is reshaped here rather than handled separately.
+  const asked = pending ? { ...q, type: 'yesno', prompt: 'Is that correct?' } : q;
 
-  let result;
-  try {
-    result = await llm.extract(pending ? { ...q, type: 'yesno', prompt: 'Is that correct?' } : q, transcript);
-  } catch (err) {
-    await handleLlmError(err);
+  // Most turns never reach the model: yes/no, digit strings, and dates have
+  // one correct reading, and parseLocal() returns it or returns null. Null
+  // means it was not certain, which is the only case worth paying for.
+  let result = parseLocal(asked, transcript);
+
+  if (!result && !store.getApiKey()) {
+    // No key and the local parser was not sure. A re-ask is the honest
+    // outcome; there is nothing else to consult.
+    await reask(asked.hint ? `${say.REASK.generic} ${asked.hint}` : say.REASK.generic);
     return;
+  }
+
+  if (!result) {
+    setStatus('Thinking…');
+    audio.earcon('think');
+    try {
+      result = await llm.extract(asked, transcript);
+    } catch (err) {
+      await handleLlmError(err);
+      return;
+    }
+  } else {
+    // parseLocal() produces a candidate; normalize() stays the single place
+    // that decides whether a value is well formed.
+    result = llm.normalize(result, asked);
   }
 
   if (result.command) { await runCommand(result.command); return; }
@@ -278,15 +352,15 @@ async function handleTranscript(transcript) {
     }
     if (result.value === false) {
       pending = null;
-      await askCurrent({ prefix: 'Let us try again.' });
+      await askCurrent({ prefix: say.LET_US_TRY_AGAIN });
       return;
     }
-    await reask('Please answer yes or no. Is that correct?');
+    await reask(say.REASK.yesno);
     return;
   }
 
   if (result.needsClarification || result.value == null) {
-    await reask(result.clarifyPrompt || 'I did not catch that. Could you say it again?');
+    await reask(result.clarifyPrompt || say.REASK.generic);
     return;
   }
 
@@ -336,7 +410,7 @@ async function runCommand(cmd) {
   // and advances, and back() steps to whatever preceded the corrected
   // question. In a correction both simply mean "leave it as it was".
   if (correcting && (cmd === 'back' || cmd === 'skip')) {
-    await returnToReview('That answer was left unchanged.');
+    await returnToReview(say.UNCHANGED);
     return;
   }
   // Leaving the correction flow by any other route abandons it cleanly.
@@ -347,13 +421,13 @@ async function runCommand(cmd) {
   switch (cmd) {
     case 'repeat':
       announce(lastSpoken);
-      await speech.speak(lastSpoken);
+      await speakSegments(lastSegments.length ? lastSegments : [lastSpoken]);
       if (mode === 'handsfree') listenHandsFree();
       return;
     case 'back':
       engine.back();
       store.saveState(engine.getState());
-      await askCurrent({ prefix: 'Going back.' });
+      await askCurrent({ prefix: say.GOING_BACK });
       return;
     case 'skip':
       engine.skip();
@@ -385,13 +459,13 @@ async function runCommand(cmd) {
       return;
     case 'save_quit':
       store.saveState(engine.getState());
-      await speech.speak('Saved. You can close this page and come back to finish later.');
+      await speech.speak(say.SAVED);
       setStatus('Saved. Your place is kept on this device.');
       return;
     case 'restart':
       engine.reset();
       store.clearState();
-      await speech.speak('Starting over.');
+      await speech.speak(say.STARTING_OVER);
       await askCurrent({ announceSection: true });
       return;
     case 'clear_data':
@@ -402,7 +476,7 @@ async function runCommand(cmd) {
       return;
     case 'help':
     default:
-      await speech.speak('You can say: repeat that, go back, skip this, where am I, read back my answers, change an answer, remove an entry, save and quit, or start over.');
+      await speech.speak(say.HELP);
       if (mode === 'handsfree') listenHandsFree();
   }
 }
@@ -418,6 +492,7 @@ async function onTalkDown(e) {
   announce('Listening', true);
   try {
     await audio.startRecording();
+    beginSttAttempt();
   } catch (err) {
     resetTalkButton();
     announce('The microphone is not available. Switching to typing.', true);
@@ -447,22 +522,69 @@ async function listenHandsFree() {
         await sendAudio(blob);
       }
     });
+    beginSttAttempt();
   } catch {
     resetTalkButton();
     switchToText();
   }
 }
 
+/**
+ * Start listening with the browser's recognizer, if the user allowed it.
+ *
+ * Fire and forget: sendAudio() awaits whatever this produced, and a null
+ * result simply means the paid path handles the turn.
+ */
+function beginSttAttempt() {
+  if (!stt.isPermitted()) { sttAttempt = null; return; }
+  const controller = new AbortController();
+  sttAttempt = { controller, promise: stt.listen({ signal: controller.signal }) };
+}
+
+/** Collect whatever the browser recognizer heard, and clear the attempt. */
+async function takeSttResult() {
+  const attempt = sttAttempt;
+  sttAttempt = null;
+  if (!attempt) return null;
+  attempt.controller.abort();
+  try { return await attempt.promise; } catch { return null; }
+}
+
 async function sendAudio(blob) {
-  if (!blob || blob.size < 800) {
-    await reask('I did not hear anything. Please try again, or say skip.');
+  // Two cheap filters before paying to transcribe. The size check catches a
+  // recorder that produced nothing; the level check catches a hands-free turn
+  // that auto-stopped on a cough or a door, which is otherwise a full-price
+  // call to transcribe room noise.
+  if (!blob || blob.size < 800 || !audio.lastCaptureHadSpeech()) {
+    await reask(say.REASK.nothingHeard);
     return;
   }
   busy = true;
   setStatus('Transcribing…');
   try {
     const q = pending?.question ?? engine.current();
-    const transcript = await llm.transcribe(blob, { hint: llm.hintFor(q) });
+    const asked = pending ? { ...q, type: 'yesno' } : q;
+
+    let transcript = await takeSttResult();
+
+    // The browser recognizer has no equivalent of the transcription hint that
+    // primes the paid API for digit strings, and these are the fields where a
+    // misread digit does lasting damage. When it returns something that is not
+    // cleanly a number of the right shape, spend the money rather than lean on
+    // the read-back to catch it.
+    if (transcript && needsAccurateDigits(asked) && !parseLocal(asked, transcript)) {
+      transcript = null;
+    }
+
+    if (!transcript && !store.getApiKey()) {
+      // Nothing heard and nothing to fall back to.
+      await reask(say.REASK.nothingHeard);
+      return;
+    }
+    if (!transcript) {
+      transcript = await llm.transcribe(blob, { hint: llm.hintFor(q) });
+    }
+
     setStatus(`You said: ${transcript}`);
     await handleTranscript(transcript);
   } catch (err) {
@@ -471,6 +593,10 @@ async function sendAudio(blob) {
     busy = false;
   }
 }
+
+/** Types where an unnoticed digit error is worth paying to avoid. */
+const ACCURATE_DIGIT_TYPES = new Set(['ssn', 'routing', 'account', 'phone']);
+const needsAccurateDigits = q => ACCURATE_DIGIT_TYPES.has(q?.type);
 
 async function submitTyped() {
   const text = ui.textAnswer.value.trim();
@@ -483,9 +609,8 @@ async function submitTyped() {
     // question", and it is handled inside handleFieldName().
     if (inCorrectionPrompt()) { await handleFieldName(text); return; }
 
-    // Typed navigation words are handled locally, so typing mode needs no key.
-    const cmd = localCommand(text);
-    if (cmd) { await runCommand(cmd); return; }
+    // handleTranscript() matches navigation words locally before anything
+    // else, so the typed path only needs its own check on the key-free route.
     if (store.getApiKey()) await handleTranscript(text);
     else await handleTypedDirect(text);
   } finally {
@@ -493,26 +618,50 @@ async function submitTyped() {
   }
 }
 
+// Navigation commands, matched locally on both the typed and the spoken path.
+//
+// Anchored, so a command word appearing inside a real answer is not mistaken
+// for a command: "I skip meals" is an answer, "skip" is a command. What sits
+// outside the anchors is only politeness and hesitation — the words people
+// actually put around a spoken instruction — never anything that could carry
+// meaning of its own.
 const LOCAL_COMMANDS = [
-  [/^(repeat|repeat that|say again|again)$/i, 'repeat'],
-  [/^(back|go back|previous)$/i, 'back'],
-  [/^(skip|skip this|pass)$/i, 'skip'],
-  [/^(where|where am i|progress)$/i, 'where'],
-  [/^(read back|read back my answers|review)$/i, 'readback'],
-  [/^(change|change an answer|correct|correct an answer|fix|fix an answer|edit)$/i, 'correct'],
-  [/^(save|save and quit|quit)$/i, 'save_quit'],
-  [/^(start over|restart)$/i, 'restart'],
-  [/^(help|\?)$/i, 'help'],
-  [/^(finish|done|finish early)$/i, 'finish']
+  [/^(repeat|repeat that|say (that )?again|again|one more time)$/, 'repeat'],
+  [/^(back|go back|previous|last question|go back a question)$/, 'back'],
+  [/^(skip|skip (this|it|that)|pass|leave (it |this )?blank|next)$/, 'skip'],
+  [/^(where|where am i|progress|how far|how much (is )?(left|to go))$/, 'where'],
+  [/^(read back|read back my answers|read my answers|review)$/, 'readback'],
+  [/^(change|change an answer|correct|correct an answer|fix|fix an answer|edit)$/, 'correct'],
+  [/^(save|save and quit|quit|stop for now)$/, 'save_quit'],
+  [/^(start over|restart|start again)$/, 'restart'],
+  [/^(help|\?|what can i say)$/, 'help'],
+  [/^(finish|done|finish early|that is all|thats all|i am done|im done)$/, 'finish']
 ];
 
+/** Politeness and hesitation around a spoken command; carries no meaning. */
+const COMMAND_FILLER = {
+  lead: /^(um|uh|er|ok|okay|well|hey|please|can you|could you|would you|i want to|i would like to|let us|lets)\b[\s,]*/,
+  tail: /[\s,]*\b(please|now|thanks|thank you)\b[\s.!?]*$/
+};
+
 function localCommand(text) {
-  for (const [re, cmd] of LOCAL_COMMANDS) if (re.test(text)) return cmd;
+  let s = String(text ?? '').toLowerCase().trim().replace(/[.!?]+$/, '');
+  // Strip filler repeatedly: "ok, can you please repeat that" stacks three.
+  for (let i = 0; i < 3; i++) {
+    const before = s;
+    s = s.replace(COMMAND_FILLER.lead, '').replace(COMMAND_FILLER.tail, '').trim();
+    if (s === before) break;
+  }
+  if (!s) return null;
+  for (const [re, cmd] of LOCAL_COMMANDS) if (re.test(s)) return cmd;
   return null;
 }
 
 /** Typing mode with no API key: parse locally so the app works key-free. */
 async function handleTypedDirect(text) {
+  const cmd = localCommand(text);
+  if (cmd) { await runCommand(cmd); return; }
+
   if (!pending && namesSomethingToDelete(text)) {
     resumeAfterPrompt = true;
     await beginDeletion(text);
@@ -527,7 +676,7 @@ async function handleTypedDirect(text) {
     const no = /^(n|no|nope|wrong)$/i.test(text);
     if (yes) { const v = pending.value; pending = null; commit(v); return; }
     if (no) { pending = null; await askCurrent({ prefix: 'Let us try again.' }); return; }
-    await reask('Please answer yes or no. Is that correct?');
+    await reask(say.REASK.yesno);
     return;
   }
 
@@ -536,7 +685,7 @@ async function handleTypedDirect(text) {
     q
   );
   if (result.needsClarification || result.value == null) {
-    await reask(result.clarifyPrompt || 'That does not look right. Could you try again?');
+    await reask(result.clarifyPrompt || say.REASK.notRight);
     return;
   }
   if (q.confirm) {
@@ -552,6 +701,7 @@ async function handleTypedDirect(text) {
 }
 
 function switchToText() {
+  takeSttResult();
   mode = 'text';
   ui.textEntry.hidden = false;
   ui.talk.hidden = true;
@@ -583,6 +733,9 @@ function onKeyDown(e) {
   const map = { Enter: 'repeat', KeyB: 'back', KeyS: 'skip', KeyW: 'where', KeyR: 'readback', KeyC: 'correct' };
   if (e.code === 'Escape' && audio.isRecording()) {
     audio.cancelRecording();
+    // Stop the recognizer too, and drop whatever it heard. Left running, its
+    // result would arrive on whatever turn happens to be open next.
+    takeSttResult();
     resetTalkButton();
     setStatus('Cancelled.');
     announce('Cancelled', true);
@@ -611,14 +764,7 @@ function onKeyUp(e) {
 async function handleLlmError(err) {
   audio.earcon('error');
   const kind = err?.kind ?? 'unknown';
-  const messages = {
-    auth: 'Your API key was rejected. Reload the page and enter a valid key, or continue in typing mode.',
-    rate: 'OpenAI is rate limiting the request. Give it a moment and try again.',
-    network: 'I cannot reach OpenAI right now. Check your connection and try again.',
-    server: 'OpenAI had a server error. Please try that answer again.',
-    empty: 'I did not hear anything. Please try again, or say skip.'
-  };
-  const msg = messages[kind] ?? 'Something went wrong. Please try that answer again.';
+  const msg = say.ERRORS[kind] ?? say.ERRORS.unknown;
   setStatus(msg);
   announce(msg, true);
   if (kind === 'auth' || kind === 'network') speech.forceFallback(true);
@@ -638,12 +784,14 @@ async function finishInterview() {
   const missing = engine.missingRequired();
   const intro = missing.length
     ? `Your worksheet is ready. ${missing.length} required ${missing.length === 1 ? 'answer is' : 'answers are'} still blank: ${missing.map(m => m.prompt).join(' ')} You can change an answer, or download the worksheet as it is.`
-    : 'All done. Your worksheet is ready to download.';
+    : say.ALL_DONE;
 
   ui.reviewIntro.textContent = intro;
   renderSummary(ui.summary, engine.answers());
   announce(intro, true);
-  await speech.speak(`${intro} Press the download button to save your PDF worksheet, or press read my answers to hear everything back.`);
+  // Two utterances: the completion line varies with what is missing, but the
+  // download instructions are fixed and come from the clip index.
+  await speakSegments([intro, say.DOWNLOAD_HINT]);
   el('download-pdf').focus();
 }
 
@@ -660,7 +808,7 @@ async function startReview() {
       ui.review.hidden = true;
       ui.interview.hidden = false;
       clearCorrectionState();
-      await askCurrent({ prefix: 'Let us fill in what is missing.' });
+      await askCurrent({ prefix: say.FILL_IN_MISSING });
       return;
     }
   }
@@ -704,10 +852,7 @@ async function askWhichField() {
   ui.interview.hidden = false;
   ui.sectionLabel.textContent = 'Changing an answer';
 
-  const msg = 'Which answer would you like to change? You can name the field, '
-    + 'for example, my phone number, or the second provider\'s address. '
-    + 'You can also remove a whole entry, by saying something like '
-    + 'remove that last provider. Say never mind to go back.';
+  const msg = say.WHICH_FIELD;
   ui.question.textContent = 'Which answer would you like to change?';
   ui.hint.textContent = 'Name a field, such as "my date of birth" or "the first job\'s employer". '
     + 'To delete a whole entry, say "remove the second provider".';
@@ -966,7 +1111,7 @@ async function exportPdf() {
     const msg = `Your worksheet was downloaded as ${filename}.`;
     setStatus(msg);
     announce(msg, true);
-    await speech.speak('Your worksheet has been downloaded. Check your downloads folder.');
+    await speech.speak(say.DOWNLOADED);
   } catch (err) {
     const msg = 'The PDF could not be created. Your answers are safe — try saving them as a file instead.';
     setStatus(msg);

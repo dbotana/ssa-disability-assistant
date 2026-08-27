@@ -33,7 +33,7 @@ export const SECTIONS = [
         type: 'ssn',
         required: true,
         confirm: true,
-        warn: 'Next I need your Social Security number. It stays on this device. You can say skip to leave it blank.',
+        warn: 'Next I need your Social Security number. It is saved only on this device, and it is never sent to Social Security. You can say skip to leave it blank, or type it instead of saying it.',
         hint: 'You can say the nine digits one at a time.'
       }
     ]
@@ -345,7 +345,7 @@ export const SECTIONS = [
         prompt: "What is your bank's 9-digit routing number?",
         type: 'routing',
         confirm: true,
-        warn: 'Last section. I need your bank routing and account numbers for direct deposit. They stay on this device. You can say skip to leave them blank.',
+        warn: 'Last section. I need your bank routing and account numbers for direct deposit. They are saved only on this device, and they are never sent to Social Security. You can say skip to leave them blank, or type them instead of saying them.',
         hint: 'You can say the nine digits one at a time.'
       },
       { id: 'account_number', prompt: 'What is your bank account number?', type: 'account', confirm: true }

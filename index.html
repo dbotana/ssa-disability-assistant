@@ -72,6 +72,20 @@
       </label>
     </fieldset>
 
+    <div class="field" id="stt-row" hidden>
+      <label class="radio">
+        <input type="checkbox" id="use-browser-stt">
+        Use my browser's speech recognition when it can
+      </label>
+      <p id="stt-help" class="help">
+        Faster, and it does not use your API key. Your browser sends the
+        recording to its maker — Google in Chrome and Edge, Apple in Safari —
+        instead of to OpenAI. Leave this off to send recordings only to OpenAI.
+        Either way, your answers are saved on this device and are never sent to
+        the Social Security Administration.
+      </p>
+    </div>
+
     <div id="resume-row" hidden>
       <p id="resume-text"></p>
       <button type="button" id="resume-button" class="secondary">Resume my saved session</button>
