@@ -68,7 +68,7 @@ h3 { font-size: 1.15rem; margin: 0 0 .5rem; }
 label, legend { display: block; font-weight: 600; margin-bottom: .4rem; }
 fieldset { border: 1px solid var(--line); border-radius: 8px; padding: 1rem; }
 
-input[type="text"], input[type="password"] {
+input[type="text"], input[type="password"], input[type="file"] {
   width: 100%;
   padding: .75rem;
   font-size: 1.15rem;
@@ -77,6 +77,8 @@ input[type="text"], input[type="password"] {
   border: 2px solid var(--line);
   border-radius: 8px;
 }
+
+input[type="file"] { padding: .6rem; }
 
 .radio {
   font-weight: 400;
@@ -112,6 +114,19 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 .talk[data-recording="true"] {
   background: var(--danger);
   color: var(--bg);
+}
+
+/* The two lanes sit together, so the text box needs air above it and a clear
+   separation from the talk button that is always right on top of it. */
+#text-entry { margin-top: 1.25rem; }
+#text-answer { max-width: 32rem; }
+
+kbd {
+  font: inherit;
+  font-size: .9em;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0 .3em;
 }
 
 :focus-visible {

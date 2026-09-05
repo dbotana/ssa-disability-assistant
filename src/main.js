@@ -17,6 +17,7 @@ import {
   isDeletionPhrase, resolveDeletion, describeItem
 } from './correct.js';
 import { downloadPdf } from './pdf.js';
+import { readExportFile, ImportError } from './importer.js';
 import * as say from './phrases.js';
 import { parseLocal } from './parse.js';
 import * as stt from './stt.js';
@@ -25,9 +26,23 @@ const el = id => document.getElementById(id);
 
 const ui = {};
 let engine = null;
+// How the app *listens* — whether it opens the recorder on its own, and where
+// it puts focus after speaking. It no longer decides what the user is allowed
+// to use: both the talk button and the text box are on screen for the whole
+// interview, and either one can answer any question.
 let mode = 'voice';               // voice | handsfree | text
+// Set only when the microphone genuinely cannot be used — denied, missing, or
+// the key was rejected. Everything else leaves the voice lane open.
+let voiceDisabled = false;
+// Which lane the last answer came from. Decides where focus lands after the
+// next question so someone typing is not thrown back to the talk button, and
+// someone speaking is not dropped into a text field.
+let lastInputWasText = false;
 let busy = false;
 let pending = null;               // { question, value } awaiting confirmation
+// The verbatim transcript of a voice answer, read back for a spoken yes/no
+// before anything is extracted from it. See askTranscriptCheck().
+let checking = null;              // { transcript, question }
 let lastSpoken = '';
 let lastSegments = [];            // the same utterance, unjoined, for `repeat`
 
@@ -80,17 +95,14 @@ function boot() {
     summary: el('summary'),
     reviewIntro: el('review-intro'),
     sttRow: el('stt-row'),
-    useBrowserStt: el('use-browser-stt')
+    useBrowserStt: el('use-browser-stt'),
+    importFile: el('import-file'),
+    importStatus: el('import-status')
   });
 
   if (stt.isSupported()) ui.sttRow.hidden = false;
 
-  const saved = store.loadState();
-  if (saved) {
-    const when = new Date(saved.savedAt).toLocaleString();
-    ui.resumeText.textContent = `You have a saved session from ${when}.`;
-    ui.resumeRow.hidden = false;
-  }
+  showSavedSession();
 
   ui.apiKey.value = store.getApiKey();
   ui.start.addEventListener('click', () => start(false));
@@ -100,6 +112,7 @@ function boot() {
     ui.resumeRow.hidden = true;
     announce('Saved session erased. Ready to start fresh.', true);
   });
+  ui.importFile?.addEventListener('change', onImportFile);
 
   ui.talk.addEventListener('pointerdown', onTalkDown);
   ui.talk.addEventListener('pointerup', onTalkUp);
@@ -112,7 +125,7 @@ function boot() {
 
   el('download-pdf').addEventListener('click', exportPdf);
   el('download-json').addEventListener('click', () => {
-    downloadJson(engine.answers());
+    downloadJson(engine.answers(), engine.getState());
     announce('Your answers were saved as a file.', true);
   });
   el('read-back').addEventListener('click', () => speech.speak(summaryText(engine.answers())));
@@ -166,6 +179,7 @@ async function start(resume) {
       await audio.initMic();
     } catch (err) {
       mode = 'text';
+      voiceDisabled = true;
       announce(err.kind === 'denied'
         ? 'Microphone access was blocked, so I switched to typing mode. You can allow the microphone in your browser settings and reload.'
         : 'No microphone is available, so I switched to typing mode.', true);
@@ -179,8 +193,13 @@ async function start(resume) {
   ui.setup.hidden = true;
   ui.interview.hidden = false;
   ui.review.hidden = true;
-  ui.textEntry.hidden = mode !== 'text';
-  ui.talk.hidden = mode === 'text';
+  // Both lanes, always. The mode radio picks how the interview *starts*, not
+  // what stays available: a typing-mode user can hold the talk button (the
+  // microphone is requested lazily on the first press), and a voice-mode user
+  // can type an answer and then go straight back to speaking.
+  ui.textEntry.hidden = false;
+  ui.talk.hidden = voiceDisabled;
+  lastInputWasText = mode === 'text';
 
   await speech.speak(introFor(mode));
   askCurrent({ announceSection: true });
@@ -194,6 +213,7 @@ function introFor(m) {
 
 async function askCurrent({ announceSection = false, prefix = '' } = {}) {
   pending = null;
+  checking = null;
   const q = engine.current();
 
   if (!q) { await finishInterview(); return; }
@@ -239,9 +259,41 @@ async function askCurrent({ announceSection = false, prefix = '' } = {}) {
   announce(segments.join(' '));
   await speakSegments(segments);
 
-  if (mode === 'text') { ui.textAnswer.value = ''; ui.textAnswer.focus(); }
-  else if (mode === 'handsfree') listenHandsFree();
-  else focusMain();
+  ui.textAnswer.value = '';
+  resumeListening();
+}
+
+/**
+ * Hand the turn back to the user after speaking.
+ *
+ * Hands-free reopens the recorder; otherwise this only decides where focus
+ * lands, because both lanes stay live either way. Focus follows the lane the
+ * last answer came from: someone who just typed keeps their cursor in the
+ * text box, and someone who just spoke keeps the talk button under the space
+ * bar. Whichever way it lands, the other lane is one keystroke away.
+ */
+function resumeListening() {
+  if (mode === 'handsfree' && !voiceDisabled) { queueListen(); return; }
+  if (voiceDisabled || lastInputWasText || mode === 'text') { ui.textAnswer.focus(); return; }
+  focusMain();
+}
+
+/**
+ * Reopen the hands-free microphone once the current turn has let go of `busy`.
+ *
+ * Everything that speaks a prompt and then wants to listen again — a re-ask, a
+ * value read-back, the transcript read-back — is awaited from inside
+ * sendAudio(), which holds `busy` until its `finally`. Calling
+ * listenHandsFree() from there hits its own guard and silently does nothing,
+ * and a hands-free user is left with a question asked and no microphone open.
+ * Deferring past the end of the turn is the whole fix.
+ */
+function queueListen(attempt = 0) {
+  if (attempt > 100) return;          // ~6s; `busy` is cleared in a finally
+  setTimeout(() => {
+    if (busy) { queueListen(attempt + 1); return; }
+    listenHandsFree();
+  }, 60);
 }
 
 /**
@@ -282,6 +334,12 @@ function isFirstFieldOfItem(q) {
 
 /** Handle one answer: extract, validate, confirm if needed, commit. */
 async function handleTranscript(transcript) {
+  // A transcript read-back is open: this turn is a yes/no about what was heard
+  // last time, not an answer to the form question. Checked before everything
+  // else for the same reason the delete confirmation is — a bare "no" here
+  // means "that is not what I said", and must never reach the extractor.
+  if (checking) { await handleTranscriptCheck(transcript); return; }
+
   // "Which answer would you like to change?" is matched locally, never by the
   // model — see the note at the top of correct.js.
   if (inCorrectionPrompt()) { setStatus(''); await handleFieldName(transcript); return; }
@@ -371,9 +429,7 @@ async function handleTranscript(transcript) {
     ui.question.textContent = readBack;
     announce(readBack);
     await speech.speak(readBack);
-    if (mode === 'text') ui.textAnswer.focus();
-    else if (mode === 'handsfree') listenHandsFree();
-    else focusMain();
+    resumeListening();
     return;
   }
 
@@ -395,15 +451,14 @@ async function reask(message) {
   const hint = q?.hint ? ` ${q.hint}` : '';
   announce(message + hint, true);
   await speech.speak(message + hint);
-  if (mode === 'text') ui.textAnswer.focus();
-  else if (mode === 'handsfree') listenHandsFree();
-  else focusMain();
+  resumeListening();
 }
 
 // -- global commands -------------------------------------------------------
 
 async function runCommand(cmd) {
   pending = null;
+  checking = null;
 
   // While one answer is being corrected, the forward-walk commands would
   // resume the interview from the middle of the form: engine.skip() submits
@@ -422,7 +477,7 @@ async function runCommand(cmd) {
     case 'repeat':
       announce(lastSpoken);
       await speakSegments(lastSegments.length ? lastSegments : [lastSpoken]);
-      if (mode === 'handsfree') listenHandsFree();
+      if (mode === 'handsfree') queueListen();
       return;
     case 'back':
       engine.back();
@@ -447,12 +502,12 @@ async function runCommand(cmd) {
         + (left ? `, ${left} left at the pace you have been going.` : '.');
       announce(msg, true);
       await speech.speak(msg);
-      if (mode === 'handsfree') listenHandsFree();
+      if (mode === 'handsfree') queueListen();
       return;
     }
     case 'readback':
       await speech.speak(summaryText(engine.answers()));
-      if (mode === 'handsfree') listenHandsFree();
+      if (mode === 'handsfree') queueListen();
       return;
     case 'correct':
       await askWhichField();
@@ -477,7 +532,7 @@ async function runCommand(cmd) {
     case 'help':
     default:
       await speech.speak(say.HELP);
-      if (mode === 'handsfree') listenHandsFree();
+      if (mode === 'handsfree') queueListen();
   }
 }
 
@@ -485,7 +540,12 @@ async function runCommand(cmd) {
 
 async function onTalkDown(e) {
   e?.preventDefault();
-  if (busy || mode === 'text') return;
+  // Not gated on `mode`. Someone who chose typing at the start, or who just
+  // typed an answer, can still press and hold to speak — the microphone is
+  // requested here, lazily, on the first press. Only a microphone that has
+  // actually failed closes this lane.
+  if (busy || voiceDisabled || audio.isRecording()) return;
+  lastInputWasText = false;
   setStatus('Listening…');
   ui.talk.dataset.recording = 'true';
   ui.talk.textContent = 'Listening — release to send';
@@ -496,7 +556,7 @@ async function onTalkDown(e) {
   } catch (err) {
     resetTalkButton();
     announce('The microphone is not available. Switching to typing.', true);
-    switchToText();
+    disableVoice();
   }
 }
 
@@ -509,7 +569,7 @@ async function onTalkUp(e) {
 }
 
 async function listenHandsFree() {
-  if (busy || mode !== 'handsfree') return;
+  if (busy || voiceDisabled || mode !== 'handsfree') return;
   setStatus('Listening…');
   ui.talk.dataset.recording = 'true';
   ui.talk.textContent = 'Listening — speak now';
@@ -525,7 +585,7 @@ async function listenHandsFree() {
     beginSttAttempt();
   } catch {
     resetTalkButton();
-    switchToText();
+    disableVoice();
   }
 }
 
@@ -551,19 +611,29 @@ async function takeSttResult() {
 }
 
 async function sendAudio(blob) {
-  // Two cheap filters before paying to transcribe. The size check catches a
-  // recorder that produced nothing; the level check catches a hands-free turn
-  // that auto-stopped on a cough or a door, which is otherwise a full-price
-  // call to transcribe room noise.
-  if (!blob || blob.size < 800 || !audio.lastCaptureHadSpeech()) {
+  // Four cheap filters before paying to transcribe. The size check catches a
+  // recorder that produced nothing; the duration check catches a bumped space
+  // bar; the level check catches a turn that captured only room tone, whether
+  // it auto-stopped on a cough or the user pressed and released without
+  // saying anything. All four end the same way — ask again — because the one
+  // thing that must not happen is the form moving on from a question the user
+  // never actually answered.
+  if (!blob || blob.size < 800
+      || audio.lastCaptureDurationMs() < MIN_CAPTURE_MS
+      || !audio.lastCaptureHadSpeech()) {
+    takeSttResult();
     await reask(say.REASK.nothingHeard);
     return;
   }
   busy = true;
   setStatus('Transcribing…');
   try {
-    const q = pending?.question ?? engine.current();
-    const asked = pending ? { ...q, type: 'yesno' } : q;
+    const q = checking?.question ?? pending?.question ?? engine.current();
+    // While a read-back is open the expected answer is yes or no, whatever the
+    // underlying field happens to be. Shaping it that way keeps the digit
+    // gate below from forcing a paid transcription of the word "yes" just
+    // because the question it belongs to asks for a Social Security number.
+    const asked = (pending || checking) ? { ...q, type: 'yesno' } : q;
 
     let transcript = await takeSttResult();
 
@@ -582,16 +652,138 @@ async function sendAudio(blob) {
       return;
     }
     if (!transcript) {
-      transcript = await llm.transcribe(blob, { hint: llm.hintFor(q) });
+      transcript = await llm.transcribe(blob, { hint: llm.hintFor(asked) });
+    }
+
+    // A transcriber handed near-silence does not return nothing; it returns a
+    // short plausible phrase. Reject those rather than record them.
+    if (isEmptyTranscript(transcript)) {
+      await reask(say.REASK.nothingHeard);
+      return;
     }
 
     setStatus(`You said: ${transcript}`);
+
+    if (needsTranscriptCheck(transcript)) {
+      await askTranscriptCheck(transcript);
+      return;
+    }
     await handleTranscript(transcript);
   } catch (err) {
+    // "I heard nothing" is a re-ask, not an error: no earcon, no lecture, and
+    // the question stays open.
+    if (err?.kind === 'empty') { await reask(say.REASK.nothingHeard); return; }
     await handleLlmError(err);
   } finally {
     busy = false;
   }
+}
+
+/** Shorter than this and the space bar was bumped, not spoken into. */
+const MIN_CAPTURE_MS = 350;
+
+// What a transcriber tends to emit when handed silence or room tone. Rejected
+// only when the microphone also stayed near the noise floor for the whole
+// capture, so someone who genuinely says "okay" into a live mic is still heard.
+const FILLER_TRANSCRIPTS = new Set([
+  'you', 'thank you', 'thanks', 'thanks for watching', 'thank you for watching',
+  'bye', 'okay', 'ok', 'uh', 'um', 'hmm', 'mm', 'oh', 'the'
+]);
+const QUIET_PEAK = 0.05;
+
+/** Is this transcript empty, punctuation, or silence-filler from a quiet mic? */
+function isEmptyTranscript(text) {
+  const s = String(text ?? '').trim();
+  if (!s) return true;
+  // Nothing but punctuation, dashes, quotes or ellipses.
+  if (!/[\p{L}\p{N}]/u.test(s)) return true;
+  const bare = s.toLowerCase().replace(/[.!?,\s]+$/, '').trim();
+  return FILLER_TRANSCRIPTS.has(bare) && audio.lastCapturePeak() < QUIET_PEAK;
+}
+
+/**
+ * Should this voice answer be read back for a spoken yes/no before it is used?
+ *
+ * Everything the user dictates, yes. What is excluded is only what is already
+ * a confirmation or a command, where a second yes/no would be noise:
+ *
+ *   - a yes/no answering a read-back that is already open;
+ *   - a navigation word, or a request to delete an entry (which confirms
+ *     itself, by name, before anything is erased);
+ *   - a reply to one of the correction prompts, which re-prompt on their own
+ *     when they cannot match what was said;
+ *   - a question marked `confirm` — SSN, bank details. Those get the stronger
+ *     read-back of the *parsed value*, spoken digit by digit, a few lines
+ *     further on. Reading the raw transcript first would ask the same question
+ *     twice and bury the version that actually catches a wrong digit.
+ */
+function needsTranscriptCheck(transcript) {
+  if (pending || checking) return false;
+  if (inCorrectionPrompt() || choosing) return false;
+  if (localCommand(transcript)) return false;
+  if (namesSomethingToDelete(transcript)) return false;
+  const q = correcting?.question ?? engine.current();
+  if (!q || q.confirm) return false;
+  return true;
+}
+
+/** Read back what was heard, verbatim, and wait for yes or no. */
+async function askTranscriptCheck(transcript) {
+  const q = correcting?.question ?? engine.current();
+  checking = { transcript, question: q };
+
+  ui.question.textContent = `I heard: ${transcript}`;
+  ui.hint.textContent = 'Say yes to keep it, or no to answer again.';
+  announce(`I heard: ${transcript}. ${say.TRANSCRIPT_CHECK}`);
+  // Two segments: the transcript is unique to this answer, the prompt after it
+  // is fixed and comes from the clip index.
+  await speakSegments([`I heard: ${transcript}.`, say.TRANSCRIPT_CHECK]);
+  resumeListening();
+}
+
+/** Yes uses the transcript; no throws it away and reopens the same question. */
+async function handleTranscriptCheck(text) {
+  const s = String(text ?? '').trim();
+  // Tested before the command table, not after: "correct" is both a way to say
+  // yes and the name of the change-an-answer command, and here it plainly
+  // means the first one.
+  const yes = /^(y|yes|yeah|yep|yup|correct|right|that is right|thats right|sure|ok|okay)\b/i.test(s);
+  const no = /^(n|no|nope|nah|wrong|incorrect|not right|that is wrong|thats wrong)\b/i.test(s);
+
+  // Otherwise a command still wins — someone who answers the read-back with
+  // "skip" or "go back" means it, and should not have to say no first.
+  if (!yes && !no) {
+    const cmd = localCommand(text);
+    if (cmd) { checking = null; await runCommand(cmd); return; }
+  }
+
+  if (yes) {
+    const { transcript } = checking;
+    checking = null;
+    setStatus('');
+    await handleTranscript(transcript);
+    return;
+  }
+
+  if (no) {
+    checking = null;
+    setStatus('');
+    // Deliberately does not re-ask the question. The user knows what was
+    // asked — they just answered it — and hearing the whole prompt again
+    // before every retry is what makes a misheard answer feel expensive.
+    // Restore the prompt on screen for anyone reading it, and reopen the mic.
+    const q = correcting?.question ?? engine.current();
+    if (q) { ui.question.textContent = q.prompt; ui.hint.textContent = q.hint || ''; }
+    announce(say.ANSWER_AGAIN, true);
+    await speakSegments([say.ANSWER_AGAIN]);
+    // Leave `repeat` pointing at the question rather than at "go ahead" — that
+    // is what someone asking to hear it again at this point actually wants.
+    if (q) { lastSegments = [q.prompt]; lastSpoken = q.prompt; }
+    resumeListening();
+    return;
+  }
+
+  await sayAndListen(say.REASK.yesnoTranscript);
 }
 
 /** Types where an unnoticed digit error is worth paying to avoid. */
@@ -602,8 +794,13 @@ async function submitTyped() {
   const text = ui.textAnswer.value.trim();
   if (!text) return;
   ui.textAnswer.value = '';
+  lastInputWasText = true;
   busy = true;
   try {
+    // A transcript read-back can be answered by typing yes or no, the same as
+    // by saying it — the two lanes are interchangeable at every prompt.
+    if (checking) { await handleTranscriptCheck(text); return; }
+
     // While naming a field to correct, the words are a field name, not a
     // navigation command — "back" there means "never mind", not "previous
     // question", and it is handled inside handleFieldName().
@@ -694,18 +891,43 @@ async function handleTypedDirect(text) {
     ui.question.textContent = readBack;
     announce(readBack);
     await speech.speak(readBack);
-    ui.textAnswer.focus();
+    resumeListening();
     return;
   }
   commit(result.value);
 }
 
-function switchToText() {
+/**
+ * Close the voice lane for good.
+ *
+ * Only for a microphone that cannot work — permission denied, no device, or an
+ * API key the transcriber rejected. Everything else leaves the talk button on
+ * screen, because a user who typed one answer has not given up on speaking.
+ */
+function disableVoice() {
   takeSttResult();
+  voiceDisabled = true;
   mode = 'text';
+  lastInputWasText = true;
   ui.textEntry.hidden = false;
   ui.talk.hidden = true;
   ui.textAnswer.focus();
+}
+
+/** Put the cursor in the text box without closing the voice lane. */
+function useTextLane() {
+  lastInputWasText = true;
+  ui.textEntry.hidden = false;
+  ui.textAnswer.focus();
+  announce(say.TYPING_LANE, true);
+}
+
+/** Leave the text box so the space bar talks again. */
+function useVoiceLane() {
+  if (voiceDisabled) { ui.textAnswer.focus(); return; }
+  lastInputWasText = false;
+  focusMain();
+  announce(say.VOICE_LANE, true);
 }
 
 function resetTalkButton() {
@@ -721,14 +943,21 @@ function onKeyDown(e) {
   if (ui.interview?.hidden) return;
   const typing = e.target === ui.textAnswer || e.target === ui.apiKey;
 
-  if (e.code === 'Space' && !typing && mode === 'voice') {
+  // Push to talk works in every mode, not only 'voice' — the only thing that
+  // suppresses it is a cursor sitting in a text field, where a space is a
+  // space. Escape leaves that field, which is how someone who typed an answer
+  // gets the space bar back.
+  if (e.code === 'Space' && !typing && !voiceDisabled) {
     if (spaceHeld || e.repeat) return;
     spaceHeld = true;
     e.preventDefault();
     onTalkDown();
     return;
   }
-  if (typing) return;
+  if (typing) {
+    if (e.code === 'Escape' && e.target === ui.textAnswer) { e.preventDefault(); useVoiceLane(); }
+    return;
+  }
 
   const map = { Enter: 'repeat', KeyB: 'back', KeyS: 'skip', KeyW: 'where', KeyR: 'readback', KeyC: 'correct' };
   if (e.code === 'Escape' && audio.isRecording()) {
@@ -741,11 +970,11 @@ function onKeyDown(e) {
     announce('Cancelled', true);
     return;
   }
-  if (e.code === 'KeyT') { switchToText(); announce('Typing mode', true); return; }
-  if (e.code === 'KeyH' && mode !== 'text') {
+  if (e.code === 'KeyT') { useTextLane(); return; }
+  if (e.code === 'KeyH' && !voiceDisabled) {
     mode = mode === 'handsfree' ? 'voice' : 'handsfree';
     announce(mode === 'handsfree' ? 'Hands free mode on' : 'Hands free mode off', true);
-    if (mode === 'handsfree') listenHandsFree();
+    if (mode === 'handsfree') queueListen();
     return;
   }
   if (map[e.code]) { e.preventDefault(); runCommand(map[e.code]); }
@@ -769,8 +998,8 @@ async function handleLlmError(err) {
   announce(msg, true);
   if (kind === 'auth' || kind === 'network') speech.forceFallback(true);
   await speech.speak(msg);
-  if (kind === 'auth') switchToText();
-  else if (mode === 'handsfree') listenHandsFree();
+  if (kind === 'auth') disableVoice();
+  else if (mode === 'handsfree') queueListen();
 }
 
 // -- finish, review, export ------------------------------------------------
@@ -841,6 +1070,7 @@ function clearCorrectionState() {
   awaitingFieldName = false;
   resumeAfterPrompt = false;
   pending = null;
+  checking = null;
 }
 
 /** Open the "which answer do you want to change?" prompt. */
@@ -860,9 +1090,8 @@ async function askWhichField() {
   announce(msg);
   await speech.speak(msg);
 
-  if (mode === 'text') { ui.textAnswer.value = ''; ui.textAnswer.focus(); }
-  else if (mode === 'handsfree') listenHandsFree();
-  else focusMain();
+  ui.textAnswer.value = '';
+  resumeListening();
 }
 
 /** The user named a field (or answered a disambiguation question). */
@@ -1098,9 +1327,7 @@ async function sayAndListen(msg) {
   lastSpoken = msg;
   announce(msg, true);
   await speech.speak(msg);
-  if (mode === 'text') ui.textAnswer.focus();
-  else if (mode === 'handsfree') listenHandsFree();
-  else focusMain();
+  resumeListening();
 }
 
 async function exportPdf() {
@@ -1133,6 +1360,63 @@ function clearEverything() {
   ui.setup.hidden = false;
   ui.resumeRow.hidden = true;
   ui.apiKey.value = '';
+  if (ui.importFile) ui.importFile.value = '';
+  setImportStatus('');
+}
+
+// -- importing a saved file -------------------------------------------------
+
+/** Offer the resume row whenever localStorage holds a session. */
+function showSavedSession() {
+  const saved = store.loadState();
+  if (!saved) { ui.resumeRow.hidden = true; return; }
+  const when = new Date(saved.savedAt).toLocaleString();
+  ui.resumeText.textContent = `You have a saved session from ${when}.`;
+  ui.resumeRow.hidden = false;
+}
+
+function setImportStatus(text) {
+  if (ui.importStatus) ui.importStatus.textContent = text;
+}
+
+/**
+ * Load a file written by "Save my answers as a file" into this device's saved
+ * session, then offer it on the resume row. The file is not started straight
+ * away: the mode, microphone and API key still have to be settled first, and
+ * those are the same choices the resume button already runs through.
+ */
+async function onImportFile(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  setImportStatus('Reading your file\u2026');
+  try {
+    const { state, savedAt, rebuiltCursor } = await readExportFile(file);
+    if (!store.saveState(state)) {
+      throw new ImportError('Your browser would not let this page save the file. '
+        + 'Private browsing blocks it. Try a normal window.');
+    }
+    showSavedSession();
+    const when = savedAt ? new Date(savedAt).toLocaleString() : null;
+    const msg = 'Your answers were loaded'
+      + (when ? ` from the file you saved on ${when}` : '')
+      + '. '
+      + (rebuiltCursor
+        ? 'That file did not record where you left off, so I will start at the first question you have not answered. '
+        : '')
+      + 'Choose how you want to answer, then select Resume my saved session.';
+    setImportStatus(msg);
+    announce(msg, true);
+    ui.resume.focus();
+  } catch (err) {
+    const msg = err instanceof ImportError
+      ? err.message
+      : 'That file could not be loaded. Choose the file you saved from this page.';
+    setImportStatus(msg);
+    announce(msg, true);
+  } finally {
+    // Let the same file be chosen again after a failure.
+    event.target.value = '';
+  }
 }
 
 // -- misc ------------------------------------------------------------------

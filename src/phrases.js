@@ -10,9 +10,15 @@
 // synthesized at runtime and cached per-listener.
 
 export const INTRO = {
-  text: 'Typing mode. I will ask a question, you type the answer and press Enter. You can type skip, back, or repeat at any time.',
-  handsfree: 'Hands free mode. I will ask a question, then start listening on my own. Just answer when you hear the tone. Say repeat, go back, or skip at any time.',
-  voice: 'Voice mode. Hold the space bar while you answer, and let go when you are done. Say repeat, go back, or skip at any time.'
+  text: 'Typing mode. I will ask a question, you type the answer and press Enter. '
+    + 'The hold to talk button is still there whenever you would rather speak. '
+    + 'You can type skip, back, or repeat at any time.',
+  handsfree: 'Hands free mode. I will ask a question, then start listening on my own. '
+    + 'Just answer when you hear the tone. You can type an answer instead at any point, '
+    + 'and speaking still works afterwards. Say repeat, go back, or skip at any time.',
+  voice: 'Voice mode. Hold the space bar while you answer, and let go when you are done. '
+    + 'You can type an answer instead at any point, and speaking still works afterwards. '
+    + 'Say repeat, go back, or skip at any time.'
 };
 
 export const SAVED = 'Saved. You can close this page and come back to finish later.';
@@ -31,6 +37,16 @@ export const WHICH_FIELD = 'Which answer would you like to change? You can name 
 
 export const UNCHANGED = 'That answer was left unchanged.';
 
+// Read-back of what was heard, spoken after every voice answer. The transcript
+// itself is dynamic and belongs at the call site; this is the fixed tail that
+// follows it, so it stays one cached clip no matter what was said.
+export const TRANSCRIPT_CHECK = 'Is that right? Say yes to keep it, or no to answer again.';
+export const ANSWER_AGAIN = 'Go ahead. Say your answer again, or type it instead.';
+
+// Switching lanes. Both are always open; these say so out loud.
+export const TYPING_LANE = 'Typing. Press Escape when you want the space bar to talk again.';
+export const VOICE_LANE = 'Voice. Hold the space bar to talk, or press T to type.';
+
 // Reask and clarification prompts. The model can author its own clarifyPrompt,
 // which is dynamic and synthesized at runtime; these are the fixed fallbacks
 // used when it does not, and they are by far the common case.
@@ -39,6 +55,7 @@ export const REASK = {
   yesno: 'Please answer yes or no. Is that correct?',
   nothingHeard: 'I did not hear anything. Please try again, or say skip.',
   notRight: 'That does not look right. Could you try again?',
+  yesnoTranscript: 'Please say yes to keep that, or no to answer again.',
   unsure: 'I am not sure I heard that correctly. Could you say it again?'
 };
 
@@ -65,6 +82,7 @@ export function allPhrases() {
     ...Object.values(INTRO),
     SAVED, STARTING_OVER, DOWNLOADED, ALL_DONE, DOWNLOAD_HINT,
     HELP, WHICH_FIELD, UNCHANGED,
+    TRANSCRIPT_CHECK, ANSWER_AGAIN, TYPING_LANE, VOICE_LANE,
     ...Object.values(REASK),
     ...Object.values(ERRORS),
     LET_US_TRY_AGAIN, GOING_BACK, FILL_IN_MISSING

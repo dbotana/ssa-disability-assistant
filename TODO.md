@@ -13,27 +13,37 @@ change can tell whether it is undoing a decision or fixing an oversight.
 
 ## 1. Verification that still needs a human
 
-Nothing here has been tested with a real microphone, a real API key, or a real
-screen reader. These are the highest-value next actions.
+The first end-to-end pass with a real microphone and a real key has now
+happened, and it passed. What it turned up is fixed below; what it did not
+cover is still open.
 
-- [ ] **Full voice pass with a real key, screen off.** Confirm push-to-talk,
-      the SSN digit read-back, a mid-interview "go back", and the PDF download
-      all work by ear alone. This is the actual acceptance test.
+- [x] **Full voice pass with a real key, screen off.** Push-to-talk, the SSN
+      digit read-back, a mid-interview "go back" and the PDF download all work
+      by ear alone. Two defects came out of it, both fixed — see *Fixed after
+      the first live voice pass* below.
 - [ ] **Hands-free silence detection tuning.** The threshold in
-      [src/audio.js](src/audio.js) (`SPEECH = 0.045`, 1200ms) is a guess. It has
-      never run against a real mic. Expect to tune it — too low and background
-      noise holds the recorder open, too high and it cuts off quiet speakers.
-      Test in a noisy room.
+      [src/audio.js](src/audio.js) (`SPEECH = 0.045`, 1200ms) is still a guess;
+      the live pass was push-to-talk. Expect to tune it — too low and
+      background noise holds the recorder open, too high and it cuts off quiet
+      speakers. Test in a noisy room. Note that `AUDIBLE`, the separate and
+      lower floor that decides whether anything was said at all, now runs on
+      the push-to-talk path too, so tuning it affects both.
 - [ ] **VoiceOver pass** (<kbd>Cmd-F5</kbd>). Verify every state change is
       announced exactly once, nothing is announced twice, and no announcement
-      clobbers another mid-sentence.
+      clobbers another mid-sentence. The new transcript read-back adds a turn
+      to every voice answer, so this is worth more now than it was.
 - [ ] **Safari and Chrome recording.** The mime negotiation in
       [src/audio.js](src/audio.js#L15-L27) handles both in theory; only Chrome's
-      path has been reasoned through. Safari produces `audio/mp4` — confirm the
-      transcription endpoint accepts what we send it.
+      path has been reasoned through and exercised. Safari produces
+      `audio/mp4` — confirm the transcription endpoint accepts what we send it.
 - [ ] **Transcription accuracy on digits.** Say a 9-digit SSN naturally and
       one digit at a time. If accuracy is poor, the `hintFor()` prompts in
       [src/llm.js](src/llm.js) are the first thing to adjust.
+- [ ] **Re-tune the filler list against a real room.** `FILLER_TRANSCRIPTS` in
+      [src/main.js](src/main.js) is the set of phrases a transcriber invents
+      when handed silence, and it was written from what these models are known
+      to emit rather than from logs of this app. If a genuine quiet answer ever
+      gets refused as filler, that list and `QUIET_PEAK` are where to look.
 
 ## 2. Security — before this goes near real claimants
 
@@ -48,12 +58,7 @@ screen reader. These are the highest-value next actions.
       explicit opt-in to include them. Someone will email this file to
       themselves.
 
-## 3. Usability improvements
-
-- [ ] **No way to re-import a saved JSON file.** `downloadJson()` exists; the
-      load side doesn't. Useful for resuming on a different device.
-
-## 4. Testing
+## 3. Testing
 
 - [ ] **Add browser-level tests.** The three end-to-end runs used during the
       build were scratch scripts against a DOM shim and weren't kept. Playwright
@@ -65,17 +70,58 @@ screen reader. These are the highest-value next actions.
 - [ ] **Test with a very long answer set** — 20 providers, 15 jobs — to confirm
       PDF pagination holds up beyond the 12-provider case that was checked.
 
-## 5. Deployment
-
-- [ ] **Enable Pages in repo settings** — Settings → Pages → Source:
-      **GitHub Actions**. The workflow cannot do this itself; until it is set,
-      the deploy step fails.
-
 ---
 
 # Closed
 
-## 6. Gaps in the question script
+## Fixed after the first live voice pass
+
+Two defects, both found by using the thing rather than by reading it. Neither
+was visible from the code — one needed a real microphone, the other needed
+someone to change their mind about how they wanted to answer.
+
+- [x] **A silent capture was being recorded as an answer.** Press and release
+      the space bar without speaking and the question advanced. The cause was
+      not the recorder: it was that push-to-talk never ran the level meter
+      (`heardSpeech` was hardcoded true whenever `autoStop` was off), so a
+      second of room tone passed the blob-size guard and was sent to be
+      transcribed — and a transcriber handed silence does not return an empty
+      string, it returns a short plausible phrase like "you" or "Thank you."
+      That phrase was extracted, committed, and the form moved on past a
+      question the user never answered, with no way back except the review
+      screen. Four guards now stand between a capture and the extractor: blob
+      size, a 350ms minimum duration, a measured microphone level that now runs
+      on both paths, and a filler-phrase check that only fires when the mic
+      also stayed at the noise floor. All four end in a re-ask.
+      [tests/empty-transcript.js](tests/empty-transcript.js) covers the last
+      one, including the cases where the same words *were* actually spoken.
+- [x] **Typing an answer permanently closed the voice lane.** `switchToText()`
+      set `mode = 'text'` and hid the talk button, and nothing ever undid it —
+      so one typed answer meant typing the rest of the interview. The lane a
+      user is in is no longer the same thing as the mode: `mode` now only
+      decides whether the recorder opens on its own and where focus lands,
+      while both controls stay on screen for the whole interview. `voiceDisabled`
+      is the only thing that closes voice, and it is set only for a microphone
+      that genuinely cannot work. Push-to-talk is no longer gated on
+      `mode === 'voice'`, the microphone is requested lazily on first press so
+      a typing-mode session can pick up voice partway through, <kbd>T</kbd>
+      moves to the text box and <kbd>Esc</kbd> hands the space bar back.
+
+## Transcript read-back on every voice answer
+
+- [x] **Confirm what was heard before using it.** Each voice answer is now read
+      back verbatim and waits for a spoken (or typed) yes/no. `no` discards it
+      and reopens the same question *without* re-reading the prompt — the user
+      just heard it, and repeating it before every retry is what makes a
+      misheard answer feel expensive. Two turns are exempt because they already
+      confirm themselves: commands, and the `confirm` fields (SSN, routing,
+      account), which get the stronger read-back of the parsed value spoken
+      digit by digit. Reading the raw transcript first would have asked the
+      same question twice and buried the version that actually catches a wrong
+      digit. Yes/no is matched before the command table here, since "correct"
+      is both a way to say yes and the name of the change-an-answer command.
+
+## 4. Gaps in the question script
 
 All five gaps below are now encoded in [src/schema.js](src/schema.js), with
 wording taken from the official worksheet's own column headers (extracted from
@@ -106,7 +152,7 @@ Two things fell out of this work:
   "May 2023". Fixed for `date` and `monthyear`. This also cleans up the job
   start/end columns and date of birth, which had the same problem all along.
 
-## 7. Usability improvements
+## 5. Usability improvements
 
 - [x] **Correcting a specific answer by voice.** Done. [src/correct.js](src/correct.js)
       maps a spoken field name to a question id — labels, per-field aliases,
@@ -169,8 +215,26 @@ Two things fell out of this work:
       continuously in an `aria-hidden` on-screen line so a screen reader is not
       made to narrate a number that barely moved. Covered by
       [tests/progress-estimate.js](tests/progress-estimate.js).
+- [x] **Re-importing a saved JSON file.** Done. `downloadJson()` had no load
+      side, so a saved file was a backup and nothing more. The export is now
+      `version: 2` and carries the cursor alongside the answers, which is what
+      lets an unfinished interview resume on another device at the exact
+      question it was left on. `answers` stays at the top level so the file is
+      still readable on its own and so a version 1 file (answers only) keeps
+      importing — those land on the first unanswered question instead, and the
+      import says so rather than pretending it knew. [src/importer.js](src/importer.js)
+      is strict about types and forgiving about shape: unknown question ids,
+      wrong-typed values, and loop items that are not objects are dropped
+      rather than handed to an engine that assumes its own state is well
+      formed, and a cursor is trusted only if it still points at a position the
+      current schema has — otherwise it is rebuilt by walking the schema. A
+      file picker in the setup panel loads the file into the saved session and
+      fills the resume row; it deliberately does not auto-start, because mode,
+      microphone, and API key still have to be settled and the resume button
+      already runs through exactly that. Covered by
+      [tests/import-json.js](tests/import-json.js).
 
-## 8. Deployment
+## 6. Deployment
 
 - [x] **Pick a host.** GitHub Pages, deployed by `.github/workflows/pages.yml`
       on every push to `main`. The workflow runs the tests first, then publishes
@@ -179,3 +243,6 @@ Two things fell out of this work:
       silently fail over plain HTTP.
 - [x] **Add a `.gitignore`** — covers downloaded worksheets, which may carry a
       real SSN.
+- [x] **Enable Pages in repo settings** — Settings → Pages → Source:
+      **GitHub Actions**. The workflow cannot do this itself; until it was set,
+      the deploy step failed.

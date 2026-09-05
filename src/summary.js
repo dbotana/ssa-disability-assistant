@@ -235,10 +235,18 @@ export function summaryText(answers) {
   return lines.join('\n');
 }
 
-/** Download the raw answers as JSON, for re-import or a backup copy. */
-export function downloadJson(answers, filename = 'ssa-disability-prep.json') {
-  const blob = new Blob([JSON.stringify({ version: 1, savedAt: new Date().toISOString(), answers }, null, 2)],
-    { type: 'application/json' });
+/**
+ * Download the session as JSON, for re-import or a backup copy.
+ *
+ * `answers` stays at the top level so the file is readable on its own and so
+ * files written by version 1 (answers only) still import. `state` carries the
+ * cursor as well, which is what lets an unfinished interview resume on another
+ * device at the exact question it was left on.
+ */
+export function downloadJson(answers, state = null, filename = 'ssa-disability-prep.json') {
+  const payload = { version: 2, savedAt: new Date().toISOString(), answers };
+  if (state) payload.state = state;
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   triggerDownload(blob, filename);
 }
 

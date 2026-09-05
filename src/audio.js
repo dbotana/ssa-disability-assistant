@@ -78,21 +78,38 @@ export function isRecording() {
   return recorder?.state === 'recording';
 }
 
-// Whether the last capture contained anything above the noise floor.
+// What the last capture actually contained.
 //
-// Only meaningful when autoStop was on — push-to-talk never runs the level
-// meter, so it stays true there and the size guard is the only filter. Read
-// via lastCaptureHadSpeech() after stopRecording().
-let heardSpeech = true;
+// The level meter runs for every capture, not only the hands-free ones. Push
+// to talk used to assume speech, which meant tapping the space bar without
+// saying anything sent a second of room tone to be transcribed — and a
+// transcriber handed silence invents a short filler phrase rather than
+// returning nothing. That filler was then recorded as the answer and the form
+// moved on. Measuring the microphone is the only way to tell the two apart.
+let heardSpeech = false;
+let capturePeak = 0;
+let captureStartedAt = 0;
+let captureMs = 0;
 
 /**
  * Did the capture that just ended actually contain speech?
  *
- * Used to skip paying to transcribe a hands-free turn that auto-stopped on a
- * cough, a door, or a hot mic in a quiet room.
+ * Used to skip paying to transcribe a turn that caught a cough, a door, or a
+ * hot mic in a quiet room — and, on the push-to-talk path, a button press
+ * with nothing said into it.
  */
 export function lastCaptureHadSpeech() {
   return heardSpeech;
+}
+
+/** Loudest RMS level seen during the last capture, 0..1. */
+export function lastCapturePeak() {
+  return capturePeak;
+}
+
+/** How long the last capture ran, in milliseconds. */
+export function lastCaptureDurationMs() {
+  return captureMs;
 }
 
 /**
@@ -111,9 +128,10 @@ export async function startRecording({
   if (isRecording()) return;
 
   chunks = [];
-  // Push-to-talk runs no level meter, so nothing would ever set this. Assume
-  // speech there and let the blob-size guard do the filtering.
-  heardSpeech = !autoStop;
+  heardSpeech = false;
+  capturePeak = 0;
+  captureMs = 0;
+  captureStartedAt = performance.now();
   const mimeType = pickMime();
   recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
   recorder.ondataavailable = e => { if (e.data?.size) chunks.push(e.data); };
@@ -124,17 +142,18 @@ export async function startRecording({
   clearTimeout(hardStopTimer);
   hardStopTimer = setTimeout(() => { if (isRecording()) onAutoStop?.(); }, maxMs);
 
-  if (autoStop) watchForSilence(silenceMs, onAutoStop);
+  watchLevels({ autoStop, silenceMs, onAutoStop });
 }
 
-function watchForSilence(silenceMs, onAutoStop) {
+function watchLevels({ autoStop, silenceMs, onAutoStop }) {
   const SPEECH = 0.045;   // RMS above this ends the turn when it goes quiet
   // Deliberately lower than SPEECH. This one only decides whether to spend
   // money transcribing, and the cost of the two mistakes is not symmetric:
   // a wasted API call is pennies, while telling a soft-spoken user "I did not
   // hear anything" when they did speak is a loop they cannot escape. Bias
-  // hard toward believing there was speech.
-  const AUDIBLE = 0.03;
+  // hard toward believing there was speech — with noise suppression on, a
+  // silent room sits an order of magnitude below this.
+  const AUDIBLE = 0.02;
   let endedOnSilence = false;
   let quietSince = null;
 
@@ -142,14 +161,17 @@ function watchForSilence(silenceMs, onAutoStop) {
     if (!isRecording()) return;
     const level = inputLevel();
 
+    if (level > capturePeak) capturePeak = level;
     if (level > AUDIBLE) heardSpeech = true;
 
-    if (level > SPEECH) {
-      endedOnSilence = true;
-      quietSince = null;
-    } else if (endedOnSilence) {
-      quietSince ??= performance.now();
-      if (performance.now() - quietSince > silenceMs) { onAutoStop?.(); return; }
+    if (autoStop) {
+      if (level > SPEECH) {
+        endedOnSilence = true;
+        quietSince = null;
+      } else if (endedOnSilence) {
+        quietSince ??= performance.now();
+        if (performance.now() - quietSince > silenceMs) { onAutoStop?.(); return; }
+      }
     }
     silenceTimer = requestAnimationFrame(tick);
   };
@@ -161,6 +183,7 @@ export function stopRecording() {
   return new Promise(resolve => {
     clearTimeout(hardStopTimer);
     if (silenceTimer) cancelAnimationFrame(silenceTimer);
+    captureMs = captureStartedAt ? performance.now() - captureStartedAt : 0;
     if (!recorder || recorder.state === 'inactive') { resolve(null); return; }
 
     recorder.onstop = () => {

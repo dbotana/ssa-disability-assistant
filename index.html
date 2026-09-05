@@ -68,8 +68,13 @@
       </label>
       <label class="radio">
         <input type="radio" name="mode" value="text">
-        Typing — no microphone
+        Typing — start with the keyboard
       </label>
+      <p class="help">
+        This only sets how the interview starts. Speaking and typing are both
+        available on every question, and you can move between them whenever you
+        like.
+      </p>
     </fieldset>
 
     <div class="field" id="stt-row" hidden>
@@ -84,6 +89,18 @@
         Either way, your answers are saved on this device and are never sent to
         the Social Security Administration.
       </p>
+    </div>
+
+    <div class="field" id="import-row">
+      <label for="import-file">Continue from a file you saved</label>
+      <input type="file" id="import-file" accept="application/json,.json"
+             aria-describedby="import-help">
+      <p id="import-help" class="help">
+        If you saved your answers as a file on another device, choose it here to
+        pick up where you left off. This replaces any answers saved on this
+        device.
+      </p>
+      <p id="import-status" role="status" class="help"></p>
     </div>
 
     <div id="resume-row" hidden>
@@ -106,16 +123,28 @@
 
     <p id="status" class="status" role="status"></p>
 
+    <!-- Both lanes are live on every question. Neither one closes the other:
+         a typed answer leaves the talk button working, and a spoken answer
+         leaves the text box ready. -->
     <div class="controls">
-      <button type="button" id="talk-button" class="primary talk">
+      <button type="button" id="talk-button" class="primary talk"
+              aria-describedby="lane-help">
         Hold to talk
       </button>
 
       <div id="text-entry" class="field" hidden>
-        <label for="text-answer">Your answer</label>
-        <input type="text" id="text-answer" autocomplete="off">
+        <label for="text-answer">Or type your answer</label>
+        <input type="text" id="text-answer" autocomplete="off"
+               aria-describedby="lane-help">
         <button type="button" id="text-submit" class="primary">Submit</button>
       </div>
+
+      <p id="lane-help" class="help">
+        Hold the space bar (or the button) to speak, or press <kbd>T</kbd> to
+        type. Press <kbd>Escape</kbd> to leave the text box and use the space
+        bar again. After every spoken answer I read back what I heard and wait
+        for you to say yes or no.
+      </p>
     </div>
 
     <div class="secondary-controls">
@@ -130,6 +159,7 @@
     <details class="help-details">
       <summary>Things you can say at any time</summary>
       <ul>
+        <li><strong>Yes</strong> or <strong>No</strong> — after I read back what I heard. No lets you answer again without hearing the question repeated</li>
         <li><strong>Repeat that</strong> — hear the question again</li>
         <li><strong>Go back</strong> — return to the previous question</li>
         <li><strong>Skip this</strong> — leave it blank and move on</li>

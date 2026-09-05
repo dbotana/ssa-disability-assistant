@@ -27,9 +27,40 @@ Paste an OpenAI API key on the setup screen, choose an input mode, and start.
 | **Hands free** | The assistant starts listening after each question and stops on ~1.2s of silence |
 | **Typing** | Type answers instead — works with no API key at all |
 
+The mode chooses how the interview *starts*, not what stays available. Both
+lanes are live on every question: the hold-to-talk button and the text box are
+always on screen, and answering with one does not close the other. Type one
+answer and speak the next; the microphone is requested lazily on the first
+press, so even a typing-mode session can pick up voice partway through. Only a
+microphone that has actually failed — permission denied, no device, or a
+rejected API key — closes the voice lane, and it says so when it does.
+
+<kbd>T</kbd> puts the cursor in the text box, <kbd>Esc</kbd> leaves it so the
+space bar talks again.
+
 Typing mode with no key is the offline path: answers are parsed and validated
 locally, and the browser's built-in voice reads questions aloud. Everything
 except speech recognition works without an API key.
+
+### Every spoken answer is read back
+
+After each voice answer the assistant repeats what it heard, verbatim, and
+waits for a spoken `yes` or `no`. `yes` accepts it and moves on. `no` throws it
+away and reopens the same question *without re-reading the prompt* — the user
+just heard it, and repeating it before every retry is what makes a misheard
+answer feel expensive. The read-back can be answered by typing too.
+
+Two turns are exempt, because they already confirm themselves: commands
+(`skip`, `go back`) and the high-stakes fields marked `confirm` — SSN, routing
+and account numbers — which instead get the stronger read-back of the *parsed
+value*, spoken digit by digit.
+
+A capture with no speech in it never reaches this point. The level meter runs
+for push-to-talk as well as hands free, and a capture that stayed at the noise
+floor, ran under 350ms, or came back as transcriber filler is refused and the
+question asked again. Before this, tapping the space bar without speaking sent
+room tone to be transcribed — and a transcriber handed silence returns a short
+invented phrase, not nothing, which was then recorded as the answer.
 
 ### Say at any time
 
@@ -38,7 +69,8 @@ except speech recognition works without an API key.
 
 Keyboard equivalents: <kbd>Enter</kbd> repeat, <kbd>B</kbd> back, <kbd>S</kbd>
 skip, <kbd>W</kbd> where, <kbd>R</kbd> read back, <kbd>H</kbd> toggle hands
-free, <kbd>T</kbd> typing mode, <kbd>Esc</kbd> cancel recording.
+free, <kbd>T</kbd> type, <kbd>Esc</kbd> cancel a recording — or, from inside the
+text box, leave it and hand the space bar back to voice.
 
 ## Privacy, and a real limitation
 
@@ -113,6 +145,7 @@ digit by digit and require confirmation before they are committed.
 | `src/store.js` | `localStorage` persistence and resume |
 | `src/pdf.js` | Generated worksheet PDF (pdf-lib) |
 | `src/summary.js` | Accessible HTML summary, JSON export |
+| `src/importer.js` | Reading a saved JSON file back in |
 
 ### Why the PDF is generated rather than filled
 
@@ -150,13 +183,21 @@ node tests/engine-walk.js        # control flow
 node tests/correct-match.js      # spoken field matching
 node tests/delete-item.js        # loop entry removal
 node tests/progress-estimate.js  # progress counting and time remaining
+node tests/import-json.js        # re-importing a saved answers file
+node tests/empty-transcript.js   # a silent capture never becomes an answer
 ```
 
 None of them make an API call. Between them they cover multi-item loops,
 `askIf` branches inside loop items, `back()` discarding a speculatively-opened
 item, `jumpTo` into a specific loop index, save/resume round-trips, a throwing
 `askIf` not stranding the interview, and the guarantee that the spoken
-percentage never runs backward however many items a loop collects.
+percentage never runs backward however many items a loop collects, and that a
+saved answers file re-imports to the exact question it was left on — or, for a
+file written before the cursor was recorded, to the first unanswered one.
+`empty-transcript.js` covers the one failure that loses data silently: a
+recorder handed silence produces a short invented phrase rather than nothing,
+and without the filter that phrase is committed as the answer and the form
+moves on.
 
 For an end-to-end check without spending API credits, run the site and use
 typing mode with the key field left blank.
