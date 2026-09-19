@@ -4,7 +4,7 @@
 // commit -> advance. Every state change is announced, and every failure has a
 // spoken recovery path.
 
-import { SECTIONS } from './schema.js';
+import { SECTIONS, FORM_TITLES, formsOf } from './schema.js';
 import { createEngine } from './engine.js';
 import { initA11y, announce, focusMain, speakableValue, formatTimeRemaining } from './a11y.js';
 import * as store from './store.js';
@@ -16,7 +16,7 @@ import {
   resolveTarget, resolveChoice, describeTarget,
   isDeletionPhrase, resolveDeletion, describeItem
 } from './correct.js';
-import { downloadPdf } from './pdf.js';
+import { downloadForm } from './fill.js';
 import { readExportFile, ImportError } from './importer.js';
 import * as say from './phrases.js';
 import { parseLocal } from './parse.js';
@@ -123,7 +123,9 @@ function boot() {
   document.querySelectorAll('[data-command]').forEach(b =>
     b.addEventListener('click', () => runCommand(b.dataset.command)));
 
-  el('download-pdf').addEventListener('click', exportPdf);
+  el('download-all').addEventListener('click', () => exportForms([...formsOf(engine.answers())]));
+  el('download-ssa').addEventListener('click', () => exportForms(['ssa']));
+  el('download-ds').addEventListener('click', () => exportForms(['ds']));
   el('download-json').addEventListener('click', () => {
     downloadJson(engine.answers(), engine.getState());
     announce('Your answers were saved as a file.', true);
@@ -230,11 +232,18 @@ async function askCurrent({ announceSection = false, prefix = '' } = {}) {
     ui.sectionLabel.textContent = `Changing an answer — ${q.sectionTitle}`;
   } else if (announceSection || q.section !== askCurrent.lastSection) {
     const p = engine.progress();
-    segments.push(`Section ${p.sectionNumber} of ${p.sectionCount}.`, `${q.sectionTitle}.`);
-    ui.sectionLabel.textContent = `Section ${p.sectionNumber} of ${p.sectionCount} — ${q.sectionTitle}`;
+    // Until the form question is answered there is no section count to give:
+    // it depends on which form, or both, is being filled out.
+    if (p.sectionCount) {
+      segments.push(`Section ${p.sectionNumber} of ${p.sectionCount}.`, `${q.sectionTitle}.`);
+      ui.sectionLabel.textContent = `Section ${p.sectionNumber} of ${p.sectionCount} — ${q.sectionTitle}`;
+    } else {
+      segments.push(`${q.sectionTitle}.`);
+      ui.sectionLabel.textContent = q.sectionTitle;
+    }
     askCurrent.lastSection = q.section;
     // Offer the estimate at a section break, but only when it has actually
-    // changed since the last time it was spoken. There are nineteen sections;
+    // changed since the last time it was spoken. There are up to 32 sections;
     // hearing "about 40 minutes left" at four of them in a row is nagging, and
     // it is the *change* that carries information.
     const left = formatTimeRemaining(p.secondsRemaining);
@@ -425,7 +434,7 @@ async function handleTranscript(transcript) {
   // High-stakes fields are read back before they are committed.
   if (q.confirm) {
     pending = { question: q, value: result.value };
-    const readBack = `I heard ${speakableValue(result.value, q.type)}. Is that correct?`;
+    const readBack = `I heard ${speakableValue(result.value, q.type, q.options)}. Is that correct?`;
     ui.question.textContent = readBack;
     announce(readBack);
     await speech.speak(readBack);
@@ -497,8 +506,10 @@ async function runCommand(cmd) {
       // instead of it, since the percentage is the number that never moves
       // backward and is the one worth trusting.
       const left = formatTimeRemaining(p.secondsRemaining);
-      const msg = `You are in section ${p.sectionNumber} of ${p.sectionCount}, `
-        + `${p.sectionTitle}. About ${p.percent} percent done`
+      const where = p.sectionCount
+        ? `You are in section ${p.sectionNumber} of ${p.sectionCount}, ${p.sectionTitle}.`
+        : 'You are at the start, choosing which form to fill out.';
+      const msg = `${where} About ${p.percent} percent done`
         + (left ? `, ${left} left at the pace you have been going.` : '.');
       announce(msg, true);
       await speech.speak(msg);
@@ -887,7 +898,7 @@ async function handleTypedDirect(text) {
   }
   if (q.confirm) {
     pending = { question: q, value: result.value };
-    const readBack = `I have ${speakableValue(result.value, q.type)}. Is that correct? Type yes or no.`;
+    const readBack = `I have ${speakableValue(result.value, q.type, q.options)}. Is that correct? Type yes or no.`;
     ui.question.textContent = readBack;
     announce(readBack);
     await speech.speak(readBack);
@@ -1012,21 +1023,34 @@ async function finishInterview() {
 
   const missing = engine.missingRequired();
   const intro = missing.length
-    ? `Your worksheet is ready. ${missing.length} required ${missing.length === 1 ? 'answer is' : 'answers are'} still blank: ${missing.map(m => m.prompt).join(' ')} You can change an answer, or download the worksheet as it is.`
+    ? `Your answers are ready. ${missing.length} required ${missing.length === 1 ? 'answer is' : 'answers are'} still blank: ${missing.map(m => m.prompt).join(' ')} You can change an answer, or download your forms as they are.`
     : say.ALL_DONE;
 
   ui.reviewIntro.textContent = intro;
   renderSummary(ui.summary, engine.answers());
+  showDownloadButtons();
   announce(intro, true);
   // Two utterances: the completion line varies with what is missing, but the
   // download instructions are fixed and come from the clip index.
   await speakSegments([intro, say.DOWNLOAD_HINT]);
-  el('download-pdf').focus();
+  firstDownloadButton()?.focus();
+}
+
+/** One download button per chosen form, plus "both" when there are two. */
+function showDownloadButtons() {
+  const chosen = formsOf(engine.answers());
+  el('download-all').hidden = chosen.size < 2;
+  el('download-ssa').hidden = !chosen.has('ssa');
+  el('download-ds').hidden = !chosen.has('ds');
+}
+
+function firstDownloadButton() {
+  return ['download-all', 'download-ssa', 'download-ds'].map(el).find(b => b && !b.hidden) ?? null;
 }
 
 /**
  * Start a correction. Missing required answers come first, since those block
- * a complete worksheet; otherwise ask which answer to change.
+ * a complete form; otherwise ask which answer to change.
  */
 async function startReview() {
   const missing = engine.missingRequired();
@@ -1275,7 +1299,7 @@ async function beginCorrection(target) {
   const current = target.value;
   const heard = current == null || current === ''
     ? `${describeTarget(target)} is blank right now.`
-    : `Right now ${describeTarget(target)} is ${speakableValue(current, target.type)}.`;
+    : `Right now ${describeTarget(target)} is ${speakableValue(current, target.type, target.options)}.`;
 
   await askCurrent({ prefix: `${heard} What should it be instead?` });
 }
@@ -1286,11 +1310,28 @@ async function finishCorrection(value) {
   const ok = engine.setAnswer(t.id, value, { loopId: t.loopId ?? null, loopIndex: t.loopIndex ?? 0 });
   correcting = null;
   pending = null;
+
+  // A different choice of forms can add questions that sit behind the cursor,
+  // where the forward walk will never reach them. Go and ask those now rather
+  // than offering a half-filled form for download.
+  if (ok && t.id === 'forms' && !t.loopId) {
+    const next = engine.rewalk();
+    store.saveState(engine.getState());
+    if (next) {
+      clearCorrectionState();
+      ui.review.hidden = true;
+      ui.interview.hidden = false;
+      await speech.speak(say.FORMS_CHANGED);
+      await askCurrent({ announceSection: true });
+      return;
+    }
+  }
+
   store.saveState(engine.getState());
 
   const what = describeTarget(t);
   await returnToReview(ok
-    ? `${titleCase(what)} is now ${speakableValue(value, t.type)}.`
+    ? `${titleCase(what)} is now ${speakableValue(value, t.type, t.options)}.`
     : 'That answer could not be changed.');
 }
 
@@ -1310,12 +1351,13 @@ async function returnToReview(note) {
   ui.interview.hidden = true;
   ui.review.hidden = false;
   renderSummary(ui.summary, engine.answers());
+  showDownloadButtons();
 
   const missing = engine.missingRequired();
   const tail = missing.length
     ? ` ${missing.length} required ${missing.length === 1 ? 'answer is' : 'answers are'} still blank.`
     : '';
-  const msg = `${note}${tail} You can change another answer, or download your worksheet.`;
+  const msg = `${note}${tail} You can change another answer, or download your forms.`;
   ui.reviewIntro.textContent = msg;
   announce(msg, true);
   await speech.speak(msg);
@@ -1330,16 +1372,32 @@ async function sayAndListen(msg) {
   resumeListening();
 }
 
-async function exportPdf() {
+/**
+ * Fill in the official PDF for each form id and download it.
+ *
+ * Two forms are two files, because they go to two different agencies. A
+ * browser may ask before allowing the second download from one click, which
+ * is why the spoken confirmation for both mentions it.
+ */
+async function exportForms(ids) {
+  const answers = engine.answers();
+  const saved = [];
+  let fellBack = false;
   try {
-    setStatus('Building your PDF…');
-    const name = [engine.answers().first_name, engine.answers().last_name].filter(Boolean).join(' ');
-    const filename = await downloadPdf(engine.answers(), name);
-    const msg = `Your worksheet was downloaded as ${filename}.`;
+    for (const id of ids) {
+      setStatus(`Filling in the ${FORM_TITLES[id]}…`);
+      const { filename, fallback } = await downloadForm(id, answers);
+      saved.push(filename);
+      fellBack = fellBack || fallback;
+    }
+    const msg = `Downloaded ${saved.join(' and ')}.`;
     setStatus(msg);
     announce(msg, true);
-    await speech.speak(say.DOWNLOADED);
+    const spoken = fellBack ? [say.WORKSHEET_FALLBACK] : [];
+    spoken.push(saved.length > 1 ? say.BOTH_DOWNLOADED : say.DOWNLOADED);
+    await speakSegments(spoken);
   } catch (err) {
+    console.error(err);
     const msg = 'The PDF could not be created. Your answers are safe — try saving them as a file instead.';
     setStatus(msg);
     announce(msg, true);

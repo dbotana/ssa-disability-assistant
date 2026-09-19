@@ -16,7 +16,7 @@ function eq(label, actual, expected) {
 }
 
 /** Walk the interview, adding `caps[loopId]` items to each loop. */
-function walk(caps = {}, onStep = () => {}) {
+function walk(caps = {}, onStep = () => {}, forms = 'ssa') {
   const e = createEngine();
   let guard = 0;
   while (!e.isComplete() && guard++ < 5000) {
@@ -24,7 +24,8 @@ function walk(caps = {}, onStep = () => {}) {
     if (!q) break;
     onStep(q, e.progress(), e);
     let v;
-    if (q.loopPhase === 'entry') v = q.itemNumber <= (caps[q.loopId] ?? 1);
+    if (q.id === 'forms') v = forms;
+    else if (q.loopPhase === 'entry') v = q.itemNumber <= (caps[q.loopId] ?? 1);
     else if (q.type === 'yesno') v = true;
     else v = `v_${q.id}`;
     e.submit(v);
@@ -102,12 +103,26 @@ function walk(caps = {}, onStep = () => {}) {
   while (!no.isComplete() && guard++ < 5000) {
     const q = no.current();
     if (!q) break;
-    no.submit(q.type === 'yesno' || q.loopPhase === 'entry' ? false : `v_${q.id}`);
+    no.submit(q.id === 'forms' ? 'ssa' : q.type === 'yesno' || q.loopPhase === 'entry' ? false : `v_${q.id}`);
   }
   const yes = walk({});
   check('declining branches yields a smaller total than accepting them',
     no.progress().total < yes.progress().total,
     `no-walk ${no.progress().total} vs yes-walk ${yes.progress().total}`);
+}
+
+// --- 6b. Every form choice finishes monotonic and at 100 percent ------------
+{
+  for (const forms of ['ds', 'both']) {
+    let prev = 0;
+    let drops = 0;
+    const e = walk({ providers: 2, medications: 2 }, (q, p) => {
+      if (p.percent < prev) drops++;
+      prev = p.percent;
+    }, forms);
+    eq(`percent is monotonic for ${forms}`, drops, 0);
+    eq(`${forms} finishes at 100 percent`, e.progress().percent, 100);
+  }
 }
 
 // --- 7. No estimate until there is enough evidence --------------------------

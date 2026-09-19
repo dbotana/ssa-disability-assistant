@@ -1,5 +1,10 @@
-# A downloaded worksheet may contain a real SSN. Never commit one.
+# A downloaded form or worksheet may contain a real SSN. Never commit one.
+# (The blank templates in forms/ are named differently on purpose.)
 disability-worksheet*.pdf
+ssa-starter-kit*.pdf
+maine-ds-intake*.pdf
+disability-forms-prep*.json
+ssa-disability-prep*.json
 
 .DS_Store
 node_modules/

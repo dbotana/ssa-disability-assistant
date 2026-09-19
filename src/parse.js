@@ -18,6 +18,8 @@
 // well-formed; parseLocal() only turns spoken forms into something for it to
 // check.
 
+import { matchChoice } from './choice.js';
+
 const YES = /^(y|yes|yeah|yep|yup|sure|correct|right|true|affirmative|ok|okay|that is right|thats right|that's right|uh huh)$/;
 const NO = /^(n|no|nope|nah|negative|false|incorrect|wrong|that is wrong|thats wrong|that's wrong|uh uh)$/;
 
@@ -68,6 +70,9 @@ function parseByType(question, raw) {
     case 'routing':
     case 'account': return parseSensitiveDigits(raw);
     case 'phone': return parsePhone(raw);
+    case 'zip': return parseZip(raw);
+    case 'email': return parseEmail(raw);
+    case 'choice': return parseChoice(raw, question);
     case 'date': return parseDate(raw, question);
     case 'monthyear': return parseMonthYear(raw, question);
     case 'money':
@@ -100,6 +105,18 @@ function parseYesNo(raw) {
   // question than the one being asked, and guessing which is exactly the
   // judgment call this file exists to avoid.
   return null;
+}
+
+// -- choice ----------------------------------------------------------------
+
+/**
+ * One of a question's options, named clearly, or null. The matcher itself
+ * lives in choice.js so that normalize() applies exactly the same rules to
+ * whatever the model returns.
+ */
+function parseChoice(raw, question) {
+  const option = matchChoice(question.options, raw);
+  return option ? { value: option.value, confidence: 1 } : null;
 }
 
 // -- digits ----------------------------------------------------------------
@@ -161,6 +178,34 @@ function digitsFrom(raw) {
   return out || null;
 }
 
+/** A five or nine digit ZIP code, and nothing else. */
+function parseZip(raw) {
+  const digits = digitsFrom(raw);
+  if (digits === null) return null;
+  return digits.length === 5 || digits.length === 9 ? { value: digits, confidence: 1 } : null;
+}
+
+// -- email -----------------------------------------------------------------
+
+/**
+ * Typed addresses, and spoken ones in the only form that has one reading:
+ * "jane dot doe at example dot com". Anything with words that are not part of
+ * an address defers.
+ */
+function parseEmail(raw) {
+  const s = String(raw ?? '').trim().toLowerCase().replace(/[.!?,]+$/, '');
+  if (EMAIL.test(s)) return { value: s, confidence: 1 };
+  const spoken = s
+    .replace(/\s+at\s+/g, '@')
+    .replace(/\s+dot\s+/g, '.')
+    .replace(/\s+(underscore)\s+/g, '_')
+    .replace(/\s+(dash|hyphen)\s+/g, '-');
+  if (/\s/.test(spoken)) return null;
+  return EMAIL.test(spoken) ? { value: spoken, confidence: 1 } : null;
+}
+
+const EMAIL = /^[a-z0-9._%+-]+@[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}$/;
+
 // -- numbers and money -----------------------------------------------------
 
 function parseNumber(raw) {
@@ -193,7 +238,7 @@ function parseDate(raw, question) {
 
   // 3/14/79, 03-14-1979
   m = /^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2}|\d{4})$/.exec(s);
-  if (m) return dated(expandYear(+m[3], m[3].length), +m[1], +m[2], 1, question);
+  if (m) return dated(expandYear(+m[3], m[3].length, question), +m[1], +m[2], 1, question);
 
   // March 14th 1979 · the 14th of March, 1979 · March 14 1979
   const month = findMonth(s);
@@ -216,7 +261,7 @@ function parseDate(raw, question) {
   else return null;   // "3 14" with no century — ambiguous, defer
 
   const confidence = yearRaw.length === 4 ? 1 : 0.8;
-  return dated(expandYear(+yearRaw, yearRaw.length), month, +day, confidence, question);
+  return dated(expandYear(+yearRaw, yearRaw.length, question), month, +day, confidence, question);
 }
 
 function parseMonthYear(raw, question) {
@@ -231,7 +276,7 @@ function parseMonthYear(raw, question) {
 
   // 3/79, 03/1979
   m = /^(\d{1,2})[/\-.](\d{2}|\d{4})$/.exec(s);
-  if (m) return monthYear(expandYear(+m[2], m[2].length), +m[1], m[2].length === 4 ? 1 : 0.8, question);
+  if (m) return monthYear(expandYear(+m[2], m[2].length, question), +m[1], m[2].length === 4 ? 1 : 0.8, question);
 
   const month = findMonth(s);
   if (month === null) return null;
@@ -239,7 +284,7 @@ function parseMonthYear(raw, question) {
   if (nums.length !== 1) return null;
 
   const yearRaw = nums[0];
-  return monthYear(expandYear(+yearRaw, yearRaw.length), month, yearRaw.length === 4 ? 1 : 0.8, question);
+  return monthYear(expandYear(+yearRaw, yearRaw.length, question), month, yearRaw.length === 4 ? 1 : 0.8, question);
 }
 
 function findMonth(s) {
@@ -252,16 +297,20 @@ function findMonth(s) {
 /**
  * Two-digit years.
  *
- * Every date this form asks for is in the past: a birth date, an onset date, a
- * date of treatment or employment. So "79" is 1979 and "05" is 2005 — the most
- * recent past year with those digits, never a future one.
+ * Almost every date these forms ask for is in the past: a birth date, an onset
+ * date, a date of treatment or employment. So "79" is 1979 and "05" is 2005 —
+ * the most recent past year with those digits. A question that allows future
+ * dates (an expected graduation) reads a near-future year as itself, so
+ * "June 28" is not taken to mean 1928.
  */
-function expandYear(year, digits) {
+function expandYear(year, digits, question) {
   if (digits === 4) return year;
   const now = new Date().getFullYear();
   const century = Math.floor(now / 100) * 100;
   const candidate = century + year;
-  return candidate > now ? candidate - 100 : candidate;
+  if (candidate <= now) return candidate;
+  if (allowsFuture(question) && candidate <= now + 20) return candidate;
+  return candidate - 100;
 }
 
 function dated(year, month, day, confidence, question) {
@@ -292,12 +341,14 @@ function isFuture(year, month, day) {
 }
 
 /**
- * No question on this worksheet asks for a future date, so a parse that lands
- * in the future means the input was misread. Deferring to the model gives the
- * user a clarification instead of a wrong answer they may never notice.
+ * Most dates on these forms are in the past — a birth, an onset, a visit — so
+ * a parse that lands in the future usually means the input was misread, and
+ * deferring gives the user a clarification instead of a wrong answer they may
+ * never notice. The exceptions (a scheduled test, an expected graduation) say
+ * so with `allowFuture`.
  */
-function allowsFuture() {
-  return false;
+function allowsFuture(question) {
+  return !!question?.allowFuture;
 }
 
 // -- shared ----------------------------------------------------------------

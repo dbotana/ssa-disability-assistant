@@ -2,7 +2,8 @@
 // Zero API calls — this exercises control flow only.
 
 import { createEngine } from '../src/engine.js';
-import { SECTIONS } from '../src/schema.js';
+import { SECTIONS, sectionActive } from '../src/schema.js';
+import { startEngine } from './lib/walk.js';
 
 let failures = 0;
 function check(label, cond, detail = '') {
@@ -17,7 +18,7 @@ function eq(label, actual, expected) {
 
 // --- 1. Every question is reachable, and none is asked twice ---------------
 {
-  const e = createEngine();
+  const e = startEngine();
   const seen = [];
   let guard = 0;
   while (!e.isComplete() && guard++ < 5000) {
@@ -37,13 +38,16 @@ function eq(label, actual, expected) {
   check('terminates', e.isComplete(), `stopped after ${guard} steps`);
   const dupes = seen.filter((p, i) => seen.indexOf(p) !== i);
   eq('no question asked twice', dupes, []);
+  // Every Starter Kit section but the form choice itself, which was answered
+  // before the walk started recording.
+  const ssaSections = SECTIONS.filter(s => sectionActive(s, { forms: 'ssa' })).length - 1;
   check('visited every section',
-    new Set(seen.map(p => p.split('/')[0])).size >= SECTIONS.length - 2);
+    new Set(seen.map(p => p.split('/')[0])).size >= ssaSections - 2);
 }
 
 // --- 2. "No" at a loop entry skips the whole group -------------------------
 {
-  const e = createEngine();
+  const e = startEngine();
   while (e.current() && e.current().section !== 'medical_providers') {
     const q = e.current();
     e.submit(q.type === 'yesno' ? false : `v_${q.id}`);
@@ -58,7 +62,7 @@ function eq(label, actual, expected) {
 
 // --- 3. Multiple items in one loop -----------------------------------------
 {
-  const e = createEngine();
+  const e = startEngine();
   while (e.current() && e.current().section !== 'medical_providers') {
     const q = e.current();
     e.submit(q.type === 'yesno' ? false : `v_${q.id}`);
@@ -85,7 +89,7 @@ function eq(label, actual, expected) {
 // --- 4. askIf branches: workers' comp --------------------------------------
 {
   const run = receives => {
-    const e = createEngine();
+    const e = startEngine();
     while (e.current() && e.current().id !== 'wc_receives') {
       const q = e.current();
       e.submit(q.loopPhase === 'entry' ? false : q.type === 'yesno' ? false : `v_${q.id}`);
@@ -100,7 +104,7 @@ function eq(label, actual, expected) {
 
 // --- 5. askIf inside a loop item: marriage still active --------------------
 {
-  const e = createEngine();
+  const e = startEngine();
   while (e.current() && e.current().section !== 'marriages') {
     const q = e.current();
     e.submit(q.loopPhase === 'entry' ? false : q.type === 'yesno' ? false : `v_${q.id}`);
@@ -121,7 +125,7 @@ function eq(label, actual, expected) {
   eq('death date is gated on spouse_died', e.current().id, 'spouse_death_date');
 }
 {
-  const e = createEngine();
+  const e = startEngine();
   while (e.current() && e.current().section !== 'marriages') {
     const q = e.current();
     e.submit(q.loopPhase === 'entry' ? false : q.type === 'yesno' ? false : `v_${q.id}`);
@@ -136,7 +140,7 @@ function eq(label, actual, expected) {
 
 // --- 6. back() rewinds and clears the answer ------------------------------
 {
-  const e = createEngine();
+  const e = startEngine();
   e.submit('Dana');
   eq('advanced to last name', e.current().id, 'last_name');
   const q = e.back();
@@ -148,7 +152,7 @@ function eq(label, actual, expected) {
 
 // --- 7. back() over a loop entry "yes" discards the opened item ------------
 {
-  const e = createEngine();
+  const e = startEngine();
   while (e.current() && e.current().section !== 'medical_providers') {
     const q = e.current();
     e.submit(q.type === 'yesno' ? false : `v_${q.id}`);
@@ -162,7 +166,7 @@ function eq(label, actual, expected) {
 
 // --- 8. skip() leaves it blank and moves on -------------------------------
 {
-  const e = createEngine();
+  const e = startEngine();
   e.skip();
   eq('skip advanced', e.current().id, 'last_name');
   eq('skipped value is null', e.answers().first_name, null);
@@ -170,7 +174,7 @@ function eq(label, actual, expected) {
 
 // --- 9. jumpTo() for the review pass --------------------------------------
 {
-  const e = createEngine();
+  const e = startEngine();
   e.submit('Dana'); e.submit('Botana');
   const q = e.jumpTo('first_name');
   eq('jumped to first_name', q.id, 'first_name');
@@ -178,7 +182,7 @@ function eq(label, actual, expected) {
   eq('correction recorded', e.answers().first_name, 'Corrected');
 }
 {
-  const e = createEngine();
+  const e = startEngine();
   while (e.current() && e.current().section !== 'medical_providers') {
     const q = e.current();
     e.submit(q.type === 'yesno' ? false : `v_${q.id}`);
@@ -204,7 +208,7 @@ function eq(label, actual, expected) {
 
 // --- 10. missingRequired() finds blanks -----------------------------------
 {
-  const e = createEngine();
+  const e = startEngine();
   e.skip();                       // first_name is required
   const missing = e.missingRequired().map(m => m.id);
   check('reports the skipped required field', missing.includes('first_name'),
@@ -213,7 +217,7 @@ function eq(label, actual, expected) {
 
 // --- 11. Save / resume round-trips ----------------------------------------
 {
-  const e = createEngine();
+  const e = startEngine();
   e.submit('Dana'); e.submit('Botana'); e.submit('1980-05-05');
   const saved = e.getState();
   const resumed = createEngine(SECTIONS, saved);
@@ -239,6 +243,25 @@ function eq(label, actual, expected) {
   check('still completes', e.isComplete());
 }
 
+// --- 12b. Going back over "add another? yes" keeps the earlier items ------
+// The yes opened item 2; going back discards that item and nothing else.
+{
+  const e = startEngine();
+  while (e.current() && e.current().section !== 'medical_providers') {
+    const q = e.current();
+    e.submit(q.type === 'yesno' ? false : `v_${q.id}`);
+  }
+  e.submit(true);
+  while (e.current().loopPhase === 'field') e.submit('Dr. One');
+  e.submit(true);                               // yes, another provider
+  eq('second provider opened', e.answers().providers.length, 2);
+  e.back();
+  eq('back keeps the first provider', e.answers().providers.map(p => p.name), ['Dr. One']);
+  check('and returns to "another provider?"', e.current().loopPhase === 'entry');
+  e.submit(false);
+  eq('closing keeps it too', e.answers().providers.length, 1);
+}
+
 // --- 13. The worksheet columns the SSA kit asks for are all collected -------
 // Each of these was a gap between questions-draft1.md and the official
 // Adult Disability Starter Kit worksheet. Asserting on the schema keeps them
@@ -260,7 +283,7 @@ function eq(label, actual, expected) {
   for (const id of ['name', 'reason', 'prescribed_by']) {
     check(`medications collect ${id}`, fieldIds('medications').includes(id));
   }
-  for (const id of ['job_title', 'business_type']) {
+  for (const id of ['job_title', 'business_type', 'hours_per_day', 'days_per_week', 'pay_amount', 'pay_frequency']) {
     check(`jobs collect ${id}`, fieldIds('jobs').includes(id));
   }
   check('onset date is asked', topLevelIds.includes('onset_date'));
@@ -268,7 +291,7 @@ function eq(label, actual, expected) {
 
 // --- 14. Onset date is reachable and required ------------------------------
 {
-  const e = createEngine();
+  const e = startEngine();
   while (e.current() && e.current().id !== 'onset_date') {
     const q = e.current();
     e.submit(q.loopPhase === 'entry' ? false : q.type === 'yesno' ? false : `v_${q.id}`);
@@ -280,6 +303,53 @@ function eq(label, actual, expected) {
   e.skip();
   check('skipped onset_date is reported missing',
     e.missingRequired().some(m => m.id === 'onset_date'));
+}
+
+// --- 15. The conditions entry prompt takes the condition itself -----------
+// "What is the medical condition...?" is not a yes/no: a spoken "diabetes"
+// answers it, opens the first item, and fills its name.
+{
+  const e = startEngine();
+  while (e.current() && e.current().loopId !== 'conditions') {
+    const q = e.current();
+    e.submit(q.loopPhase === 'entry' ? false : q.type === 'yesno' ? false : `v_${q.id}`);
+  }
+  const entry = e.current();
+  eq('first conditions prompt is the entry', entry.loopPhase, 'entry');
+  eq('and is asked as a text field', entry.type, 'text');
+  const before = e.progress();
+  e.submit('diabetes');
+  eq('the answer fills the first condition', e.answers().conditions, [{ name: 'diabetes' }]);
+  const repeat = e.current();
+  eq('then asks for another', repeat.loopPhase, 'entry');
+  eq('"another?" is a yes/no', repeat.type, 'yesno');
+  eq('answering it counted as one question', e.progress().answered, before.answered + 1);
+  e.submit(true);
+  eq('a second condition asks for its name', e.current().id, 'name');
+  e.submit('asthma');
+  e.submit(false);
+  eq('both conditions recorded', e.answers().conditions, [{ name: 'diabetes' }, { name: 'asthma' }]);
+
+  // back() over the typed-in first condition discards it.
+  const b = startEngine();
+  while (b.current() && b.current().loopId !== 'conditions') {
+    const q = b.current();
+    b.submit(q.loopPhase === 'entry' ? false : q.type === 'yesno' ? false : `v_${q.id}`);
+  }
+  b.submit('diabetes');
+  b.back();
+  eq('back discards the condition', b.answers().conditions, []);
+  eq('and re-asks it as text', b.current().type, 'text');
+
+  // Skipping the entry still means "none".
+  const s = startEngine();
+  while (s.current() && s.current().loopId !== 'conditions') {
+    const q = s.current();
+    s.submit(q.loopPhase === 'entry' ? false : q.type === 'yesno' ? false : `v_${q.id}`);
+  }
+  s.skip();
+  eq('skipped entry leaves no conditions', s.answers().conditions, []);
+  eq('and moves on to the onset date', s.current().id, 'onset_date');
 }
 
 console.log(failures === 0

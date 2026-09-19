@@ -4,6 +4,7 @@
 import { parseExport, ImportError } from '../src/importer.js';
 import { createEngine } from '../src/engine.js';
 import { flatten } from '../src/schema.js';
+import { filler } from './lib/walk.js';
 
 let failures = 0;
 function check(label, cond, detail = '') {
@@ -23,12 +24,9 @@ function throws(label, fn) {
 const nodes = flatten();
 
 /** Answer `n` questions on a fresh engine, then export what it holds. */
-function engineAfter(n) {
+function engineAfter(n, forms = 'ssa') {
   const e = createEngine();
-  for (let i = 0; i < n && e.current(); i++) {
-    const q = e.current();
-    e.submit(q.loopPhase === 'entry' ? false : q.type === 'yesno' ? false : `v_${q.id}`);
-  }
+  for (let i = 0; i < n && e.current(); i++) e.submit(filler(e.current(), forms));
   return e;
 }
 
@@ -95,13 +93,54 @@ function exportFrom(engine, version = 2) {
 {
   const e = createEngine();
   let guard = 0;
-  while (e.current() && guard++ < 2000) {
-    const q = e.current();
-    e.submit(q.loopPhase === 'entry' ? false : q.type === 'yesno' ? false : `v_${q.id}`);
-  }
+  while (e.current() && guard++ < 2000) e.submit(filler(e.current()));
   check('walked to the end', e.isComplete());
   const { state } = parseExport(exportFrom(e));
   check('finished interview imports as complete', createEngine(undefined, state).isComplete());
+}
+
+// -- a file from before the form question resumes as a Starter Kit ----------
+
+{
+  // Answers only, keyed the way the old app wrote them: no `forms`, and a
+  // cursor whose node index predates the form question at the top.
+  const legacy = {
+    version: 2,
+    savedAt: '2025-09-01T00:00:00.000Z',
+    answers: { first_name: 'Ada', last_name: 'Lovelace', date_of_birth: '1815-12-10' },
+    state: { cursor: { node: 3, phase: null, loopIndex: 0, fieldIndex: 0 }, history: [], skipped: [] }
+  };
+  const { state, rebuiltCursor } = parseExport(JSON.stringify(legacy));
+  eq('legacy file becomes a Starter Kit session', state.answers.forms, 'ssa');
+  check('legacy cursor is not trusted', rebuiltCursor === true);
+  const e = createEngine(undefined, state);
+  eq('legacy file resumes at the first unanswered question', e.current()?.id, 'birth_city');
+}
+
+// -- an unrecognised form choice is dropped, not carried --------------------
+
+{
+  const source = engineAfter(3, 'ds');
+  const payload = JSON.parse(exportFrom(source));
+  eq('a DS session exports its choice', payload.answers.forms, 'ds');
+  payload.answers.forms = 'something else';
+  const { state } = parseExport(JSON.stringify(payload));
+  check('a bogus form choice is dropped', state.answers.forms === undefined,
+    `kept ${JSON.stringify(state.answers.forms)}`);
+}
+
+// -- a loop answered "no" stays answered ---------------------------------------
+
+{
+  const e = createEngine();
+  let guard = 0;
+  while (e.current() && e.current().loopId !== 'medications' && guard++ < 500) e.submit(filler(e.current()));
+  e.submit(false);                          // no medications
+  const after = e.current()?.id;
+  const payload = JSON.parse(exportFrom(e, 1));
+  const { state } = parseExport(JSON.stringify(payload));
+  eq('an empty loop survives import', state.answers.medications, []);
+  eq('and the rebuilt cursor does not ask it again', createEngine(undefined, state).current()?.id, after);
 }
 
 // -- junk is dropped rather than handed to the engine ----------------------

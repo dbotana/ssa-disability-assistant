@@ -5,6 +5,8 @@
 // assertive region causes announcements to pile up and clobber each other in
 // VoiceOver and NVDA, so there is exactly one.
 
+import { choiceLabel } from './choice.js';
+
 let politeEl = null;
 let assertiveEl = null;
 
@@ -40,10 +42,15 @@ export function spellDigits(value, groups = null) {
   return [...chunks, tail].filter(Boolean).map(c => c.split('').join(' ')).join(', ');
 }
 
-/** Human-readable rendering of a stored value, for read-back and the summary. */
-export function speakableValue(value, type) {
+/**
+ * Human-readable rendering of a stored value, for read-back and the summary.
+ * `options` is the question's option list, for choice answers.
+ */
+export function speakableValue(value, type, options = null) {
   if (value == null || value === '') return 'not answered';
   if (type === 'yesno') return value === true ? 'yes' : 'no';
+  if (type === 'choice') return choiceLabel(options, value).toLowerCase();
+  if (type === 'zip') return spellDigits(value, [5]);
   if (type === 'ssn') return spellDigits(value, [3, 2, 4]);
   if (type === 'routing') return spellDigits(value, [3, 3, 3]);
   if (type === 'account' || type === 'phone') return spellDigits(value, [3, 3]);

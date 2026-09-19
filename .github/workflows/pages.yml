@@ -24,19 +24,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # `|| exit 1` matters: a bare for-loop's status is only its last test's.
       - name: Run tests
-        run: for t in tests/*.js; do node "$t"; done
+        run: for t in tests/*.js; do node "$t" || exit 1; done
 
       - uses: actions/configure-pages@v5
 
       # The site is plain static files — no build step. Upload the repo root,
-      # minus things that should not be published.
+      # minus things that should not be published. forms/ is published: the
+      # official PDFs are the templates the app fills in.
       - name: Stage site
         run: |
           mkdir _site
           rsync -a --exclude '.git' --exclude '.github' --exclude '_site' \
                 --exclude 'tests' --exclude 'tools' --exclude '*.md' \
-                --exclude 'adult-disability-starter-kit-*.pdf' ./ _site/
+                --exclude 'ai-product-milestone-1-package' ./ _site/
           touch _site/.nojekyll
 
       - uses: actions/upload-pages-artifact@v3

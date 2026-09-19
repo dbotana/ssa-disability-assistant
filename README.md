@@ -1,12 +1,22 @@
-# Voice Assistant for Social Security Disability Prep
+# Voice Assistant for Disability Forms
 
-A single static website that lets a blind user prepare a Social Security
-disability application entirely by voice. A conversational assistant works
-through the full question script, then produces a PDF worksheet and an
-accessible summary to bring to ssa.gov/apply or an SSA appointment.
+A single static website that lets a blind user fill out disability paperwork
+entirely by voice. It handles two forms:
 
-This is a **preparation worksheet**. It is not an application, and it never
-sends anything to the Social Security Administration.
+- **Social Security's Adult Disability Starter Kit** (SSA-64-110): the
+  checklist and worksheet you bring to ssa.gov/apply or an SSA appointment.
+- **Maine DHHS's Developmental Services Intake Application**: how adults with
+  an intellectual disability or autism apply for services from Maine's Office
+  of Aging and Disability Services.
+
+The first question asks which form you are filling out: one, the other, or
+both. The interview then asks each shared question once, and asks
+form-specific questions only for the forms you chose. At the end it downloads
+the **official PDF of each form, filled in**, plus an accessible on-screen
+summary.
+
+It never sends anything to the Social Security Administration or to Maine
+DHHS. You review, sign, and send the forms yourself.
 
 ## Running it
 
@@ -126,7 +136,7 @@ from a declarative schema; per turn, the model does one narrow job — turn a
 transcript into a typed value for one known question. A chat agent handed the
 whole script drifts, invents follow-ups, and silently skips questions, with
 nowhere to hook validation. Every extracted value is also re-validated locally,
-so a malformed SSN triggers a re-ask rather than landing on the worksheet.
+so a malformed SSN triggers a re-ask rather than landing on a form.
 
 High-stakes fields (SSN, routing and account numbers, dates) are read back
 digit by digit and require confirmation before they are committed.
@@ -135,28 +145,75 @@ digit by digit and require confirmation before they are committed.
 
 | File | Responsibility |
 |---|---|
-| `src/schema.js` | The entire interview as data: sections, types, `askIf` skips, loop groups |
-| `src/engine.js` | State machine — advance, branch, loop, skip, back, `jumpTo` |
+| `src/schema.js` | The entire interview as data: sections, form tags, types, `askIf` skips, loop groups |
+| `src/engine.js` | State machine — advance, branch, loop, skip, back, `jumpTo`, `rewalk` |
+| `src/choice.js` | Multiple-choice matching (which form, the A–E scale, pay frequency) |
 | `src/main.js` | Turn loop, keyboard, commands, error recovery, export |
 | `src/llm.js` | Transcription, structured extraction, TTS, local validation |
 | `src/audio.js` | Mic capture, silence detection, earcons |
 | `src/speech.js` | TTS queue with `SpeechSynthesis` fallback |
 | `src/a11y.js` | Live-region announcements, digit read-back formatting |
 | `src/store.js` | `localStorage` persistence and resume |
-| `src/pdf.js` | Generated worksheet PDF (pdf-lib) |
+| `src/fill.js` | Fills an official PDF form, fits text to its boxes, adds addendum pages |
+| `src/forms/*.js` | Answers → field names for each form; shared cell formatting |
+| `src/pdf.js` | Page layout for addenda and the fallback worksheet (pdf-lib) |
+| `forms/*.pdf` | The official blank forms the app fills in |
 | `src/summary.js` | Accessible HTML summary, JSON export |
 | `src/importer.js` | Reading a saved JSON file back in |
 
-### Why the PDF is generated rather than filled
+### One interview, two forms
 
-The official `adult-disability-starter-kit-EN-64-110.pdf` has **no fillable
-form fields** — it is flat artwork with drawn table borders. There is nothing
-to fill. Stamping text at measured coordinates would also break as soon as
-someone has more providers or jobs than the printed rows allow. Instead the app
-generates a clean document mirroring the kit's section structure, which
-paginates to fit any number of entries and repeats table headers across page
-breaks. Loops too wide for a legible table (jobs, marriages) render as stacked
-records instead of shredding their headers into fragments.
+Every section and question in `src/schema.js` is tagged with the forms it
+belongs to (`forms: ['ssa']`, `['ds']`, or both). The engine asks a question
+only when it belongs to a chosen form and its `askIf` holds; a loop can be
+skipped whole the same way. Sections are numbered among the ones the chosen
+forms use, so "section 4 of 19" is honest whichever form it is.
+
+Where the forms want the same fact, it is asked once, in the Starter Kit's
+words, and the DS form derives its value: marital status from the marriage
+history, diagnoses from the conditions list, employment history from the job
+list. The DS-only versions of those questions are asked only when the Starter
+Kit is not being filled out.
+
+The DS form's daily-living sections (7–12) rate 26 activities on its A–E
+scale. Each is a `choice` question; the scale is spoken once per section, and
+an explanation is asked only when the answer is not A, Independent.
+
+Choosing differently later ("change my form to both") re-walks the interview
+to the first question the new choice adds, and skips over everything already
+answered.
+
+### Filling the official forms
+
+Both official PDFs, in `forms/`, are fillable AcroForms, so the download is
+the agency's own document with the answers typed in (`src/fill.js`), not a
+look-alike:
+
+- The Starter Kit has fields for its checklist and worksheet sections A–E.
+  Checklist boxes are ticked for what the interview collected. Everything the
+  checklist asks you to have ready but the kit has nowhere to write
+  (identity, marriages, bank details, and so on) goes on addendum pages
+  appended to the kit.
+- The DS Intake Application has a field for every blank. Signature lines and
+  signature dates are left empty for ink.
+
+Boxes are fixed in size and answers are not. Each answer is shrunk to fit its
+box, down to 7pt. Anything still too long is cut short with "(see attached)"
+and written out in full on an addendum page, as are table rows past the
+printed capacity (a sixth doctor). Fields stay editable, so a caregiver can
+fix a typo in any PDF reader.
+
+The field names come from the PDFs themselves, and two of them are traps.
+`tests/form-fill.js` fills every field of both real templates and reads them
+back, which is what catches them:
+
+- The Starter Kit's first table rows are named after the instruction text
+  above them, cut at 100 characters.
+- On the DS form, section 10's rows are wired to fields named after section
+  11's rows (`LetterFamily` is Shopping), and section 11 uses the `_2` names.
+
+If a template cannot be fetched (offline, or the page opened from disk), a
+plain worksheet of the same answers is downloaded instead.
 
 ## Deployment
 
@@ -165,8 +222,9 @@ Hosted on GitHub Pages at
 
 Every push to `main` triggers `.github/workflows/pages.yml`, which runs the
 tests and then publishes the site. There is no build step — the workflow copies
-the repo root and drops what should not be served (tests, Markdown, the
-reference starter-kit PDF).
+the repo root and drops what should not be served (tests, tools, Markdown).
+The blank official forms in `forms/` are published, because they are the
+templates the app fills in.
 
 All asset paths are relative, so the site works unchanged from the
 `/ssa-disability-assistant/` subpath. HTTPS matters here beyond the usual
@@ -185,6 +243,9 @@ node tests/delete-item.js        # loop entry removal
 node tests/progress-estimate.js  # progress counting and time remaining
 node tests/import-json.js        # re-importing a saved answers file
 node tests/empty-transcript.js   # a silent capture never becomes an answer
+node tests/form-routing.js       # which questions each form choice asks
+node tests/form-fill.js          # filling both real PDFs and reading them back
+node tests/parse-local.js        # local parsing, including multiple choice
 ```
 
 None of them make an API call. Between them they cover multi-item loops,

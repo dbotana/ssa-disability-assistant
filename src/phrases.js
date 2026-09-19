@@ -23,9 +23,13 @@ export const INTRO = {
 
 export const SAVED = 'Saved. You can close this page and come back to finish later.';
 export const STARTING_OVER = 'Starting over.';
-export const DOWNLOADED = 'Your worksheet has been downloaded. Check your downloads folder.';
-export const ALL_DONE = 'All done. Your worksheet is ready to download.';
-export const DOWNLOAD_HINT = 'Press the download button to save your PDF worksheet, or press read my answers to hear everything back.';
+export const DOWNLOADED = 'Your form has been downloaded. Check your downloads folder.';
+export const BOTH_DOWNLOADED = 'Both forms have been downloaded. Check your downloads folder. '
+  + 'If your browser asked whether to allow more than one download, choose allow, or download the second form with its own button.';
+export const ALL_DONE = 'All done. Your forms are ready to download.';
+export const DOWNLOAD_HINT = 'Press a download button to save your filled form, or press read my answers to hear everything back.';
+export const FORMS_CHANGED = 'Your choice of forms changed, so there are new questions to answer. Let us do those now.';
+export const WORKSHEET_FALLBACK = 'The official form could not be loaded, so I saved a plain worksheet with your answers instead.';
 
 export const HELP = 'You can say: repeat that, go back, skip this, where am I, '
   + 'read back my answers, change an answer, remove an entry, save and quit, or start over.';
@@ -80,7 +84,8 @@ export const FILL_IN_MISSING = 'Let us fill in what is missing.';
 export function allPhrases() {
   return [
     ...Object.values(INTRO),
-    SAVED, STARTING_OVER, DOWNLOADED, ALL_DONE, DOWNLOAD_HINT,
+    SAVED, STARTING_OVER, DOWNLOADED, BOTH_DOWNLOADED, ALL_DONE, DOWNLOAD_HINT,
+    FORMS_CHANGED, WORKSHEET_FALLBACK,
     HELP, WHICH_FIELD, UNCHANGED,
     TRANSCRIPT_CHECK, ANSWER_AGAIN, TYPING_LANE, VOICE_LANE,
     ...Object.values(REASK),

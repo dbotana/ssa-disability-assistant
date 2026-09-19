@@ -12,7 +12,7 @@
 // A target is:
 //   { id, loopId?, loopIndex?, label, prompt, ambiguous?, candidates? }
 
-import { SECTIONS } from './schema.js';
+import { SECTIONS, RATING_GROUPS, flatten, nodeActive } from './schema.js';
 import { shortLabel } from './summary.js';
 
 /**
@@ -60,6 +60,64 @@ const ALIASES = {
   has_admit_papers: ['admit papers', 'discharge papers'],
   routing_number: ['routing number', 'routing', 'bank routing'],
   account_number: ['account number', 'bank account', 'account'],
+  forms: ['form', 'forms', 'which form', 'which forms', 'form choice'],
+  // Developmental Services application
+  for_self: ['for myself', 'filling it out for myself', 'who is filling this out'],
+  helper_name: ['my agency', 'agency', 'agency name', 'helper name', 'person completing'],
+  helper_address: ['my mailing address', 'agency address', 'helper address'],
+  helper_phone: ['my phone', 'agency phone', 'helper phone'],
+  helper_fax: ['fax', 'fax number'],
+  helper_email: ['agency email', 'helper email'],
+  home_street: ['street address', 'home address', 'address'],
+  home_town: ['town', 'city', 'town i live in', 'home town'],
+  home_state: ['state i live in', 'home state'],
+  home_zip: ['zip code', 'zip', 'postal code'],
+  mailing_address: ['mailing address'],
+  applicant_phone: ['my phone number', 'my phone', 'phone number', 'phone'],
+  applicant_email: ['my email', 'email address', 'email'],
+  primary_language: ['language', 'primary language'],
+  deaf_hoh: ['deaf', 'hard of hearing', 'hearing'],
+  gender: ['gender', 'sex'],
+  mainecare_number: ['mainecare', 'mainecare number', 'medicaid number'],
+  marital_status: ['marital status', 'married'],
+  has_guardian: ['guardian', 'power of attorney', 'do i have a guardian'],
+  guardian_name: ["guardian's name", 'guardian name'],
+  guardian_relationship: ["guardian's relationship", 'guardian relationship'],
+  guardian_address: ["guardian's address", 'guardian address'],
+  guardian_city: ["guardian's town", "guardian's city"],
+  guardian_county: ["guardian's county"],
+  guardian_zip: ["guardian's zip", "guardian's zip code"],
+  guardian_phone: ["guardian's phone number", "guardian's phone", 'guardian phone'],
+  guardian_email: ["guardian's email", 'guardian email'],
+  ec_same_as_guardian: ['guardian as emergency contact'],
+  ec_name: ['emergency contact', 'emergency contact name', 'emergency'],
+  ec_relationship: ['emergency contact relationship'],
+  ec_address: ['emergency contact address'],
+  ec_city: ['emergency contact town', 'emergency contact city'],
+  ec_county: ['emergency contact county'],
+  ec_zip: ['emergency contact zip', 'emergency contact zip code'],
+  ec_phone: ['emergency contact phone number', 'emergency contact phone', 'emergency phone'],
+  ec_email: ['emergency contact email', 'emergency email'],
+  medication_allergies: ['medication allergies', 'drug allergies', 'allergies'],
+  food_allergies: ['food allergies'],
+  environmental_allergies: ['environmental allergies', 'pollen', 'seasonal allergies'],
+  dietary_restrictions: ['dietary restrictions', 'diet'],
+  has_idd_dx: ['developmental diagnosis', 'autism diagnosis', 'intellectual disability'],
+  idd_dx_date: ['date of diagnosis', 'diagnosis date', 'when i was diagnosed'],
+  idd_age_at_dx: ['age at diagnosis', 'how old i was when diagnosed'],
+  currently_employed: ['currently employed', 'working now', 'employed'],
+  vr_involvement: ['vocational rehabilitation', 'vr', 'voc rehab'],
+  volunteer_experience: ['volunteer', 'volunteering', 'volunteer work'],
+  in_school: ['in school', 'attending school', 'going to school'],
+  graduation_date: ['graduation', 'graduation date'],
+  has_504_plan: ['504', '504 plan'],
+  psychoed_eval: ['psychoeducational evaluation', 'psychoeducational'],
+  living_arrangement: ['living arrangement', 'where i live'],
+  has_comprehensive_eval: ['comprehensive evaluation'],
+  has_adaptive_test: ['adaptive behavior test', 'adaptive test'],
+  has_iq_test: ['iq test', 'intelligence test'],
+  has_other_assessments: ['other assessments', 'iep', 'education plan'],
+  ...ratingAliases(),
   // loop fields
   name: ['name'],
   employer: ['employer', 'employer name', 'company', 'where i worked'],
@@ -67,8 +125,10 @@ const ALIASES = {
   business_type: ['type of business', 'business type'],
   start: ['start date', 'when i started'],
   end: ['end date', 'when i left', 'when it ended'],
-  hours_per_week: ['hours', 'hours per week', 'hours a week'],
-  pay_rate: ['pay', 'pay rate', 'wage', 'salary'],
+  hours_per_day: ['hours', 'hours per day', 'hours a day'],
+  days_per_week: ['days', 'days per week', 'days a week'],
+  pay_amount: ['pay', 'pay rate', 'wage', 'salary', 'rate of pay'],
+  pay_frequency: ['pay frequency', 'how often i was paid', 'pay period'],
   address: ['address'],
   phone: ['phone', 'phone number', 'number'],
   first_seen: ['first seen', 'first visit', 'admission date'],
@@ -101,6 +161,9 @@ const ALIASES = {
  */
 const LOOP_WORDS = {
   conditions: ['condition', 'conditions', 'diagnosis', 'illness'],
+  diagnoses: ['diagnosis', 'diagnoses', 'condition', 'conditions'],
+  idd_diagnoses: ['confirmed diagnosis', 'confirmed diagnoses', 'evaluation diagnosis'],
+  ds_jobs: ['job', 'jobs', 'work', 'employer', 'employers', 'employment'],
   providers: ['provider', 'providers', 'doctor', 'doctors', 'hospital', 'clinic', 'facility'],
   tests: ['test', 'tests', 'lab', 'labs', 'scan'],
   medications: ['medication', 'medications', 'medicine', 'medicines', 'drug', 'drugs', 'prescription'],
@@ -112,6 +175,23 @@ const LOOP_WORDS = {
   income_sources: ['income', 'income source', 'paycheck', 'pension'],
   resources: ['resource', 'resources', 'bank account', 'asset', 'assets']
 };
+
+/**
+ * "Eating", "my eating answer", "the eating explanation" for each rated DS
+ * activity. The rating and its explanation are separate answers, so only the
+ * explanation takes the words that name it.
+ */
+function ratingAliases() {
+  const out = {};
+  for (const group of RATING_GROUPS) {
+    for (const act of group.activities) {
+      out[`${act.key}_level`] = [act.short, `${act.short} rating`, `${act.short} answer`, act.label.toLowerCase()];
+      out[`${act.key}_explain`] = [`${act.short} explanation`, `explanation for ${act.short}`,
+        `help with ${act.short}`];
+    }
+  }
+  return out;
+}
 
 /** Spoken ordinals, for "the second provider". */
 const ORDINALS = {
@@ -164,39 +244,42 @@ export function stripLeadIn(phrase) {
  */
 export function buildTargets(answers = {}) {
   const targets = [];
-  for (const section of SECTIONS) {
-    for (const q of section.questions) {
-      if (q.type === 'loop') {
-        const items = Array.isArray(answers[q.id]) ? answers[q.id] : [];
-        items.forEach((item, index) => {
-          for (const f of q.fields) {
-            targets.push({
-              id: f.id,
-              loopId: q.id,
-              loopIndex: index,
-              itemLabel: q.itemLabel,
-              itemNumber: index + 1,
-              type: f.type,
-              prompt: f.prompt,
-              label: shortLabel(f.prompt, f.id),
-              section: section.id,
-              sectionTitle: section.title,
-              value: item?.[f.id] ?? null
-            });
-          }
-        });
-        continue;
-      }
-      targets.push({
-        id: q.id,
-        type: q.type,
-        prompt: q.prompt,
-        label: shortLabel(q.prompt, q.id),
-        section: section.id,
-        sectionTitle: section.title,
-        value: answers[q.id] ?? null
+  // Only what the chosen forms ask. "Change my phone number" on a Starter Kit
+  // interview must not offer a guardian's phone that was never asked for.
+  for (const q of flatten(SECTIONS)) {
+    if (!nodeActive(q, answers)) continue;
+    if (q.type === 'loop') {
+      const items = Array.isArray(answers[q.id]) ? answers[q.id] : [];
+      items.forEach((item, index) => {
+        for (const f of q.fields) {
+          targets.push({
+            id: f.id,
+            loopId: q.id,
+            loopIndex: index,
+            itemLabel: q.itemLabel,
+            itemNumber: index + 1,
+            type: f.type,
+            options: f.options,
+            prompt: f.prompt,
+            label: shortLabel(f.prompt, f.id),
+            section: q.section,
+            sectionTitle: q.sectionTitle,
+            value: item?.[f.id] ?? null
+          });
+        }
       });
+      continue;
     }
+    targets.push({
+      id: q.id,
+      type: q.type,
+      options: q.options,
+      prompt: q.prompt,
+      label: shortLabel(q.prompt, q.id),
+      section: q.section,
+      sectionTitle: q.sectionTitle,
+      value: answers[q.id] ?? null
+    });
   }
   return targets;
 }
@@ -242,15 +325,24 @@ function scoreTarget(phrase, target) {
   return best;
 }
 
+const LOOP_NODES = new Map(flatten(SECTIONS).filter(n => n.type === 'loop').map(n => [n.id, n]));
+
 const STOP = new Set(['the', 'my', 'a', 'an', 'of', 'for', 'to', 'is', 'was', 'and', 'i', 'me', 'that', 'this', 'it']);
 const contentWords = phrase => normalizeText(phrase).split(' ').filter(w => w && !STOP.has(w) && w.length > 2);
 const escapeRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-/** Which loop group, if any, the phrase names. Returns a loop id or null. */
-function loopHintFor(phrase) {
+/**
+ * Which loop group, if any, the phrase names. Returns a loop id or null.
+ *
+ * Two loops can answer to the same words — "job" is both the Starter Kit's
+ * job list and the DS-only one — but the form choice makes only one of them
+ * part of the interview, and only that one is considered.
+ */
+function loopHintFor(phrase, answers = {}) {
   let hit = null;
   let hitLen = 0;
   for (const [loopId, words] of Object.entries(LOOP_WORDS)) {
+    if (!nodeActive(LOOP_NODES.get(loopId), answers)) continue;
     for (const w of words) {
       const n = normalizeText(w);
       if (new RegExp(`\\b${escapeRe(n)}\\b`).test(phrase) && n.length > hitLen) {
@@ -315,7 +407,7 @@ export function resolveTarget(phrase, answers = {}) {
   const targets = buildTargets(answers);
   if (!targets.length) return { ok: false, reason: 'none' };
 
-  const loopHint = loopHintFor(cleaned);
+  const loopHint = loopHintFor(cleaned, answers);
   const wanted = itemNumberFor(cleaned);
 
   let scored = targets.map(t => {
@@ -455,10 +547,10 @@ export function isDeletionPhrase(phrase) {
 export function resolveDeletion(phrase, answers = {}) {
   const cleaned = normalizeText(stripLeadIn(String(phrase ?? '').replace(DELETE_VERBS, ' ')));
 
-  const loopId = loopHintFor(cleaned);
+  const loopId = loopHintFor(cleaned, answers);
   if (!loopId) return { ok: false, reason: 'none' };
 
-  const node = SECTIONS.flatMap(s => s.questions).find(q => q.id === loopId && q.type === 'loop');
+  const node = LOOP_NODES.get(loopId);
   const itemLabel = node?.itemLabel ?? 'item';
   const items = Array.isArray(answers[loopId]) ? answers[loopId] : [];
   const describe = (item, index) => ({

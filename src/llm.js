@@ -8,6 +8,7 @@
 // when the output is a benefits application.
 
 import { getApiKey } from './store.js';
+import { matchChoice, optionsSentence } from './choice.js';
 
 const BASE = 'https://api.openai.com/v1';
 
@@ -111,7 +112,7 @@ export async function transcribe(blob, { hint = '' } = {}) {
 
 /** Transcription hints, per question type. */
 export function hintFor(question) {
-  const base = 'This is an answer to a Social Security disability application question.';
+  const base = 'This is an answer to a question on a disability application form.';
   switch (question.type) {
     case 'ssn':
     case 'routing':
@@ -119,6 +120,12 @@ export function hintFor(question) {
       return `${base} The answer is a string of digits, possibly spoken one digit at a time.`;
     case 'phone':
       return `${base} The answer is a ten digit US phone number.`;
+    case 'zip':
+      return `${base} The answer is a five digit US ZIP code.`;
+    case 'email':
+      return `${base} The answer is an email address, possibly spoken with "at" and "dot".`;
+    case 'choice':
+      return `${base} The answer is one of: ${optionsSentence(question.options)}.`;
     case 'date':
     case 'monthyear':
       return `${base} The answer is a date, such as March 14th 1979.`;
@@ -158,6 +165,8 @@ const TYPE_RULES = {
   routing: '- Return digits only, no spaces or dashes.',
   account: '- Return digits only, no spaces or dashes.',
   phone: '- Return exactly 10 digits, no formatting.',
+  zip: '- Return the 5 or 9 digit ZIP code, digits only.',
+  email: '- Return the email address in lowercase with no spaces. Spoken "at" is @ and "dot" is a period.',
   yesno: '- Return boolean true or false.',
   money: '- Return a plain number, no currency symbol or commas.',
   number: '- Return a plain number, no currency symbol or commas.',
@@ -165,6 +174,15 @@ const TYPE_RULES = {
 };
 
 const SENSITIVE = new Set(['ssn', 'routing', 'account']);
+
+/** The one normalization rule for this question. Choices list their values. */
+function ruleFor(question) {
+  if (question.type === 'choice' && Array.isArray(question.options)) {
+    const allowed = question.options.map(o => `"${o.value}" (${o.label})`).join(', ');
+    return `- Return exactly one of these values: ${allowed}. If the answer does not clearly pick one, set needsClarification.`;
+  }
+  return TYPE_RULES[question.type] ?? TYPE_RULES.text;
+}
 
 /**
  * The instruction for one turn.
@@ -182,12 +200,12 @@ const SENSITIVE = new Set(['ssn', 'routing', 'account']);
  */
 function systemPrompt(question) {
   const lines = [
-    'Extract the answer to one question on a Social Security disability worksheet. Return JSON only.',
+    'Extract the answer to one question on a disability application form. Return JSON only.',
     '',
     `Question: ${question.prompt}`,
     `Expected type: ${question.type}`,
     '',
-    TYPE_RULES[question.type] ?? TYPE_RULES.text,
+    ruleFor(question),
     '',
     'Set confidence between 0 and 1. Set needsClarification true when the transcript is',
     'empty, off topic, ambiguous, or is not an answer of the expected type, and write a',
@@ -299,6 +317,25 @@ export function normalize(result, question) {
       else if (digits.length !== 10) fail('I need a ten digit phone number, including the area code.');
       else out.value = digits;
       break;
+    case 'zip':
+      if (digits.length !== 5 && digits.length !== 9) fail('A zip code has five digits. You can say them one at a time.');
+      else out.value = digits;
+      break;
+    case 'email': {
+      const email = String(out.value).trim().toLowerCase().replace(/\s+/g, '');
+      if (!/^[a-z0-9._%+-]+@[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}$/.test(email)) {
+        fail('I did not get a complete email address. You can spell it out, or say skip.');
+      } else out.value = email;
+      break;
+    }
+    case 'choice': {
+      // The model is told the exact values, but a label or a paraphrase coming
+      // back is still mapped the same way a spoken answer would be.
+      const option = matchChoice(question.options, String(out.value));
+      if (!option) fail(`Please choose one: ${optionsSentence(question.options)}.`);
+      else out.value = option.value;
+      break;
+    }
     case 'date':
       if (!/^\d{4}-\d{2}-\d{2}$/.test(String(out.value))) fail('Could you give me the month, day, and year?');
       break;

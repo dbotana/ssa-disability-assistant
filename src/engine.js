@@ -10,14 +10,16 @@
 //     cursor:  { node: <index into nodes>, phase, loopIndex, fieldIndex },
 //     history: [ <cursor snapshots, most recent last> ],
 //     skipped: [ <question ids> ],
-//     pace:    { samples: [ <seconds per answered question> ], peak: <percent> }
+//     pace:    { samples: [ <seconds per answered question> ], peak: <percent> },
+//     catchUp: <true while filling gaps after the form choice changed>,
+//     schema:  <SCHEMA_VERSION the cursor indexes into>
 //   }
 //
 // Loop phases:
 //   'entry'  asking entryPrompt / repeatPrompt
 //   'field'  walking fields of the current loop item
 
-import { flatten, SECTIONS } from './schema.js';
+import { flatten, SECTIONS, SCHEMA_VERSION, nodeActive, sectionActive, formsChosen } from './schema.js';
 
 export function createEngine(sections = SECTIONS, savedState = null) {
   const nodes = flatten(sections);
@@ -25,6 +27,7 @@ export function createEngine(sections = SECTIONS, savedState = null) {
   const state = savedState
     ? structuredClone(savedState)
     : {
+        schema: SCHEMA_VERSION,
         answers: {},
         cursor: { node: 0, phase: null, loopIndex: 0, fieldIndex: 0 },
         history: [],
@@ -36,18 +39,18 @@ export function createEngine(sections = SECTIONS, savedState = null) {
   if (!state.pace || !Array.isArray(state.pace.samples)) {
     state.pace = { samples: [], peak: 0 };
   }
+  if (!state.answers || typeof state.answers !== 'object') state.answers = {};
+  if (!Array.isArray(state.history)) state.history = [];
+  if (!Array.isArray(state.skipped)) state.skipped = [];
 
   // -- helpers --------------------------------------------------------------
 
   const nodeAt = i => nodes[i] ?? null;
 
-  /** The scope an askIf is evaluated against: the loop item, or the answer set. */
-  function scopeFor(node) {
-    if (node?.type === 'loop' && state.cursor.phase === 'field') {
-      return currentItem() ?? {};
-    }
-    return state.answers;
-  }
+  /** Is this top-level node (plain question or whole loop) asked right now? */
+  const active = node => nodeActive(node, state.answers);
+
+  const itemsOf = node => (Array.isArray(state.answers[node.id]) ? state.answers[node.id] : []);
 
   function currentItem() {
     const node = nodeAt(state.cursor.node);
@@ -56,6 +59,7 @@ export function createEngine(sections = SECTIONS, savedState = null) {
     return Array.isArray(items) ? items[state.cursor.loopIndex] ?? null : null;
   }
 
+  /** askIf for a loop field, evaluated against its own item. */
   function shouldAsk(q, scope) {
     if (typeof q.askIf !== 'function') return true;
     try {
@@ -108,48 +112,40 @@ export function createEngine(sections = SECTIONS, savedState = null) {
   }
 
   // -- cursor movement ------------------------------------------------------
+  //
+  // One rule for landing anywhere: seek() moves to the first node at or after
+  // an index that is active — belongs to a chosen form and passes its askIf —
+  // whether it is a plain question or a whole loop. A loop is landed on at its
+  // entry prompt.
+  //
+  // At a loop's entry prompt, cursor.loopIndex is always the number of items
+  // already recorded: the index the next "yes" would open. back() relies on
+  // that to know which items a rewound "yes" had created.
+
+  function seek(from) {
+    let i = from;
+    while (i < nodes.length && (!active(nodes[i]) || (state.catchUp && settled(nodes[i])))) i += 1;
+    // Catch-up ends when there are no gaps left to fill.
+    if (i >= nodes.length) state.catchUp = false;
+    const node = nodeAt(i);
+    state.cursor = {
+      node: i,
+      phase: node?.type === 'loop' ? 'entry' : null,
+      loopIndex: node?.type === 'loop' ? itemsOf(node).length : 0,
+      fieldIndex: 0
+    };
+  }
 
   /**
-   * Advance the cursor to the next askable position, without recording an
-   * answer. Skips questions whose askIf is false. Returns when it lands on
-   * something askable or runs off the end.
+   * Does this node already hold an answer? Only consulted in catch-up mode:
+   * after the form choice changes, or when an old session is resumed, the
+   * questions still to ask are scattered among ones already answered, and
+   * walking forward must pass over the answered ones rather than ask them
+   * again. A loop counts as answered once it has been visited at all.
    */
-  function advance() {
-    let guard = 0;
-    while (guard++ < 10000) {
-      const node = nodeAt(state.cursor.node);
-      if (!node) return; // complete
-
-      if (node.type !== 'loop') {
-        state.cursor.node += 1;
-        state.cursor.phase = null;
-        const next = nodeAt(state.cursor.node);
-        if (!next) return;
-        if (next.type === 'loop') {
-          state.cursor.phase = 'entry';
-          state.cursor.loopIndex = 0;
-          state.cursor.fieldIndex = 0;
-          return;
-        }
-        if (shouldAsk(next, state.answers)) return;
-        continue; // askIf false — keep walking
-      }
-
-      // Inside a loop.
-      if (state.cursor.phase === 'entry') {
-        // advance() past an entry means the user said yes; open an item.
-        openItem(node);
-        if (positionAtAskableField(node)) return;
-        continue;
-      }
-
-      // phase === 'field': step to the next askable field, else back to entry.
-      state.cursor.fieldIndex += 1;
-      if (positionAtAskableField(node)) return;
-      state.cursor.phase = 'entry';
-      return;
-    }
-    throw new Error('engine: advance() failed to converge');
+  function settled(node) {
+    if (node.type === 'loop') return Array.isArray(state.answers[node.id]);
+    return state.answers[node.id] !== undefined;
   }
 
   function openItem(node) {
@@ -157,6 +153,13 @@ export function createEngine(sections = SECTIONS, savedState = null) {
     state.cursor.loopIndex = state.answers[node.id].length;
     state.answers[node.id].push({});
     state.cursor.phase = 'field';
+    state.cursor.fieldIndex = 0;
+  }
+
+  /** The current item is finished; go back to "add another?". */
+  function returnToEntry(node) {
+    state.cursor.phase = 'entry';
+    state.cursor.loopIndex = itemsOf(node).length;
     state.cursor.fieldIndex = 0;
   }
 
@@ -179,41 +182,53 @@ export function createEngine(sections = SECTIONS, savedState = null) {
     // A repeatPrompt "no" leaves the finished items in place; an entryPrompt
     // "no" on an untouched loop leaves an empty array, which reads as "none".
     if (!Array.isArray(state.answers[node.id])) state.answers[node.id] = [];
-    state.cursor.node += 1;
-    state.cursor.phase = null;
-    state.cursor.loopIndex = 0;
-    state.cursor.fieldIndex = 0;
-
-    const next = nodeAt(state.cursor.node);
-    if (!next) return;
-    if (next.type === 'loop') {
-      state.cursor.phase = 'entry';
-      return;
-    }
-    if (!shouldAsk(next, state.answers)) advanceFromNonLoop();
+    seek(state.cursor.node + 1);
   }
 
-  function advanceFromNonLoop() {
-    let guard = 0;
-    while (guard++ < 10000) {
-      const node = nodeAt(state.cursor.node);
-      if (!node) return;
-      if (node.type === 'loop') {
-        state.cursor.phase = 'entry';
-        state.cursor.loopIndex = 0;
-        state.cursor.fieldIndex = 0;
-        return;
+  /**
+   * The first position with nothing recorded, among the questions the current
+   * answers make active.
+   *
+   * A loop counts as done once it holds an array, even an empty one — that is
+   * what a "no" at its entry leaves behind — unless its last item is missing
+   * a field that item should have.
+   */
+  function firstUnanswered() {
+    for (let i = 0; i < nodes.length; i++) {
+      const node = nodes[i];
+      if (!active(node)) continue;
+      if (node.type !== 'loop') {
+        if (state.answers[node.id] === undefined) {
+          return { node: i, phase: null, loopIndex: 0, fieldIndex: 0 };
+        }
+        continue;
       }
-      if (shouldAsk(node, state.answers)) return;
-      state.cursor.node += 1;
+      const items = state.answers[node.id];
+      if (!Array.isArray(items)) return { node: i, phase: 'entry', loopIndex: 0, fieldIndex: 0 };
+      const last = items.length - 1;
+      if (last < 0) continue;
+      const item = items[last] ?? {};
+      const fi = node.fields.findIndex(f => item[f.id] === undefined && shouldAsk(f, item));
+      if (fi >= 0) return { node: i, phase: 'field', loopIndex: last, fieldIndex: fi };
     }
+    return { node: nodes.length, phase: null, loopIndex: 0, fieldIndex: 0 };
   }
 
-  // Position the cursor correctly on a fresh start.
+  // Position the cursor.
   if (!savedState) {
-    const first = nodeAt(0);
-    if (first?.type === 'loop') state.cursor.phase = 'entry';
-    else if (first && !shouldAsk(first, state.answers)) advanceFromNonLoop();
+    seek(0);
+  } else if (state.schema !== SCHEMA_VERSION || !state.cursor) {
+    // Saved before the form question existed (or by an importer that could
+    // not vouch for the cursor). Node indexes have moved since, so neither the
+    // cursor nor the undo history means anything any more. Every such session
+    // was a Starter Kit session.
+    if (state.schema !== SCHEMA_VERSION && state.answers.forms === undefined) {
+      state.answers.forms = 'ssa';
+    }
+    state.schema = SCHEMA_VERSION;
+    state.history = [];
+    state.cursor = firstUnanswered();
+    state.catchUp = state.cursor.node < nodes.length;
   }
 
   // -- public surface -------------------------------------------------------
@@ -251,6 +266,8 @@ export function createEngine(sections = SECTIONS, savedState = null) {
         confirm: !!node.confirm,
         warn: node.warn,
         hint: node.hint,
+        options: node.options,
+        allowFuture: !!node.allowFuture,
         section: node.section,
         sectionTitle: node.sectionTitle,
         path: [node.id]
@@ -260,6 +277,31 @@ export function createEngine(sections = SECTIONS, savedState = null) {
     if (state.cursor.phase === 'entry') {
       const items = state.answers[node.id];
       const isRepeat = Array.isArray(items) && items.length > 0;
+      // An entry prompt that doubles as the first field ("What is the medical
+      // condition...?") is asked as that field, so a spoken "diabetes" is an
+      // answer rather than a failed yes/no. Only the first time: "another
+      // one?" is still a yes/no.
+      if (node.entryIsFirstField && !isRepeat) {
+        const f = node.fields[0];
+        return {
+          id: `${node.id}__entry`,
+          prompt: node.entryPrompt,
+          type: f.type,
+          required: !!f.required,
+          confirm: !!f.confirm,
+          warn: f.warn,
+          hint: f.hint,
+          options: f.options,
+          allowFuture: !!f.allowFuture,
+          section: node.section,
+          sectionTitle: node.sectionTitle,
+          loopId: node.id,
+          loopPhase: 'entry',
+          itemLabel: node.itemLabel,
+          itemNumber: 1,
+          path: [node.id, 'entry', 0]
+        };
+      }
       return {
         id: `${node.id}__entry`,
         prompt: isRepeat ? node.repeatPrompt : node.entryPrompt,
@@ -286,6 +328,8 @@ export function createEngine(sections = SECTIONS, savedState = null) {
       confirm: !!f.confirm,
       warn: f.warn,
       hint: f.hint,
+      options: f.options,
+      allowFuture: !!f.allowFuture,
       section: node.section,
       sectionTitle: node.sectionTitle,
       loopId: node.id,
@@ -305,19 +349,23 @@ export function createEngine(sections = SECTIONS, savedState = null) {
 
     if (node.type !== 'loop') {
       state.answers[node.id] = value;
-      state.cursor.node += 1;
-      advanceFromNonLoop();
+      seek(state.cursor.node + 1);
       return current();
     }
 
     if (state.cursor.phase === 'entry') {
-      if (value === true) {
+      const answersFirstField = node.entryIsFirstField
+        && typeof value !== 'boolean' && value != null && itemsOf(node).length === 0;
+      if (answersFirstField) {
+        // The entry was asked as the first field: its answer opens the item
+        // and fills that field.
         openItem(node);
-        // An entry prompt that doubles as its own first field (e.g. conditions)
-        // has nothing to store here; just position on the first field.
-        if (!positionAtAskableField(node)) {
-          state.cursor.phase = 'entry';
-        }
+        currentItem()[node.fields[0].id] = value;
+        state.cursor.fieldIndex = 1;
+        if (!positionAtAskableField(node)) returnToEntry(node);
+      } else if (value === true) {
+        openItem(node);
+        if (!positionAtAskableField(node)) returnToEntry(node);
       } else {
         closeLoop(node);
       }
@@ -328,7 +376,7 @@ export function createEngine(sections = SECTIONS, savedState = null) {
     const f = node.fields[state.cursor.fieldIndex];
     if (item && f) item[f.id] = value;
     state.cursor.fieldIndex += 1;
-    if (!positionAtAskableField(node)) state.cursor.phase = 'entry';
+    if (!positionAtAskableField(node)) returnToEntry(node);
     return current();
   }
 
@@ -381,6 +429,8 @@ export function createEngine(sections = SECTIONS, savedState = null) {
       if (node.type !== 'loop') {
         if (loopId) continue;
         if (node.id === questionId) {
+          // A question the chosen forms do not ask is not there to correct.
+          if (!active(node)) return null;
           snapshot();
           state.cursor = { node: i, phase: null, loopIndex: 0, fieldIndex: 0 };
           return current();
@@ -388,6 +438,9 @@ export function createEngine(sections = SECTIONS, savedState = null) {
         continue;
       }
       if (loopId && node.id !== loopId) continue;
+      // Field ids repeat across loops (`employer` is in both job lists), so an
+      // inactive loop is passed over rather than matched.
+      if (!active(node)) continue;
       const fi = node.fields.findIndex(f => f.id === questionId);
       if (fi >= 0) {
         // Never point the cursor at an item that does not exist.
@@ -399,7 +452,7 @@ export function createEngine(sections = SECTIONS, savedState = null) {
       }
       if (node.id === questionId) {
         snapshot();
-        state.cursor = { node: i, phase: 'entry', loopIndex, fieldIndex: 0 };
+        state.cursor = { node: i, phase: 'entry', loopIndex: itemsOf(node).length, fieldIndex: 0 };
         return current();
       }
     }
@@ -527,12 +580,17 @@ export function createEngine(sections = SECTIONS, savedState = null) {
     if (raw > state.pace.peak) state.pace.peak = raw;
     const percent = Math.min(state.pace.peak, 100);
 
+    // Sections are numbered among those the chosen forms use, so "section 4 of
+    // 19" means the same thing whichever form is being filled out. Until the
+    // form question is answered there is no honest count to give.
     const node = nodeAt(state.cursor.node);
+    const used = sections.filter(s => sectionActive(s, state.answers));
+    const chosen = formsChosen(state.answers);
     return {
       section: node?.section ?? null,
       sectionTitle: node?.sectionTitle ?? null,
-      sectionNumber: node ? sections.findIndex(s => s.id === node.section) + 1 : sections.length,
-      sectionCount: sections.length,
+      sectionNumber: chosen ? (node ? used.findIndex(s => s.id === node.section) + 1 : used.length) : null,
+      sectionCount: chosen ? used.length : null,
       answered: done,
       remaining: Math.max(0, total - done),
       total,
@@ -562,8 +620,8 @@ export function createEngine(sections = SECTIONS, savedState = null) {
       const past = i < cursor.node;
       const current = i === cursor.node;
 
+      if (!active(node)) continue;
       if (node.type !== 'loop') {
-        if (!shouldAsk(node, state.answers)) continue;
         total += 1;
         if (past) answered += 1;
         continue;
@@ -575,16 +633,19 @@ export function createEngine(sections = SECTIONS, savedState = null) {
       const fieldsFor = item =>
         node.fields.reduce((n, f) => n + (shouldAsk(f, item ?? {}) ? 1 : 0), 0);
 
-      // An entry prompt that doubles as its first field is one question, not
-      // two — the engine stores nothing for it and steps straight to fields.
-      const entryCost = node.entryIsFirstField ? 0 : 1;
+      // Each item costs its entry prompt plus its fields. An entry prompt that
+      // doubles as the first field makes the first item one question cheaper;
+      // "another one?" is still a question of its own.
+      const entryCost = 1;
+      const firstFree = node.entryIsFirstField ? 1 : 0;
+      const itemCost = (item, idx) => entryCost + fieldsFor(item) - (idx === 0 ? firstFree : 0);
 
       if (past) {
         // Settled: however many items it ended up with, plus the entry prompt
         // for each and the final "no". All of it is behind the cursor.
         const list = items ?? [];
         let cost = entryCost; // the closing "any more?", answered no
-        for (const item of list) cost += entryCost + fieldsFor(item);
+        list.forEach((item, idx) => { cost += itemCost(item, idx); });
         total += cost;
         answered += cost;
         continue;
@@ -595,7 +656,7 @@ export function createEngine(sections = SECTIONS, savedState = null) {
         // yes does not inflate the total mid-interview. A loop the user will
         // decline costs one question instead of the budgeted item — an
         // over-estimate, which is the safe direction for a time estimate.
-        total += entryCost + fieldsFor(null);
+        total += itemCost(null, 0);
         continue;
       }
 
@@ -606,17 +667,17 @@ export function createEngine(sections = SECTIONS, savedState = null) {
       const openIndex = cursor.phase === 'field' ? cursor.loopIndex : -1;
 
       list.forEach((item, idx) => {
-        const cost = entryCost + fieldsFor(item);
+        const cost = itemCost(item, idx);
         total += cost;
         if (idx < openIndex || cursor.phase === 'entry') answered += cost;
-        else if (idx === openIndex) answered += entryCost + fieldsAnsweredIn(node, item);
+        else if (idx === openIndex) answered += cost - fieldsFor(item) + fieldsAnsweredIn(node, item);
       });
 
       if (cursor.phase === 'entry') {
         // Sitting on "another one?". Budget one more item if the loop is
         // empty (they will almost certainly say yes to the first), otherwise
         // just the entry prompt itself.
-        total += list.length === 0 ? entryCost + fieldsFor(null) : entryCost;
+        total += list.length === 0 ? itemCost(null, 0) : entryCost;
       } else {
         total += entryCost; // the closing "any more?" still to come
       }
@@ -663,6 +724,7 @@ export function createEngine(sections = SECTIONS, savedState = null) {
   function missingRequired() {
     const missing = [];
     for (const node of nodes) {
+      if (!active(node)) continue;
       if (node.type === 'loop') {
         const items = state.answers[node.id] ?? [];
         items.forEach((item, idx) => {
@@ -677,7 +739,6 @@ export function createEngine(sections = SECTIONS, savedState = null) {
         continue;
       }
       if (!node.required) continue;
-      if (!shouldAsk(node, state.answers)) continue;
       if (state.answers[node.id] == null || state.answers[node.id] === '') {
         missing.push({ id: node.id, prompt: node.prompt });
       }
@@ -685,9 +746,25 @@ export function createEngine(sections = SECTIONS, savedState = null) {
     return missing;
   }
 
+  /**
+   * Move to the first active question with nothing recorded.
+   *
+   * Used when the form choice changes after the fact: questions that belong
+   * to a newly added form sit behind the cursor, and a forward walk would
+   * never reach them. Also how an imported file with no usable cursor finds
+   * its place.
+   */
+  function rewalk() {
+    snapshot();
+    state.cursor = firstUnanswered();
+    state.catchUp = state.cursor.node < nodes.length;
+    return current();
+  }
+
   return {
     current,
     submit,
+    rewalk,
     skip,
     back,
     jumpTo,
@@ -701,10 +778,11 @@ export function createEngine(sections = SECTIONS, savedState = null) {
     getState: () => structuredClone(state),
     reset: () => {
       state.answers = {};
-      state.cursor = { node: 0, phase: nodes[0]?.type === 'loop' ? 'entry' : null, loopIndex: 0, fieldIndex: 0 };
+      seek(0);
       state.history = [];
       state.skipped = [];
       state.pace = { samples: [], peak: 0 };
+      state.catchUp = false;
       lastAskedAt = null;
       return current();
     }

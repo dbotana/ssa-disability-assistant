@@ -5,15 +5,20 @@
 // it cannot vouch for is dropped rather than handed to the engine, which
 // assumes its own state is well formed.
 //
-// Two file versions exist:
+// Three file versions exist:
 //   v1  { version: 1, savedAt, answers }        — answers only, no cursor
 //   v2  { version: 2, savedAt, answers, state } — the full engine state
+//   v3  the same, with the form choice, and `state.schema` naming the
+//       question layout the cursor indexes into
 //
-// A v1 file (or a v2 file whose cursor does not fit the current schema) still
-// imports: the answers are kept and the cursor is rebuilt by replaying the
-// schema, which lands on the first question that has no answer.
+// A v1 or v2 file still imports: those were Starter Kit sessions, so the form
+// choice is filled in as the Starter Kit, and the cursor is rebuilt — the form
+// question moved every question's position, so an old cursor would point at
+// the wrong one. A v3 file whose cursor does not fit the schema is rebuilt the
+// same way. Rebuilding lands on the first question that has no answer.
 
-import { SECTIONS, flatten } from './schema.js';
+import { SECTIONS, SCHEMA_VERSION, flatten } from './schema.js';
+import { createEngine } from './engine.js';
 
 export class ImportError extends Error {
   constructor(message) {
@@ -48,14 +53,20 @@ export function parseExport(text, sections = SECTIONS) {
 
   const nodes = flatten(sections);
   const saved = parsed.state && typeof parsed.state === 'object' ? parsed.state : null;
-  const cursor = validCursor(saved?.cursor, nodes, answers);
+  const current = saved?.schema === SCHEMA_VERSION;
+  if (!current && answers.forms === undefined) answers.forms = 'ssa';
+  const cursor = current ? validCursor(saved?.cursor, nodes, answers) : null;
 
   const state = {
+    schema: SCHEMA_VERSION,
     answers,
-    cursor: cursor ?? rebuildCursor(nodes, answers),
+    cursor: cursor ?? rebuildCursor(sections, answers),
     history: [],
     skipped: Array.isArray(saved?.skipped) ? saved.skipped.filter(id => typeof id === 'string') : [],
-    pace: validPace(saved?.pace)
+    pace: validPace(saved?.pace),
+    // A rebuilt cursor sits on the first gap, with answered questions after
+    // it; catch-up mode walks past those instead of asking them again.
+    catchUp: cursor ? saved?.catchUp === true : true
   };
 
   return { state, savedAt, rebuiltCursor: !cursor };
@@ -104,10 +115,17 @@ function sanitizeAnswers(raw, sections) {
             return kept;
           })
           .filter(item => Object.keys(item).length > 0);
-        if (items.length) out[q.id] = items;
+        // An empty list is an answer too: it is what "no" at the loop's first
+        // prompt leaves behind, and it keeps the rebuilt cursor from asking
+        // that question again.
+        out[q.id] = items;
         continue;
       }
-      if (isScalar(value)) out[q.id] = value;
+      if (!isScalar(value)) continue;
+      // A choice must still be one of its options, or the engine would carry
+      // a form choice (or a rating) that nothing downstream can read.
+      if (q.type === 'choice' && !q.options?.some(o => o.value === value)) continue;
+      out[q.id] = value;
     }
   }
   return out;
@@ -149,27 +167,13 @@ function validPace(pace) {
 }
 
 /**
- * Walk the schema and stop at the first question with no answer. askIf is not
- * consulted: a skipped branch has no answer either, so the engine's own
- * advance() re-evaluates the conditions the moment the interview resumes.
+ * The first question with no answer, among those the answers make active —
+ * a Starter Kit file does not stop at a guardian question it never asked.
+ * The engine owns that walk; this only asks it where it would land.
  */
-function rebuildCursor(nodes, answers) {
-  for (let i = 0; i < nodes.length; i++) {
-    const node = nodes[i];
-    if (node.type !== 'loop') {
-      if (answers[node.id] === undefined) return { node: i, phase: null, loopIndex: 0, fieldIndex: 0 };
-      continue;
-    }
-    const items = answers[node.id];
-    if (!Array.isArray(items) || items.length === 0) {
-      return { node: i, phase: 'entry', loopIndex: 0, fieldIndex: 0 };
-    }
-    // Resume inside the last item if it is missing a field, otherwise at the
-    // "add another?" prompt for that loop.
-    const last = items.length - 1;
-    const fieldIndex = node.fields.findIndex(f => items[last][f.id] === undefined);
-    if (fieldIndex >= 0) return { node: i, phase: 'field', loopIndex: last, fieldIndex };
-    return { node: i, phase: 'entry', loopIndex: items.length, fieldIndex: 0 };
-  }
-  return { node: nodes.length, phase: null, loopIndex: 0, fieldIndex: 0 };
+function rebuildCursor(sections, answers) {
+  const probe = createEngine(sections, {
+    schema: SCHEMA_VERSION, answers, cursor: null, history: [], skipped: [], pace: null
+  });
+  return probe.getState().cursor;
 }

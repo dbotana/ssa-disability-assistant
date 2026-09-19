@@ -39,6 +39,18 @@ cover is still open.
 - [ ] **Transcription accuracy on digits.** Say a 9-digit SSN naturally and
       one digit at a time. If accuracy is poor, the `hintFor()` prompts in
       [src/llm.js](src/llm.js) are the first thing to adjust.
+- [ ] **A voice pass through the Developmental Services interview.** Choose
+      "developmental services" and "both" out loud; answer the A–E ratings by
+      word and by letter; confirm the scale being spoken once per section is
+      enough to answer the later rows without hearing it again. Also check that
+      someone answering for the applicant is not confused by "you" after the
+      one-time explanation.
+- [ ] **Regenerate the audio.** The form choice added the DS prompts and
+      section counts of 19 and 32 alongside the Starter Kit's 20. `audio/` is
+      still not committed, so nothing fails, but none of the new prompts have
+      clips.
+- [ ] **Ask Maine OADS whether a typed-in copy of the intake application,
+      with an addendum page for long answers, is acceptable** as submitted.
 - [ ] **Re-tune the filler list against a real room.** `FILLER_TRANSCRIPTS` in
       [src/main.js](src/main.js) is the set of phrases a transcriber invents
       when handed silence, and it was written from what these models are known
@@ -72,7 +84,53 @@ cover is still open.
 
 ---
 
+## Known quirks
+
+None open.
+
+---
+
 # Closed
+
+## Known quirks
+
+- [x] **The Starter Kit's first conditions prompt is asked as a yes/no.**
+      A loop marked `entryIsFirstField` now asks its entry prompt as its
+      first field, so a spoken "diabetes" opens the first condition and
+      fills its name; "another condition?" is still a yes/no, and skipping
+      the entry still means none. The progress count charges the repeat
+      prompts it used to treat as free.
+
+## Two forms: the Starter Kit and Maine's DS Intake Application
+
+- [x] **The first question chooses the form.** Starter Kit, Developmental
+      Services Intake Application, or both. Every section and question in
+      [src/schema.js](src/schema.js) is tagged with its forms; shared
+      questions are asked once, and the DS form derives marital status,
+      diagnoses, and work history from the Starter Kit's questions when both
+      are chosen. A loop can now be skipped whole by its `askIf`. Sections are
+      counted among the ones the chosen forms use. Changing the choice later
+      re-walks to the new questions in a catch-up mode that skips everything
+      already answered. Covered by [tests/form-routing.js](tests/form-routing.js).
+- [x] **The download is the official form, filled in.** Both PDFs are
+      fillable AcroForms (the README used to say the Starter Kit was not; it
+      is). [src/fill.js](src/fill.js) fills them, shrinks long answers to fit,
+      and moves anything still too long, or past a table's printed rows, to
+      addendum pages. Covered by [tests/form-fill.js](tests/form-fill.js),
+      which fills every field of both real templates and reads them back.
+- [x] **Multiple-choice answers.** A `choice` type with local matching
+      ([src/choice.js](src/choice.js)), so the A–E scale and the form choice
+      work by voice with no API key. Negations defer rather than match.
+- [x] **Sessions saved before this change still resume.** They become
+      Starter Kit sessions and land on their first unanswered question.
+- [x] **Going back over "add another? yes" erased the earlier items.** At a
+      loop's repeat prompt the cursor still pointed at the last finished
+      item, so `back()` truncated the list to before it: going back over "yes,
+      another provider" deleted provider 1 as well as the empty provider 2.
+      The cursor now points past the recorded items at every entry prompt.
+      Covered by test 12b in [tests/engine-walk.js](tests/engine-walk.js).
+- [x] **CI only failed on the last test.** The workflow's test loop now stops
+      at the first failure.
 
 ## Fixed after the first live voice pass
 

@@ -22,7 +22,7 @@ function engineAtLoop(loopId) {
   while (e.current() && guard++ < 500) {
     const q = e.current();
     if (q.loopId === loopId && q.loopPhase === 'entry') return e;
-    e.submit(q.loopPhase === 'entry' ? false : q.type === 'yesno' ? false : `v_${q.id}`);
+    e.submit(q.id === 'forms' ? 'ssa' : q.loopPhase === 'entry' ? false : q.type === 'yesno' ? false : `v_${q.id}`);
   }
   return e;
 }
@@ -266,7 +266,7 @@ function withProviders(names) {
   let guard = 0;
   while (e.current() && guard++ < 800) {
     const q = e.current();
-    e.submit(q.loopPhase === 'entry' ? false : q.type === 'yesno' ? false : `v_${q.id}`);
+    e.submit(q.id === 'forms' ? 'ssa' : q.loopPhase === 'entry' ? false : q.type === 'yesno' ? false : `v_${q.id}`);
   }
   check('interview reaches completion after a mid-flight delete', e.isComplete());
 }

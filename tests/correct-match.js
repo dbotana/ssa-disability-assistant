@@ -2,7 +2,7 @@
 // Zero API calls — this exercises the local matcher and engine.setAnswer only.
 
 import { resolveTarget, resolveChoice, describeTarget, stripLeadIn, buildTargets } from '../src/correct.js';
-import { createEngine } from '../src/engine.js';
+import { startEngine } from './lib/walk.js';
 
 let failures = 0;
 function check(label, cond, detail = '') {
@@ -137,6 +137,7 @@ function resolveOne(phrase, answers = ANSWERS) {
   const withPhones = {
     ref1_name: 'Mary Somerville',
     ref1_phone: '5551112222',
+    rents: true,
     landlord_name: 'Mr. Babbage',
     landlord_phone: '5553334444',
     providers: [{ name: 'Dr. Babbage', phone: '5550001111' }]
@@ -212,7 +213,7 @@ function resolveOne(phrase, answers = ANSWERS) {
 
 // --- 9. setAnswer writes in place without moving the cursor ----------------
 {
-  const e = createEngine();
+  const e = startEngine();
   // Walk far enough to answer the first two questions.
   e.submit('Ada');
   e.submit('Lovelace');
@@ -229,7 +230,7 @@ function resolveOne(phrase, answers = ANSWERS) {
 
 // --- 10. setAnswer targets one loop item, scoped by loop id -----------------
 {
-  const e = createEngine();
+  const e = startEngine();
   // Drive to the providers loop and record two items.
   let guard = 0;
   while (e.current() && guard++ < 400) {
@@ -268,7 +269,7 @@ function resolveOne(phrase, answers = ANSWERS) {
 
 // --- 11. jumpTo is scoped by loop id ---------------------------------------
 {
-  const e = createEngine();
+  const e = startEngine();
   let guard = 0;
   while (e.current() && guard++ < 400) {
     const q = e.current();

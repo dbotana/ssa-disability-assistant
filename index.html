@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Voice Assistant for Social Security Disability Prep</title>
+<title>Voice Assistant for Disability Forms</title>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -15,8 +15,9 @@
 <a class="skip-link" href="#main">Skip to the interview</a>
 
 <header>
-  <h1>Social Security Disability Prep</h1>
-  <p class="tagline">Answer by voice. Get a worksheet you can bring to your application.</p>
+  <h1>Disability Forms by Voice</h1>
+  <p class="tagline">Answer by voice. Get Social Security's Adult Disability Starter Kit,
+    Maine's Developmental Services Intake Application, or both, filled in and ready to use.</p>
 </header>
 
 <main id="main" tabindex="-1">
@@ -37,12 +38,14 @@
         Because there is no server, your OpenAI key is held in this browser tab.
         <strong>Use this on a device you trust and do not use it on a shared or
         public computer.</strong> This tool asks for your Social Security number
-        and bank account numbers. You can say <em>skip</em> at any of those
-        questions and fill them in by hand later.
+        and, for the Starter Kit, bank account numbers. You can say <em>skip</em>
+        at any of those questions and fill them in by hand later.
       </p>
       <p>
-        This is a preparation worksheet. It is not an application, and it does
-        not send anything to the Social Security Administration.
+        The first question asks which form you are filling out. This tool fills
+        in the forms for you to review, sign, and send yourself. It does not
+        send anything to the Social Security Administration or to Maine's
+        Department of Health and Human Services.
       </p>
     </div>
 
@@ -173,11 +176,14 @@
 
   <!-- ---------- Review and export ---------- -->
   <section id="review-panel" aria-labelledby="review-heading" hidden>
-    <h2 id="review-heading">Your worksheet is ready</h2>
+    <h2 id="review-heading">Your forms are ready</h2>
     <p id="review-intro"></p>
 
+    <!-- One button per form chosen at the start; main.js shows the right ones. -->
     <div class="secondary-controls">
-      <button type="button" id="download-pdf" class="primary">Download the PDF worksheet</button>
+      <button type="button" id="download-all" class="primary" hidden>Download both forms (2 PDFs)</button>
+      <button type="button" id="download-ssa" class="primary" hidden>Download the Adult Disability Starter Kit (PDF)</button>
+      <button type="button" id="download-ds" class="primary" hidden>Download the Developmental Services Intake Application (PDF)</button>
       <button type="button" id="download-json" class="secondary">Save my answers as a file</button>
       <button type="button" id="read-back" class="secondary">Read my answers aloud</button>
       <button type="button" id="fix-answer" class="secondary">Change an answer</button>

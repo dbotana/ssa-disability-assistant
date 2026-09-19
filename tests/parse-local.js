@@ -12,7 +12,7 @@
 
 import { parseLocal } from '../src/parse.js';
 import { normalize } from '../src/llm.js';
-import { SECTIONS } from '../src/schema.js';
+import { SECTIONS, findQuestion } from '../src/schema.js';
 
 let failures = 0;
 const check = (name, cond, detail = '') => {
@@ -166,6 +166,79 @@ defer('number', 'a few');
 
 for (const s of ['John', 'Springfield', 'diabetes', 'Dr. Smith at City Clinic']) {
   defer('text', s);
+}
+
+// -- choice ------------------------------------------------------------------
+
+const opts = id => findQuestion(id).options;
+const FORMS = { options: opts('forms') };
+const RATING = { options: opts('eating_level') };
+const PAY = { options: opts('pay_frequency') };
+const MARITAL = { options: opts('marital_status') };
+
+val('choice', 'the starter kit', 'ssa', FORMS);
+val('choice', 'Starter Kit.', 'ssa', FORMS);
+val('choice', 'developmental services', 'ds', FORMS);
+val('choice', "um, it's the Maine application", 'ds', FORMS);
+val('choice', 'both', 'both', FORMS);
+val('choice', 'both of them please', 'both', FORMS);
+// Naming each form is choosing both.
+val('choice', 'the starter kit and developmental services', 'both', FORMS);
+defer('choice', 'not the starter kit', FORMS);            // a negation is never an answer
+defer('choice', 'I am not sure', FORMS);
+defer('choice', 'the blue one', FORMS);
+
+val('choice', 'independent', 'A', RATING);
+val('choice', 'B', 'B', RATING);
+val('choice', 'letter c', 'C', RATING);
+val('choice', 'dee', 'D', RATING);
+val('choice', 'needs supervision', 'B', RATING);
+val('choice', 'they need physical assistance', 'D', RATING);
+// "total assistance" is not also "assistance": the longer phrase wins.
+val('choice', 'total assistance', 'E', RATING);
+val('choice', 'needs skills training', 'C', RATING);
+defer('choice', 'a little help sometimes', RATING);      // "a" inside a sentence is not option A
+defer('choice', 'supervision or training', RATING);      // two options named
+defer('choice', "doesn't need supervision", RATING);
+
+val('choice', 'every two weeks', 'biweekly', PAY);
+val('choice', 'hourly', 'hour', PAY);
+val('choice', 'twice a month', 'twice_month', PAY);
+val('choice', 'per year', 'year', PAY);
+val('choice', 'never married', 'never_married', MARITAL);
+val('choice', 'widowed', 'widowed', MARITAL);
+
+// normalize() maps a label or paraphrase back to the value, and refuses others.
+{
+  const n = (value, extra) => normalize({ value, confidence: 1 }, q('choice', extra));
+  check('normalize accepts a value', n('B', RATING).value === 'B');
+  check('normalize maps a label', n('Needs supervision', RATING).value === 'B');
+  check('normalize refuses an unknown answer', n('sometimes', RATING).needsClarification === true);
+}
+
+// -- zip and email -------------------------------------------------------------
+
+val('zip', '04101', '04101');
+val('zip', 'oh four one oh one', '04101');
+val('zip', '04101-1234', '041011234');
+defer('zip', '4101');
+defer('zip', 'Portland');
+
+val('email', 'Jane.Doe@Example.com', 'jane.doe@example.com');
+val('email', 'jane dot doe at example dot com', 'jane.doe@example.com');
+defer('email', 'jane at the office');
+defer('email', 'I do not have one');
+
+// -- dates that may lie ahead ----------------------------------------------------
+
+{
+  const next = new Date().getFullYear() + 1;
+  defer('monthyear', `June ${next}`);                        // most dates are past
+  val('monthyear', `June ${next}`, `${next}-06`, { allowFuture: true });
+  const yy = String(next % 100).padStart(2, '0');
+  const r = parseLocal(q('monthyear', { allowFuture: true }), `June ${yy}`);
+  check('a two-digit year near the future stays in this century when allowed',
+    r?.value === `${next}-06`, JSON.stringify(r));
 }
 
 // -- properties over the real schema --------------------------------------

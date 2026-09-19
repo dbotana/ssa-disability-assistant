@@ -19,7 +19,7 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-import { SECTIONS } from '../src/schema.js';
+import { SECTIONS, sectionCountsByForm } from '../src/schema.js';
 import { allPhrases } from '../src/phrases.js';
 import { canonical, normalizeText, VOICE, TTS_INSTRUCTIONS } from '../src/ttshash.js';
 import { formatTimeRemaining } from '../src/a11y.js';
@@ -57,9 +57,14 @@ function collectCorpus() {
 
   allPhrases().forEach(add);
 
-  const sectionCount = SECTIONS.length;
-  SECTIONS.forEach((section, i) => {
-    add(`Section ${i + 1} of ${sectionCount}.`);
+  // Sections are numbered among those the chosen forms use, so each form
+  // choice has its own count: "Section 3 of 20." for the Starter Kit alone,
+  // "of 19" for the DS application, "of 32" for both.
+  for (const count of sectionCountsByForm()) {
+    for (let i = 1; i <= count; i++) add(`Section ${i} of ${count}.`);
+  }
+
+  SECTIONS.forEach(section => {
     add(`${section.title}.`);
 
     for (const q of section.questions) {
@@ -105,8 +110,9 @@ const TIME_SAMPLES = (() => {
   return s;
 })();
 
+/** Must match titleCase() in src/main.js, or multi-word labels never hit. */
 function titleCase(s) {
-  return String(s).replace(/\b\w/g, c => c.toUpperCase());
+  return String(s).replace(/^(.)/, (_, c) => c.toUpperCase());
 }
 
 // -- synthesis -------------------------------------------------------------
