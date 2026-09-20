@@ -36,8 +36,9 @@ jobs:
       - name: Stage site
         run: |
           mkdir _site
-          rsync -a --exclude '.git' --exclude '.github' --exclude '_site' \
+          rsync -a --exclude '.git*' --exclude '_site' \
                 --exclude 'tests' --exclude 'tools' --exclude '*.md' \
+                --exclude 'start-*' \
                 --exclude 'ai-product-milestone-1-package' ./ _site/
           touch _site/.nojekyll
 

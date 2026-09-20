@@ -1,0 +1,6 @@
+# Batch files need CRLF; git must not normalize them on checkout.
+*.bat text eol=crlf
+
+# Shell launchers must keep LF even on Windows checkouts.
+*.sh text eol=lf
+*.command text eol=lf

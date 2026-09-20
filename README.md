@@ -20,14 +20,52 @@ DHHS. You review, sign, and send the forms yourself.
 
 ## Running it
 
-No build step, no dependencies to install.
+### Use it in a browser
+
+<https://dbotana.github.io/ssa-disability-assistant/> — nothing to install.
+It still runs entirely on your own device; the page is just delivered from
+GitHub rather than from your hard drive.
+
+### Run it on your own computer
+
+Download the project, then double-click the launcher for your system:
+
+| System | File |
+|---|---|
+| macOS | `start-mac.command` |
+| Windows | `start-windows.bat` |
+| Linux | `start-linux.sh` |
+
+A terminal window opens, prints a `http://localhost:...` address, and opens
+your browser there. Leave that window open while you use the assistant, and
+press Control-C in it when you are finished.
+
+The launchers need either Python 3 or Node, and use whichever they find. macOS
+and most Linux systems already have Python. On Windows you will probably need
+<https://www.python.org/downloads/>; tick **Add python.exe to PATH** in the
+installer.
+
+> On macOS, a launcher downloaded from the internet may be blocked the first
+> time with a warning about an unidentified developer. Right-click
+> `start-mac.command`, choose **Open**, then confirm. This is only needed once.
+
+### Run it from a terminal
 
 ```bash
-python3 -m http.server 8000
-# open http://localhost:8000
+python3 tools/serve.py     # or: node tools/serve.mjs
 ```
 
-Paste an OpenAI API key on the setup screen, choose an input mode, and start.
+Both serve the project on the first free port at or after 8000, bound to
+`127.0.0.1` so nothing is reachable from the rest of the network, and open a
+browser for you.
+
+Opening `index.html` by double-clicking it does **not** work. The app is built
+from ES modules, which browsers refuse to load over `file://`, and it fetches
+the blank PDF templates, which `file://` also blocks. Both need a real HTTP
+origin, which is all the launchers provide.
+
+Whichever way you run it, paste an OpenAI API key on the setup screen, choose
+an input mode, and start.
 
 ## Input modes
 
