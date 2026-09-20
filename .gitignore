@@ -6,6 +6,11 @@ maine-ds-intake*.pdf
 disability-forms-prep*.json
 ssa-disability-prep*.json
 
+# Coursework, not part of the product. The milestone package was committed by
+# accident in 714e005 and served publicly from the site until it was removed.
+assignment-info/
+ai-product-milestone-1-package/
+
 .DS_Store
 node_modules/
 _site/
