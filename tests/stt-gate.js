@@ -106,5 +106,88 @@ FakeRecognition.prototype.onScript = () => {};
   check('aborting resolves rather than hanging', (await p) === null);
 }
 
+// -- continuous mode, and the truncated SSN --------------------------------
+//
+// User testing reported that only the first three digits of a Social Security
+// number were recorded. Nobody reads nine digits in one breath, and in
+// single-utterance mode the recognizer finalizes on the first pause: it
+// reported "five five five" and the rest was never collected.
+
+globalThis.window = { SpeechRecognition: FakeRecognition };
+const stt4 = await import(`../src/stt.js?cont=${Date.now()}`);
+stt4.setPermitted(true);
+
+{
+  // Three groups, spoken with pauses, delivered as three separate final
+  // results. `results` is cumulative, the way a real recognizer reports it.
+  FakeRecognition.prototype.onScript = r => {
+    const groups = ['five five five', 'one one', 'two two three three'];
+    const seen = [];
+    groups.forEach((g, i) => {
+      seen.push([{ transcript: g }]);
+      // Snapshot at push time: each event reports everything finalized so far,
+      // which is how a real recognizer delivers a cumulative `results`.
+      const sofar = [...seen];
+      setTimeout(() => r.onresult({ results: sofar }), i);
+    });
+    setTimeout(() => r.onend?.(), groups.length + 1);
+  };
+
+  const single = await stt4.listen({ timeoutMs: 200 });
+  check('single-utterance mode keeps only the first group', single === 'five five five',
+    `got ${JSON.stringify(single)}`);
+
+  const continuous = await stt4.listen({ timeoutMs: 200, continuous: true });
+  check('continuous mode keeps every group',
+    continuous === 'five five five one one two two three three',
+    `got ${JSON.stringify(continuous)}`);
+}
+
+{
+  // An interim result is never counted; a recognizer that omits the flag is
+  // reporting finals, since interimResults is off.
+  FakeRecognition.prototype.onScript = r => {
+    setTimeout(() => r.onresult({
+      results: [
+        Object.assign([{ transcript: 'four four' }], { isFinal: true }),
+        Object.assign([{ transcript: 'still talking' }], { isFinal: false })
+      ]
+    }), 0);
+    setTimeout(() => r.onend?.(), 2);
+  };
+  const text = await stt4.listen({ timeoutMs: 200, continuous: true });
+  check('interim results are left out', text === 'four four', `got ${JSON.stringify(text)}`);
+}
+
+// -- the gate that decides whether to pay for a better transcription -------
+//
+// main.js needs the DOM, so the rule itself is exercised here through the two
+// pure functions it is built from. A digit string that normalize() would
+// reject must not be trusted: the audio is already captured, and the paid
+// transcriber can still recover the whole number from it.
+
+const { parseLocal } = await import('../src/parse.js');
+const llm = await import('../src/llm.js');
+const survives = (question, transcript) => {
+  const local = parseLocal(question, transcript);
+  return !!local && !llm.normalize(local, question).needsClarification;
+};
+
+{
+  const ssn = { id: 'ssn', type: 'ssn' };
+  check('a truncated SSN is not trusted', !survives(ssn, 'five five five'));
+  check('and neither is one digit short', !survives(ssn, '5 5 5 1 1 2 2 3'));
+  check('a full SSN is trusted', survives(ssn, 'five five five one one two two three three'));
+
+  const phone = { id: 'p', type: 'phone' };
+  check('a truncated phone number is not trusted', !survives(phone, 'five five five'));
+  check('a full phone number is trusted', survives(phone, '5551112222'));
+  check('a phone number with a country code is trusted', survives(phone, '1 5 5 5 1 1 1 2 2 2 2'));
+
+  const routing = { id: 'r', type: 'routing' };
+  check('a truncated routing number is not trusted', !survives(routing, 'one two three'));
+  check('a full routing number is trusted', survives(routing, '123456789'));
+}
+
 console.log(failures === 0 ? 'stt-gate: all checks passed' : `stt-gate: ${failures} failure(s)`);
 process.exit(failures === 0 ? 0 : 1);

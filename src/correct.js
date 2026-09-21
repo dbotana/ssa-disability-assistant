@@ -338,19 +338,28 @@ const escapeRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
  * job list and the DS-only one — but the form choice makes only one of them
  * part of the interview, and only that one is considered.
  */
-function loopHintFor(phrase, answers = {}) {
+function loopHintFor(phrase, answers = {}, { all = false } = {}) {
   let hit = null;
   let hitLen = 0;
+  const ties = new Map();
   for (const [loopId, words] of Object.entries(LOOP_WORDS)) {
     if (!nodeActive(LOOP_NODES.get(loopId), answers)) continue;
     for (const w of words) {
       const n = normalizeText(w);
-      if (new RegExp(`\\b${escapeRe(n)}\\b`).test(phrase) && n.length > hitLen) {
+      if (!new RegExp(`\\b${escapeRe(n)}\\b`).test(phrase)) continue;
+      if (n.length > (ties.get(loopId) ?? 0)) ties.set(loopId, n.length);
+      if (n.length > hitLen) {
         hit = loopId;
         hitLen = n.length;
       }
     }
   }
+  // Every group that matched as strongly as the winner. "Condition" names
+  // both the Starter Kit's list and the DS form's diagnoses when both forms
+  // were chosen, and picking one silently is fine for a correction (which
+  // reads the current value back) but not for an addition, which would create
+  // an entry on a list the user never meant.
+  if (all) return [...ties].filter(([, len]) => len === hitLen).map(([id]) => id);
   return hit;
 }
 
@@ -515,6 +524,74 @@ export function resolveChoice(phrase, candidates) {
   }
   return bestScore > 0 ? best : null;
 }
+
+// -- addition --------------------------------------------------------------
+
+/**
+ * Phrases that mean "start a new loop item" rather than "change an existing one".
+ *
+ * This is the one the review screen was missing. "Change my conditions" and
+ * "add a condition" both name the same group, and with only a change verb in
+ * the vocabulary the second one resolved to the first condition's name field
+ * and overwrote it — the user asked for a second condition and lost the one
+ * they had.
+ *
+ * "Another" and "more" are included without a verb because that is how people
+ * actually say it: "another condition", "one more provider".
+ */
+const ADD_VERBS = /\b(add|another|one more|also have|include|append|new)\b/i;
+
+/** Does this phrase ask to add something? */
+export function isAdditionPhrase(phrase) {
+  return ADD_VERBS.test(String(phrase ?? ''));
+}
+
+/**
+ * Resolve an addition phrase to the loop group it wants to grow.
+ *
+ * @returns {{ok:true, loopId, itemLabel, nextNumber}}
+ *        | {ok:false, reason:'none'}                    no group named
+ *        | {ok:false, reason:'full', loopId, itemLabel} at the item cap
+ *        | {ok:false, reason:'ambiguous', candidates}   several groups named
+ *
+ * Unlike a deletion this never needs an item number — a new entry always goes
+ * on the end — so naming the group is the whole job.
+ */
+export function resolveAddition(phrase, answers = {}) {
+  const cleaned = normalizeText(stripLeadIn(String(phrase ?? '').replace(ADD_VERBS, ' ')));
+
+  const hits = loopHintFor(cleaned, answers, { all: true });
+  if (!hits.length) return { ok: false, reason: 'none' };
+
+  if (hits.length > 1) {
+    return {
+      ok: false,
+      reason: 'ambiguous',
+      candidates: hits.map(loopId => ({
+        loopId,
+        itemLabel: LOOP_NODES.get(loopId)?.itemLabel ?? 'item',
+        title: LOOP_NODES.get(loopId)?.sectionTitle ?? null
+      }))
+    };
+  }
+
+  const loopId = hits[0];
+  const itemLabel = LOOP_NODES.get(loopId)?.itemLabel ?? 'item';
+  const count = Array.isArray(answers[loopId]) ? answers[loopId].length : 0;
+  // Past the cap the interview can still record the item, but it has no
+  // pre-synthesized clip to announce it with — see MAX_LOOP_ITEMS in
+  // tools/build-audio.mjs. Saying so beats a silent announcement.
+  if (count >= MAX_LOOP_ITEMS) return { ok: false, reason: 'full', loopId, itemLabel };
+
+  return { ok: true, loopId, itemLabel, nextNumber: count + 1 };
+}
+
+/**
+ * The most items of one group the interview can announce out loud.
+ * Must match MAX_LOOP_ITEMS in tools/build-audio.mjs, which synthesizes
+ * "Condition 2." through "Condition 12." and no further.
+ */
+export const MAX_LOOP_ITEMS = 12;
 
 // -- deletion --------------------------------------------------------------
 

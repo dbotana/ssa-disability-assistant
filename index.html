@@ -80,6 +80,19 @@
       </p>
     </fieldset>
 
+    <div class="field">
+      <label class="radio">
+        <input type="checkbox" id="confirm-answers" checked>
+        Read each answer back and wait for me to confirm it
+      </label>
+      <p class="help">
+        With this on I repeat what I heard after every answer, and you press the
+        space bar (or say yes) to keep it. Turn it off to move faster if you can
+        read the screen — your Social Security number, bank numbers and dates are
+        always read back either way, because a wrong digit there is costly.
+      </p>
+    </div>
+
     <div class="field" id="stt-row" hidden>
       <label class="radio">
         <input type="checkbox" id="use-browser-stt">
@@ -145,9 +158,18 @@
       <p id="lane-help" class="help">
         Hold the space bar (or the button) to speak, or press <kbd>T</kbd> to
         type. Press <kbd>Escape</kbd> to leave the text box and use the space
-        bar again. After every spoken answer I read back what I heard and wait
-        for you to say yes or no.
+        bar again. When I read an answer back, tap <kbd>Space</kbd> to keep it
+        or press <kbd>N</kbd> to answer again — you only have to speak if I got
+        it wrong.
       </p>
+    </div>
+
+    <!-- Shown only while an answer is being read back. The space bar does the
+         same thing, and is what most people will use; these are here so the
+         choice is visible rather than remembered. -->
+    <div class="readback-controls" id="readback-controls" hidden>
+      <button type="button" id="accept-readback" class="primary">Yes, that's right (Space)</button>
+      <button type="button" id="reject-readback" class="secondary">No, answer again (N)</button>
     </div>
 
     <div class="secondary-controls">
@@ -162,13 +184,15 @@
     <details class="help-details">
       <summary>Things you can say at any time</summary>
       <ul>
-        <li><strong>Yes</strong> or <strong>No</strong> — after I read back what I heard. No lets you answer again without hearing the question repeated</li>
+        <li><strong>Space</strong> or <strong>Yes</strong> — after I read back what I heard, to keep it</li>
+        <li><strong>N</strong> or <strong>No</strong> — answer again, without hearing the question repeated</li>
         <li><strong>Repeat that</strong> — hear the question again</li>
         <li><strong>Go back</strong> — return to the previous question</li>
         <li><strong>Skip this</strong> — leave it blank and move on</li>
         <li><strong>Where am I</strong> — hear your progress</li>
         <li><strong>Read back my answers</strong> — hear what you have given so far</li>
         <li><strong>Save and quit</strong> — stop and keep your place</li>
+        <li><strong>Add another condition</strong> — from the review screen, to put a new entry on a list</li>
         <li><strong>Start over</strong> — erase everything and begin again</li>
       </ul>
     </details>

@@ -85,6 +85,9 @@ function collectCorpus() {
         for (let n = 2; n <= MAX_LOOP_ITEMS; n++) {
           add(`${titleCase(q.itemLabel)} ${n}.`);
         }
+        // Opening the first item of an empty list from the review screen has
+        // no "Provider 2." to announce it, so it says this instead.
+        add(`Adding a new ${q.itemLabel}.`);
       }
     }
   });
@@ -100,6 +103,8 @@ function collectCorpus() {
   return [...out];
 }
 
+// Must match MAX_LOOP_ITEMS in src/correct.js, which refuses to add past it
+// for exactly this reason: item 13 would have no clip to announce it.
 const MAX_LOOP_ITEMS = 12;
 
 /** Enough sample points to hit every bucket formatTimeRemaining can return. */

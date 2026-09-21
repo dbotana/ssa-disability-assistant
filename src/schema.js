@@ -233,6 +233,31 @@ function ratingSection(group) {
   return { id: group.id, title: group.title, forms: ['ds'], questions };
 }
 
+// -- shared hints --------------------------------------------------------------
+//
+// One string, attached to every question of its kind, for the same reason
+// phrases.js exists: tools/build-audio.mjs synthesizes each distinct string
+// once, so seventeen date questions sharing one hint cost one clip rather
+// than seventeen. A per-question rewording would be seventeen clips saying
+// almost the same thing.
+
+// User testing showed people guessing year-month-day. Say the order out loud.
+const DATE_HINT = 'Say the month, then the day, then the year. '
+  + 'For example, March fourteenth, nineteen seventy nine.';
+
+const MONTH_YEAR_HINT = 'Say the month and then the year. '
+  + 'For example, March, nineteen seventy nine.';
+
+// "It is fine to pause" is the load-bearing half. Nobody reads nine digits in
+// one breath, and a user whose first pause ended the capture has no way to
+// know that is what happened.
+const NINE_DIGITS_HINT = 'You can say the nine digits one at a time, '
+  + 'and it is fine to pause between groups.';
+const DIGITS_HINT = 'You can say the digits one at a time, '
+  + 'and it is fine to pause between groups.';
+const PHONE_HINT = 'You can say the ten digits one at a time, '
+  + 'and it is fine to pause between groups.';
+
 // -- the interview -------------------------------------------------------------
 
 export const SECTIONS = [
@@ -285,7 +310,16 @@ export const SECTIONS = [
     questions: [
       { id: 'first_name', prompt: 'What is your legal first name?', type: 'text', required: true },
       { id: 'last_name', prompt: 'What is your legal last name?', type: 'text', required: true },
-      { id: 'date_of_birth', prompt: 'What is your date of birth?', type: 'date', required: true, confirm: true },
+      {
+        id: 'date_of_birth',
+        // The order is in the prompt, not only the hint: this is the first
+        // date the interview asks, and the hint is not spoken until someone
+        // has already guessed wrong.
+        prompt: 'What is your date of birth? Say the month, the day, and then the year.',
+        type: 'date',
+        required: true,
+        confirm: true
+      },
       { id: 'birth_city', prompt: 'What city were you born in?', type: 'text', required: true },
       { id: 'birth_state', prompt: 'What state or province were you born in?', type: 'text', required: true },
       { id: 'birth_country', prompt: 'What country were you born in?', type: 'text', required: true },
@@ -296,7 +330,7 @@ export const SECTIONS = [
         required: true,
         confirm: true,
         warn: 'Next I need your Social Security number. It is saved only on this device, and it is never sent to Social Security. You can say skip to leave it blank, or type it instead of saying it.',
-        hint: 'You can say the nine digits one at a time.'
+        hint: NINE_DIGITS_HINT
       }
     ]
   },
@@ -814,12 +848,38 @@ export const SECTIONS = [
         type: 'routing',
         confirm: true,
         warn: 'Last section. I need your bank routing and account numbers for direct deposit. They are saved only on this device, and they are never sent to Social Security. You can say skip to leave them blank, or type them instead of saying them.',
-        hint: 'You can say the nine digits one at a time.'
+        hint: NINE_DIGITS_HINT
       },
       { id: 'account_number', prompt: 'What is your bank account number?', type: 'account', confirm: true }
     ]
   }
 ];
+
+/**
+ * The hint every question of a given type gets unless it names its own.
+ *
+ * Applied as a pass over the schema rather than written out on each question,
+ * because the failure mode is a missed one: a single date question left
+ * without the ordering hint is exactly the question a user will guess
+ * year-first on. A question that sets `hint` keeps it.
+ */
+const DEFAULT_HINTS = {
+  date: DATE_HINT,
+  monthyear: MONTH_YEAR_HINT,
+  phone: PHONE_HINT,
+  ssn: NINE_DIGITS_HINT,
+  routing: NINE_DIGITS_HINT,
+  account: DIGITS_HINT
+};
+
+for (const section of SECTIONS) {
+  for (const q of section.questions) {
+    const fields = q.type === 'loop' ? q.fields : [q];
+    for (const f of fields) {
+      if (f.hint == null && DEFAULT_HINTS[f.type]) f.hint = DEFAULT_HINTS[f.type];
+    }
+  }
+}
 
 function needsEmergencyContact(a) {
   return !(a.has_guardian === true && a.ec_same_as_guardian === true);

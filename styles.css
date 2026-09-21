@@ -149,6 +149,9 @@ kbd {
 .question { font-size: 1.7rem; line-height: 1.35; }
 .status { color: var(--muted); min-height: 1.6em; margin: 1rem 0 0; }
 
+/* Sits directly under the question while an answer is being read back. */
+.readback-controls { margin-top: 1rem; display: flex; flex-wrap: wrap; gap: .75rem; }
+
 .secondary-controls { margin-top: 1.5rem; }
 .help-details { margin-top: 1.5rem; color: var(--muted); }
 .help-details summary { cursor: pointer; font-weight: 600; padding: .4rem 0; }

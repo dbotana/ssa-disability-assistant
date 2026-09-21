@@ -116,6 +116,47 @@ val('date', 'um, March 14th 1979', '1979-03-14');
 val('date', 'March 14th 79', '1979-03-14');
 val('date', 'January 1st 05', '2005-01-01');
 
+// Month, day, year — the order every date question now asks for out loud.
+// These are the shapes a user who followed that instruction actually says.
+// Spoken out, the prompt's own example is words, not digits, and a session
+// with no API key has nothing but this parser to read them with.
+val('date', 'March fourteenth nineteen seventy nine', '1979-03-14');
+val('date', 'march fourteenth, nineteen seventy-nine', '1979-03-14');
+val('date', 'the fourteenth of March nineteen seventy nine', '1979-03-14');
+val('date', 'March 14 1979', '1979-03-14');
+
+// The other ways a year gets said out loud.
+val('date', 'June second nineteen oh five', '1905-06-02');
+val('date', 'July fourth nineteen seventy six', '1976-07-04');
+val('date', 'May fifth twenty twelve', '2012-05-05');
+val('date', 'August eighth twenty twenty four', '2024-08-08');
+val('date', 'January first two thousand', '2000-01-01');
+val('date', 'October tenth two thousand eighteen', '2018-10-10');
+val('date', 'March twenty first two thousand and five', '2005-03-21');
+val('date', 'December thirty first nineteen ninety nine', '1999-12-31');
+val('date', 'February twenty ninth two thousand twenty', '2020-02-29');
+val('monthyear', 'March nineteen seventy nine', '1979-03');
+val('monthyear', 'August two thousand fifteen', '2015-08');
+
+// Spelling the numbers out does not make a bad date good.
+defer('date', 'February thirtieth nineteen ninety');
+defer('date', 'March fourteenth two thousand ninety nine');
+defer('date', 'sometime in the eighties');
+val('date', 'March the 14th, 1979', '1979-03-14');
+val('date', 'it is March 14th 1979', '1979-03-14');
+
+// Year-first still parses. The prompt asks for month first, but someone who
+// says it the other way round has still been unambiguous, and the year is
+// identified by being four digits rather than by where it sits.
+val('date', '1979 March 14', '1979-03-14');
+val('date', '1979, March 14th', '1979-03-14');
+
+// A slashed date is read US-style, month first. "14/3/1979" has no 14th
+// month, so it is a misread to hand to the model rather than a date to
+// silently reinterpret as the 3rd of the 14th.
+val('date', '12/11/1979', '1979-12-11');
+defer('date', '14/3/1979');
+
 // Impossible and future dates are a misread, not an answer.
 defer('date', 'February 30 1990');
 defer('date', 'February 30th, 1990');

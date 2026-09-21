@@ -93,15 +93,27 @@ except speech recognition works without an API key.
 ### Every spoken answer is read back
 
 After each voice answer the assistant repeats what it heard, verbatim, and
-waits for a spoken `yes` or `no`. `yes` accepts it and moves on. `no` throws it
-away and reopens the same question *without re-reading the prompt* — the user
-just heard it, and repeating it before every retry is what makes a misheard
-answer feel expensive. The read-back can be answered by typing too.
+waits to be told whether it got it right. Tapping <kbd>Space</kbd> (or
+<kbd>Enter</kbd>, or the **Yes, that's right** button) keeps it;
+<kbd>N</kbd> or <kbd>Esc</kbd> throws it away and reopens the same question
+*without re-reading the prompt* — the user just heard it, and repeating it
+before every retry is what makes a misheard answer feel expensive. Saying
+`yes` or `no`, or typing them, does the same thing.
+
+The keystroke matters more than it looks: user testing found that having to
+*say* "yes" after every single answer is what made the interview feel slow to
+anyone who could read the screen. Speaking is now only required to correct an
+answer, never to accept one.
+
+Someone who would rather not hear each answer twice can turn off **Read each
+answer back** on the setup screen. The `confirm` fields ignore that setting and
+are always read back, because that read-back is what catches a wrong digit in
+a Social Security or bank account number.
 
 Two turns are exempt, because they already confirm themselves: commands
 (`skip`, `go back`) and the high-stakes fields marked `confirm` — SSN, routing
-and account numbers — which instead get the stronger read-back of the *parsed
-value*, spoken digit by digit.
+and account numbers, dates of birth — which instead get the stronger read-back
+of the *parsed value*, spoken digit by digit.
 
 A capture with no speech in it never reaches this point. The level meter runs
 for push-to-talk as well as hands free, and a capture that stayed at the noise
@@ -118,7 +130,30 @@ invented phrase, not nothing, which was then recorded as the answer.
 Keyboard equivalents: <kbd>Enter</kbd> repeat, <kbd>B</kbd> back, <kbd>S</kbd>
 skip, <kbd>W</kbd> where, <kbd>R</kbd> read back, <kbd>H</kbd> toggle hands
 free, <kbd>T</kbd> type, <kbd>Esc</kbd> cancel a recording — or, from inside the
-text box, leave it and hand the space bar back to voice.
+text box, leave it and hand the space bar back to voice. While an answer is
+being read back those keys step aside for <kbd>Space</kbd>/<kbd>Enter</kbd> to
+keep it and <kbd>N</kbd>/<kbd>Esc</kbd> to answer again.
+
+From the review screen, `change my phone number` edits an answer in place,
+`add another condition` starts a new entry on a list, and `remove the second
+provider` deletes one.
+
+### Dates and digit strings
+
+Every date question asks for the month, then the day, then the year, and says
+so out loud; the parser reads that order, the reverse of it, slashed US dates,
+and numbers spoken as words (`March fourteenth, nineteen seventy nine`).
+
+Nine spoken digits are not one utterance. A Social Security number read with a
+pause between groups used to end the capture at the first pause and record
+only the first three digits — three separate defects stacked on each other:
+the browser recognizer finalizing on the first pause and reporting only its
+first result, the hands-free recorder's silence window closing mid-number, and
+the gate that decides whether to pay for a better transcription accepting a
+cleanly-parsed `555` as though it were a whole number. Digit fields now get a
+three-second silence window, a recognizer that keeps listening across pauses
+and concatenates what it hears, and a gate that asks `normalize()` whether the
+result is actually the right length.
 
 ## Privacy, and a real limitation
 
@@ -284,7 +319,17 @@ node tests/empty-transcript.js   # a silent capture never becomes an answer
 node tests/form-routing.js       # which questions each form choice asks
 node tests/form-fill.js          # filling both real PDFs and reading them back
 node tests/parse-local.js        # local parsing, including multiple choice
+node tests/add-item.js           # adding a loop entry without overwriting one
+node tests/stt-gate.js           # recognizer consent, and the truncated-SSN gate
+node tests/audio-manifest.js     # every spoken string has a clip
 ```
+
+`tools/smoke.mjs` is separate and not run by CI. It boots `main.js` against a
+stub DOM and drives a real interview — the read-back keys, a `confirm` field,
+and adding a condition from the review prompt — which is the wiring no test in
+`tests/` reaches. Run it by hand after touching the turn loop; it stubs the DOM
+by hand, so an ordinary edit to `index.html` can break it without anything
+being wrong with the app.
 
 None of them make an API call. Between them they cover multi-item loops,
 `askIf` branches inside loop items, `back()` discarding a speculatively-opened

@@ -14,9 +14,11 @@ export const INTRO = {
     + 'The hold to talk button is still there whenever you would rather speak. '
     + 'You can type skip, back, or repeat at any time.',
   handsfree: 'Hands free mode. I will ask a question, then start listening on my own. '
-    + 'Just answer when you hear the tone. You can type an answer instead at any point, '
+    + 'Just answer when you hear the tone. When I read an answer back, tap the space bar '
+    + 'to keep it, or press N to answer again. You can type an answer instead at any point, '
     + 'and speaking still works afterwards. Say repeat, go back, or skip at any time.',
   voice: 'Voice mode. Hold the space bar while you answer, and let go when you are done. '
+    + 'When I read an answer back, tap the space bar to keep it, or press N to answer again. '
     + 'You can type an answer instead at any point, and speaking still works afterwards. '
     + 'Say repeat, go back, or skip at any time.'
 };
@@ -36,8 +38,9 @@ export const HELP = 'You can say: repeat that, go back, skip this, where am I, '
 
 export const WHICH_FIELD = 'Which answer would you like to change? You can name the field, '
   + 'for example, my phone number, or the second provider\'s address. '
-  + 'You can also remove a whole entry, by saying something like '
-  + 'remove that last provider. Say never mind to go back.';
+  + 'You can add a new entry, by saying something like add another condition, '
+  + 'or remove a whole entry, by saying remove that last provider. '
+  + 'Say never mind to go back.';
 
 export const UNCHANGED = 'That answer was left unchanged.';
 

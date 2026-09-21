@@ -39,6 +39,102 @@ const MONTHS = {
   november: 11, nov: 11, december: 12, dec: 12
 };
 
+// -- spoken numbers inside dates -------------------------------------------
+//
+// Every date question now asks out loud for "the month, then the day, then
+// the year", with "March fourteenth, nineteen seventy nine" as the example.
+// A user who does exactly that produces words, not digits — and a recognizer
+// that transcribes them faithfully used to leave the local parser with
+// nothing to work with, so a key-free session could not answer a date at all.
+// These tables turn what the prompt asks for back into what the parser reads.
+
+const SMALL_NUMBERS = {
+  one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8,
+  nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14,
+  fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19
+};
+
+const TENS_NUMBERS = {
+  twenty: 20, thirty: 30, forty: 40, fifty: 50,
+  sixty: 60, seventy: 70, eighty: 80, ninety: 90
+};
+
+/** Ordinals name the day, and the suffix is what tells it apart from a year. */
+const ORDINAL_NUMBERS = {
+  first: 1, second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6, seventh: 7,
+  eighth: 8, ninth: 9, tenth: 10, eleventh: 11, twelfth: 12, thirteenth: 13,
+  fourteenth: 14, fifteenth: 15, sixteenth: 16, seventeenth: 17,
+  eighteenth: 18, nineteenth: 19, twentieth: 20, thirtieth: 30
+};
+
+const alt = obj => Object.keys(obj).join('|');
+
+/**
+ * Rewrite spoken numbers in a date phrase as digits.
+ *
+ * Years first, because they are the longer phrases: "nineteen seventy nine"
+ * has to become 1979 before "nineteen" and "nine" are read as a day. Only
+ * called from the date parsers — elsewhere "two thousand" is money, not a
+ * year, and DIGIT_WORDS already handles the digit-at-a-time fields.
+ */
+function spokenNumbers(text) {
+  let s = String(text ?? '');
+
+  // "two thousand five", "two thousand and twelve", "two thousand"
+  s = s.replace(
+    new RegExp(`\\btwo thousand(?:\\s+and)?(?:\\s+(${alt(TENS_NUMBERS)})(?:[\\s-]+(${alt(SMALL_NUMBERS)}))?|\\s+(${alt(SMALL_NUMBERS)}))?\\b`, 'gi'),
+    (_, tens, tensOnes, small) => String(2000
+      + (tens ? TENS_NUMBERS[tens.toLowerCase()] : 0)
+      + (tensOnes ? SMALL_NUMBERS[tensOnes.toLowerCase()] : 0)
+      + (small ? SMALL_NUMBERS[small.toLowerCase()] : 0)));
+
+  // "nineteen oh five", "twenty oh eight"
+  s = s.replace(
+    new RegExp(`\\b(nineteen|twenty)\\s+(?:oh|o)\\s+(${alt(SMALL_NUMBERS)})\\b`, 'gi'),
+    (_, century, ones) => String(
+      (century.toLowerCase() === 'nineteen' ? 1900 : 2000) + SMALL_NUMBERS[ones.toLowerCase()]));
+
+  // "nineteen seventy nine", "twenty twenty four", "nineteen eighty"
+  s = s.replace(
+    new RegExp(`\\b(nineteen|twenty)\\s+(${alt(TENS_NUMBERS)})(?:[\\s-]+(${alt(SMALL_NUMBERS)}))?\\b`, 'gi'),
+    (_, century, tens, ones) => String(
+      (century.toLowerCase() === 'nineteen' ? 1900 : 2000)
+      + TENS_NUMBERS[tens.toLowerCase()]
+      + (ones ? SMALL_NUMBERS[ones.toLowerCase()] : 0)));
+
+  // "twenty twelve", "nineteen eighteen"
+  s = s.replace(
+    new RegExp(`\\b(nineteen|twenty)\\s+(${alt(SMALL_NUMBERS)})\\b`, 'gi'),
+    (_, century, rest) => {
+      const n = SMALL_NUMBERS[rest.toLowerCase()];
+      // Only a two-digit remainder is a year this way. "nineteen five" is not
+      // how anyone says 1905, and reading it as one would invent a date.
+      if (n < 10) return `${century} ${rest}`;
+      return String((century.toLowerCase() === 'nineteen' ? 1900 : 2000) + n);
+    });
+
+  // "twenty first", "thirty first" — compound ordinal days.
+  s = s.replace(
+    new RegExp(`\\b(twenty|thirty)[\\s-]+(${alt(ORDINAL_NUMBERS)})\\b`, 'gi'),
+    (whole, tens, ord) => {
+      const n = ORDINAL_NUMBERS[ord.toLowerCase()];
+      return n < 10 ? `${TENS_NUMBERS[tens.toLowerCase()] + n}th` : whole;
+    });
+
+  // "fourteenth" -> "14th". The suffix is kept: parseDate() uses it to tell a
+  // day from a two-digit year.
+  s = s.replace(new RegExp(`\\b(${alt(ORDINAL_NUMBERS)})\\b`, 'gi'),
+    (_, w) => `${ORDINAL_NUMBERS[w.toLowerCase()]}th`);
+
+  // "twenty one" -> "21", then any bare small number.
+  s = s.replace(new RegExp(`\\b(${alt(TENS_NUMBERS)})[\\s-]+(${alt(SMALL_NUMBERS)})\\b`, 'gi'),
+    (_, tens, ones) => String(TENS_NUMBERS[tens.toLowerCase()] + SMALL_NUMBERS[ones.toLowerCase()]));
+  s = s.replace(new RegExp(`\\b(${alt(SMALL_NUMBERS)}|${alt(TENS_NUMBERS)})\\b`, 'gi'),
+    (_, w) => String(SMALL_NUMBERS[w.toLowerCase()] ?? TENS_NUMBERS[w.toLowerCase()]));
+
+  return s;
+}
+
 /** "Still working there" on an end date. The schema prompts for this wording. */
 const PRESENT = /\b(still|ongoing|present|current(ly)?|to this day|up to now|continu\w*)\b/i;
 
@@ -231,7 +327,7 @@ function parseNumber(raw) {
 // -- dates -----------------------------------------------------------------
 
 function parseDate(raw, question) {
-  const s = clean(raw);
+  const s = spokenNumbers(clean(raw));
 
   let m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
   if (m) return dated(+m[1], +m[2], +m[3], 1, question);
@@ -265,7 +361,7 @@ function parseDate(raw, question) {
 }
 
 function parseMonthYear(raw, question) {
-  const s = clean(raw);
+  const s = spokenNumbers(clean(raw));
 
   if (PRESENT.test(s) && !/\b(19|20)\d{2}\b/.test(s)) {
     return { value: 'present', confidence: 1 };
