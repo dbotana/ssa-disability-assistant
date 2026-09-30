@@ -78,15 +78,17 @@ cover is still open.
 
 ## 2. Security — before this goes near real claimants
 
-With transcription local, these two are now the largest exposures left.
+With transcription local and the numbers kept out of storage, the downloaded files are now the largest exposure left.
 
-- [ ] **Decide whether SSN and bank numbers belong in `localStorage` at all.**
-      Right now the saved-session blob contains them in plain text. An option to
-      resume *without* persisting sensitive fields would be a reasonable middle
-      ground.
 - [ ] **Consider redacting sensitive fields from the PDF by default**, with an
       explicit opt-in to include them. Someone will email this file to
-      themselves.
+      themselves. The same for "Save my answers as a file", which writes the
+      SSN in plain JSON.
+- [ ] **Reword the spoken warning before the SSN question.** It still says
+      "It is saved only on this device"; it is not saved at all now. Needs
+      its clip regenerated (`tools/build-audio.mjs`).
+- [ ] **Try the dedicated browser window on Windows and Linux.** Verified on
+      macOS only, with a stand-in browser recording its arguments.
 
 ## 3. Testing
 
@@ -140,6 +142,30 @@ None open.
       backend runs their int8 matmuls on the CPU anyway. Revisit only with a
       second, ~200 MB fp32/q4 copy of the model.
 - [x] **Move the API key server-side.** Moot: there is no key.
+- [x] **SSN and bank numbers are never written to `localStorage`.** Removed
+      from every save and recorded as `withheld`; a resumed session asks for
+      each again, once, as a correction before the review. Older saved
+      sessions are scrubbed on first load. An imported file's numbers are held
+      in memory for the resume it sets up. Fixed on the way: a correction left
+      the cursor on the corrected question, so a session saved afterwards
+      resumed mid-form (`engine.restoreCursor()`).
+- [x] **Typed answers opt out of cloud spell-check** and of the Grammarly and
+      LanguageTool extensions.
+- [x] **Port 27183, not 8000**, so no other local tool shares the origin the
+      answers are saved under.
+- [x] **Saved answers are encrypted with a PIN**, or not saved at all
+      (PBKDF2-SHA256 600k → AES-256-GCM, key non-extractable, in memory
+      only). Saved sessions expire after 7 days.
+- [x] **Numbers masked on screen** (last four digits) unless the user opts
+      in at setup; speech and the live region keep every digit.
+- [x] **Idle lock**: sensitive numbers leave memory after 15 minutes without
+      activity and are asked again before a form is filled. After a download
+      the user is told how to erase everything.
+- [x] **Dedicated browser profile**: the launchers open Chrome/Edge/
+      Chromium/Brave with its own profile, extensions, sync, background
+      networking, crash dumps, translation and autofill lookups off.
+- [x] **Launchers verify the model, runtime and pdf-lib hashes** before
+      serving, and refuse to start on a mismatch.
 - [x] **No hosted copy.** The GitHub Pages deploy is replaced by a test-only
       CI workflow, and the launchers no longer suggest the hosted upstream
       site when Python is missing.

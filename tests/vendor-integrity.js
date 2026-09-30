@@ -3,8 +3,10 @@
 // Both are committed binaries that run with access to every spoken answer,
 // so a silently swapped file — a bad merge, a hand edit, a tampered clone —
 // is worth catching. The hashes were recorded when each was fetched:
-// models/*/SHA256SUMS by tools/fetch-model.mjs, and vendor/transformers/
-// VERSIONS.txt when the runtime was copied out of its npm package.
+// models/*/SHA256SUMS by tools/fetch-model.mjs, vendor/transformers/
+// VERSIONS.txt when the runtime was copied out of its npm package, and
+// vendor/SHA256SUMS for pdf-lib, which runs in the page with every answer.
+// The launchers run the same check before serving (tests/launcher.js).
 //
 // Makes no network requests.
 
@@ -37,6 +39,9 @@ async function verify(dir, listFile) {
   }
   return entries.map(e => e[2]);
 }
+
+const libraries = await verify(join(ROOT, 'vendor'), 'SHA256SUMS');
+check('pdf-lib is pinned', libraries.includes('pdf-lib.min.js'));
 
 const vendored = await verify(join(ROOT, 'vendor', 'transformers'), 'VERSIONS.txt');
 for (const need of ['transformers.min.js', 'ort-wasm-simd-threaded.jsep.mjs', 'ort-wasm-simd-threaded.jsep.wasm']) {

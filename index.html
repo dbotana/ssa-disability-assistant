@@ -44,8 +44,10 @@
         only, and nothing is sent to any company or server.
       </p>
       <p>
-        Your answers, including your Social Security number, stay saved in this
-        browser until you erase them.
+        If you choose a PIN below, your answers are saved in this browser,
+        encrypted with it, so you can stop and come back. Your Social Security
+        number and bank numbers are never saved: if you stop partway, you will
+        be asked for them again.
         <strong>Use this on a device you trust and do not use it on a shared or
         public computer.</strong> You can say <em>skip</em> at any sensitive
         question and fill it in by hand later.
@@ -89,6 +91,37 @@
         space bar (or say yes) to keep it. Turn it off to move faster if you can
         read the screen — your Social Security number, bank numbers and dates are
         always read back either way, because a wrong digit there is costly.
+      </p>
+    </div>
+
+    <div class="field">
+      <label for="save-pin">PIN to protect your saved answers</label>
+      <!-- A password field so it is not shown on screen. The data-* attributes
+           keep password managers from offering to store it: the PIN is only
+           useful if it lives in the user's head, not beside the answers. -->
+      <input type="password" id="save-pin" autocomplete="off" spellcheck="false"
+             autocorrect="off" autocapitalize="off"
+             data-gramm="false" data-gramm_editor="false" data-enable-grammarly="false"
+             data-lt-active="false" data-1p-ignore data-lpignore="true" data-bwignore
+             aria-describedby="save-pin-help">
+      <p id="save-pin-help" class="help">
+        At least 4 characters; longer is safer. Your answers are saved on this
+        computer, encrypted with this PIN, so you can finish later — you will
+        need it to continue. Leave it blank to save nothing: your answers will
+        be lost when you close this page. Saved answers are deleted after 7
+        days.
+      </p>
+    </div>
+
+    <div class="field">
+      <label class="radio">
+        <input type="checkbox" id="show-sensitive">
+        Show my Social Security and bank numbers on screen
+      </label>
+      <p class="help">
+        Off, they show only their last four digits, so they cannot be read
+        over your shoulder or in a screen recording. They are always read
+        aloud in full, so you can check every digit.
       </p>
     </div>
 
@@ -136,7 +169,15 @@
 
       <div id="text-entry" class="field" hidden>
         <label for="text-answer">Or type your answer</label>
+        <!-- spellcheck off: Chrome's Enhanced Spell Check and Edge's Microsoft
+             Editor send the text of a checked field to Google or Microsoft.
+             The data-* attributes opt out of the Grammarly and LanguageTool
+             extensions, which do the same. This box takes Social Security
+             and bank numbers. tests/no-network.js checks all of them. -->
         <input type="text" id="text-answer" autocomplete="off"
+               spellcheck="false" autocorrect="off" autocapitalize="off"
+               data-gramm="false" data-gramm_editor="false" data-enable-grammarly="false"
+               data-lt-active="false"
                aria-describedby="lane-help">
         <button type="button" id="text-submit" class="primary">Submit</button>
       </div>

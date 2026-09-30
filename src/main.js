@@ -6,18 +6,18 @@
 // by localstt.js and answers are read by parse.js, and nothing is sent
 // anywhere.
 
-import { SECTIONS, FORM_TITLES, formsOf } from './schema.js';
+import { SECTIONS, FORM_TITLES, formsOf, SENSITIVE_TYPES } from './schema.js';
 import { createEngine } from './engine.js';
 import { initA11y, announce, focusMain, speakableValue, formatTimeRemaining } from './a11y.js';
 import * as store from './store.js';
 import * as audio from './audio.js';
 import * as speech from './speech.js';
 import { normalize } from './validate.js';
-import { renderSummary, summaryText, downloadJson } from './summary.js';
+import { renderSummary, summaryText, downloadJson, maskDigits } from './summary.js';
 import {
   resolveTarget, resolveChoice, describeTarget,
   isDeletionPhrase, resolveDeletion, describeItem,
-  isAdditionPhrase, resolveAddition
+  isAdditionPhrase, resolveAddition, buildTargets
 } from './correct.js';
 import { downloadForm } from './fill.js';
 import { readExportFile, ImportError } from './importer.js';
@@ -71,6 +71,23 @@ let adding = null;                // { loopId, itemLabel, startCount }
 let resumeAfterPrompt = false;
 let awaitingFieldName = false;    // the "which answer?" prompt is open
 
+// Social Security and bank numbers are never saved (see store.js). These are
+// the ones a resumed session had been given before and must ask for again —
+// each once, before the forms are offered for download.
+let withheld = [];                // [{ id, loopId?, loopIndex? }]
+// A session read from an imported file, held in memory only until the
+// resume it sets up. It may hold sensitive answers; it is never written to
+// storage as it is.
+let importedSession = null;       // { savedAt, state, withheld }
+// Social Security and bank numbers are masked on screen unless the user asked
+// at setup to see them. Speech and the screen reader's live region always get
+// the full value: that read-back is how a wrong digit is caught.
+let revealSensitive = false;
+// Sensitive answers are dropped from memory after this long with no key, tap
+// or answer, and asked for again before the forms are filled.
+const IDLE_LOCK_MS = 15 * 60 * 1000;
+let idleTimer = null;
+
 // -- boot ------------------------------------------------------------------
 
 function boot() {
@@ -104,15 +121,21 @@ function boot() {
     rejectReadback: el('reject-readback'),
     importFile: el('import-file'),
     importStatus: el('import-status'),
-    setupStatus: el('setup-status')
+    setupStatus: el('setup-status'),
+    pin: el('save-pin'),
+    showSensitive: el('show-sensitive')
   });
 
+  // An older version saved Social Security and bank numbers in plain text.
+  // Remove them from disk now, before anyone decides whether to resume.
+  store.scrubLegacy();
   showSavedSession();
 
   ui.start.addEventListener('click', () => start(false));
   ui.resume.addEventListener('click', () => start(true));
   ui.discard.addEventListener('click', () => {
     store.clearState();
+    importedSession = null;
     ui.resumeRow.hidden = true;
     announce('Saved session erased. Ready to start fresh.', true);
   });
@@ -146,6 +169,7 @@ function boot() {
 
   document.addEventListener('keydown', onKeyDown);
   document.addEventListener('keyup', onKeyUp);
+  document.addEventListener('pointerdown', touchActivity);
 
   if (new URLSearchParams(location.search).get('mode') === 'text') {
     document.querySelector('input[name="mode"][value="text"]').checked = true;
@@ -155,6 +179,22 @@ function boot() {
 async function start(resume) {
   mode = document.querySelector('input[name="mode"]:checked').value;
   confirmEachAnswer = ui.confirmAnswers?.checked !== false;
+  revealSensitive = ui.showSensitive?.checked === true;
+
+  // The saved session, and the key that protects what is saved from here on.
+  // Settled first, so a wrong PIN costs nothing else.
+  let saved;
+  try {
+    saved = await openSession(resume, ui.pin?.value ?? '');
+  } catch (err) {
+    const msg = err instanceof store.StoreError ? err.message : 'Your saved answers could not be opened.';
+    setSetupStatus(msg);
+    announce(msg, true);
+    ui.pin?.focus();
+    return;
+  }
+  if (ui.pin) ui.pin.value = '';
+  setSetupStatus('');
 
   if (mode !== 'text') {
     try {
@@ -183,9 +223,12 @@ async function start(resume) {
     }
   }
 
-  const saved = resume ? store.loadState() : null;
-  if (!resume) store.clearState();
   engine = createEngine(SECTIONS, saved?.state ?? null);
+  withheld = (saved?.withheld ?? []).filter(w => !isAnswered(w));
+  // The first save of a resumed session happens now, not at the first
+  // answer: an older version's unencrypted copy was taken off disk as it was
+  // read, and this puts the session back, encrypted, if there is a PIN.
+  if (saved) store.saveState(engine.getState());
 
   ui.setup.hidden = true;
   ui.interview.hidden = false;
@@ -199,7 +242,185 @@ async function start(resume) {
   lastInputWasText = mode === 'text';
 
   await speech.speak(introFor(mode));
+  if (!store.isPersisting()) {
+    const msg = 'You did not set a PIN, so nothing is being saved. '
+      + 'If you close this page, your answers will be lost.';
+    announce(msg, true);
+    await speech.speak(msg);
+  }
+  if (withheld.length) {
+    const msg = 'For your security, your Social Security and bank numbers were not saved when you '
+      + 'stopped last time. I will ask for them again before your forms are ready.';
+    announce(msg, true);
+    await speech.speak(msg);
+  }
+  touchActivity();
   askCurrent({ announceSection: true });
+}
+
+/**
+ * Open the session this interview continues, and set up how it is saved.
+ *
+ *   - Resume an encrypted session: its PIN opens it, and keeps protecting it.
+ *   - Resume an imported file, or a session an older version left
+ *     unencrypted: a PIN, if given, protects it from now on.
+ *   - Start fresh: the saved session is deleted; a PIN, if given, protects
+ *     the new one.
+ *
+ * No PIN means nothing is saved at all. Throws StoreError with a message
+ * meant for the user.
+ */
+async function openSession(resume, pin) {
+  if (pin && pin.length < store.MIN_PIN_LENGTH) {
+    throw new store.StoreError(
+      `A PIN needs at least ${store.MIN_PIN_LENGTH} characters. Longer is safer.`, 'pin');
+  }
+  store.forgetKey();
+  let saved = null;
+  if (resume && importedSession) {
+    saved = importedSession;
+    importedSession = null;
+    store.clearState();
+  } else if (resume) {
+    if (store.savedSessionInfo()?.locked) {
+      if (!pin) {
+        throw new store.StoreError(
+          'Your saved answers are protected. Enter your PIN, then select Resume.', 'pin');
+      }
+      setSetupStatus('Opening your saved answers…');
+      return store.unlock(pin);
+    }
+    saved = store.takeLegacy();
+  } else {
+    store.clearState();
+  }
+  if (pin) {
+    setSetupStatus('Protecting your answers with your PIN…');
+    await store.usePin(pin);
+  }
+  return saved;
+}
+
+function setSetupStatus(text) {
+  if (ui.setupStatus) ui.setupStatus.textContent = text;
+}
+
+// -- sensitive answers on screen and in memory ------------------------------
+
+const isSensitive = q => SENSITIVE_TYPES.has(q?.type);
+
+/** The question whatever is on screen right now is about. */
+function displayQuestion() {
+  return checking?.question ?? pending?.question ?? correcting?.question ?? engine?.current() ?? null;
+}
+
+/**
+ * Text for the screen: digits hidden, all but the last four, when it is
+ * about a sensitive question. The spoken and announced versions are never
+ * masked — hearing every digit is how a misheard one is caught.
+ */
+function onScreen(text, q) {
+  return revealSensitive || !isSensitive(q) ? text : maskDigits(text);
+}
+
+/** Hide what is typed into the answer box while it is a sensitive number. */
+function setInputMask(q) {
+  if (!ui.textAnswer?.classList) return;
+  if (!revealSensitive && isSensitive(q)) ui.textAnswer.classList.add('masked');
+  else ui.textAnswer.classList.remove('masked');
+}
+
+/** Any key, tap, or answer: restart the idle clock. */
+function touchActivity() {
+  clearTimeout(idleTimer);
+  if (!engine) return;
+  idleTimer = setTimeout(() => { lockSensitive().catch(() => {}); }, IDLE_LOCK_MS);
+  idleTimer?.unref?.();   // Node, in tests: never hold the process open
+}
+
+/**
+ * Nobody has touched the page for IDLE_LOCK_MS: drop the Social Security and
+ * bank numbers from memory, so a computer left unattended does not hand them
+ * to whoever sits down at it — on screen, read back, or in a downloaded PDF.
+ * They join `withheld` and are asked for again before the forms are filled.
+ */
+async function lockSensitive() {
+  if (!engine) return;
+  const held = store.sensitiveAnswers(engine.getState());
+  const midAnswer = isSensitive(displayQuestion()) && readBackOpen();
+  if (!held.length && !midAnswer) return;
+
+  for (const a of held) {
+    engine.setAnswer(a.id, null, { loopId: a.loopId ?? null, loopIndex: a.loopIndex ?? 0 });
+    const w = a.loopId ? { id: a.id, loopId: a.loopId, loopIndex: a.loopIndex } : { id: a.id };
+    if (!withheld.some(x => sameField(x, w))) withheld.push(w);
+  }
+  store.saveState(engine.getState());
+  if (ui.textAnswer) ui.textAnswer.value = '';
+  setStatus('');
+
+  const msg = 'For your security, I cleared your Social Security and bank numbers from this page '
+    + `after ${Math.round(IDLE_LOCK_MS / 60000)} minutes without activity. `
+    + 'I will ask for them again before your forms are ready.';
+
+  if (!ui.review.hidden) {
+    renderSummary(ui.summary, engine.answers(), { reveal: revealSensitive });
+    ui.reviewIntro.textContent = msg;
+    announce(msg, true);
+    await speech.speak(msg);
+    return;
+  }
+  if (midAnswer) {
+    // A number was being read back: it is gone, so ask the question again.
+    hideReadBackControls();
+    if (correcting) { await returnToReview(msg); return; }
+    pending = null;
+    checking = null;
+    await askCurrent({ prefix: msg });
+    return;
+  }
+  announce(msg, true);
+  await speech.speak(msg);
+}
+
+/** Does this field have an answer in the current session? */
+function isAnswered({ id, loopId = null, loopIndex = 0 }) {
+  const answers = engine.answers();
+  const v = loopId ? answers[loopId]?.[loopIndex]?.[id] : answers[id];
+  return v != null && v !== '';
+}
+
+const sameField = (a, b) => a.id === b.id && (a.loopId ?? null) === (b.loopId ?? null)
+  && (a.loopIndex ?? 0) === (b.loopIndex ?? 0);
+
+/**
+ * Ask for the next sensitive answer that a resumed session did not have.
+ *
+ * Asked as a correction — written in place, then back to the review — so it
+ * does not restart the walk from that question. Each is asked once: saying
+ * skip leaves it blank, and it is not asked again this session.
+ * @returns {Promise<boolean>} whether a question was asked
+ */
+async function askNextWithheld(note = '') {
+  while (withheld.length) {
+    const w = withheld.shift();
+    if (isAnswered(w)) continue;
+    const target = buildTargets(engine.answers()).find(t => sameField(t, w));
+    if (!target) continue;   // its form or its loop entry is gone
+    // Cleared first: ending a skipped correction restores the cursor it
+    // saved, which must happen before this one jumps, not undo the jump.
+    clearCorrectionState();
+    const restore = engine.cursorSnapshot();
+    const q = engine.jumpTo(target.id, target.loopIndex ?? 0, target.loopId ?? null);
+    if (!q) continue;
+    correcting = { target, question: q, restore };
+    ui.review.hidden = true;
+    ui.interview.hidden = false;
+    const why = 'This was not saved when you stopped last time, for your security.';
+    await askCurrent({ prefix: note ? `${note} ${why}` : why });
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -300,6 +521,7 @@ async function askCurrent({ announceSection = false, prefix = '' } = {}) {
 
   ui.question.textContent = q.prompt;
   ui.hint.textContent = q.hint || '';
+  setInputMask(q);
   hideReadBackControls();
   announce(segments.join(' '));
   await speakSegments(segments);
@@ -451,7 +673,8 @@ async function handleTranscript(transcript) {
   if (q.confirm) {
     pending = { question: q, value: result.value };
     const readBack = `I heard ${speakableValue(result.value, q.type, q.options)}. Is that correct?`;
-    ui.question.textContent = readBack;
+    ui.question.textContent = onScreen(readBack, q);
+    setInputMask(null);
     ui.hint.textContent = ACCEPT_HINT;
     showReadBackControls();
     announce(readBack);
@@ -464,11 +687,12 @@ async function handleTranscript(transcript) {
 }
 
 function commit(value) {
+  touchActivity();
   // With read-backs off this line is the only confirmation that an answer
   // landed, so it says what was recorded rather than going blank.
   const asked = correcting?.question ?? engine.current();
   setStatus(!confirmEachAnswer && asked && value != null
-    ? `Recorded: ${speakableValue(value, asked.type, asked.options)}`
+    ? onScreen(`Recorded: ${speakableValue(value, asked.type, asked.options)}`, asked)
     : '');
   // A correction writes in place and returns to review; it must not advance
   // the interview into whatever question follows the corrected one.
@@ -572,9 +796,17 @@ async function runCommand(cmd) {
       await askWhichField();
       return;
     case 'save_quit':
-      store.saveState(engine.getState());
-      await speech.speak(say.SAVED);
-      setStatus('Saved. Your place is kept on this device.');
+      if (store.saveState(engine.getState())) {
+        await store.flush();
+        await speech.speak(say.SAVED);
+        setStatus('Saved, encrypted with your PIN. Your place is kept on this device.');
+      } else {
+        const msg = 'Nothing is being saved, because no PIN was set when you started. '
+          + 'If you close this page, your answers will be lost.';
+        setStatus(msg);
+        announce(msg, true);
+        await speech.speak(msg);
+      }
       return;
     case 'restart':
       engine.reset();
@@ -672,6 +904,7 @@ function askedQuestion() {
 }
 
 async function sendAudio(blob) {
+  touchActivity();
   // Four cheap filters before transcribing. The size check catches a recorder
   // that produced nothing; the duration check catches a bumped space bar; the
   // level check catches a turn that captured only room tone, whether it
@@ -713,12 +946,12 @@ async function sendAudio(blob) {
     if (needsAccurateDigits(asked) && !localCommand(transcript)
         && !namesSomethingToDelete(transcript)
         && !digitsSurviveNormalize(asked, transcript)) {
-      setStatus(`You said: ${transcript}`);
+      setStatus(onScreen(`You said: ${transcript}`, displayQuestion()));
       await reask(say.REASK.unsure);
       return;
     }
 
-    setStatus(`You said: ${transcript}`);
+    setStatus(onScreen(`You said: ${transcript}`, displayQuestion()));
 
     if (needsTranscriptCheck(transcript)) {
       await askTranscriptCheck(transcript);
@@ -789,7 +1022,8 @@ async function askTranscriptCheck(transcript) {
   const q = correcting?.question ?? engine.current();
   checking = { transcript, question: q };
 
-  ui.question.textContent = `I heard: ${transcript}`;
+  ui.question.textContent = onScreen(`I heard: ${transcript}`, q);
+  setInputMask(null);
   ui.hint.textContent = ACCEPT_HINT;
   showReadBackControls();
   announce(`I heard: ${transcript}. ${say.TRANSCRIPT_CHECK}`);
@@ -1029,7 +1263,8 @@ async function handleTypedDirect(text) {
     pending = { question: q, value: result.value };
     showReadBackControls();
     const readBack = `I have ${speakableValue(result.value, q.type, q.options)}. Is that correct? Type yes or no.`;
-    ui.question.textContent = readBack;
+    ui.question.textContent = onScreen(readBack, q);
+    setInputMask(null);
     ui.hint.textContent = ACCEPT_HINT;
     announce(readBack);
     await speech.speak(readBack);
@@ -1081,6 +1316,7 @@ function resetTalkButton() {
 let spaceHeld = false;
 
 function onKeyDown(e) {
+  touchActivity();
   if (ui.interview?.hidden) return;
   const typing = e.target === ui.textAnswer;
 
@@ -1167,6 +1403,7 @@ async function handleSttError(err) {
 // -- finish, review, export ------------------------------------------------
 
 async function finishInterview() {
+  if (await askNextWithheld()) return;
   store.saveState(engine.getState());
   ui.interview.hidden = true;
   ui.review.hidden = false;
@@ -1178,7 +1415,7 @@ async function finishInterview() {
     : say.ALL_DONE;
 
   ui.reviewIntro.textContent = intro;
-  renderSummary(ui.summary, engine.answers());
+  renderSummary(ui.summary, engine.answers(), { reveal: revealSensitive });
   showDownloadButtons();
   announce(intro, true);
   // Two utterances: the completion line varies with what is missing, but the
@@ -1238,6 +1475,8 @@ function inCorrectionPrompt() {
  * abandoned delete confirmation is the case that matters.
  */
 function clearCorrectionState() {
+  // An abandoned correction puts the walk back where it found it.
+  if (correcting?.restore) engine?.restoreCursor(correcting.restore);
   correcting = null;
   adding = null;
   choosing = null;
@@ -1523,6 +1762,7 @@ async function handleDeleteConfirmation(text) {
 
 /** Jump to the resolved target and re-ask it. */
 async function beginCorrection(target) {
+  const restore = engine.cursorSnapshot();
   const q = engine.jumpTo(target.id, target.loopIndex ?? 0, target.loopId ?? null);
   if (!q) {
     await sayAndListen('I could not open that answer. Try naming a different one, or say never mind.');
@@ -1530,7 +1770,7 @@ async function beginCorrection(target) {
   }
 
   awaitingFieldName = false;
-  correcting = { target, question: q };
+  correcting = { target, question: q, restore };
   pending = null;
 
   const current = target.value;
@@ -1543,8 +1783,9 @@ async function beginCorrection(target) {
 
 /** Finish a correction and go back to the review screen. */
 async function finishCorrection(value) {
-  const t = correcting.target;
+  const { target: t, restore } = correcting;
   const ok = engine.setAnswer(t.id, value, { loopId: t.loopId ?? null, loopIndex: t.loopIndex ?? 0 });
+  engine.restoreCursor(restore);
   correcting = null;
   pending = null;
 
@@ -1569,11 +1810,11 @@ async function finishCorrection(value) {
   const what = describeTarget(t);
   await returnToReview(ok
     ? `${titleCase(what)} is now ${speakableValue(value, t.type, t.options)}.`
-    : 'That answer could not be changed.');
+    : 'That answer could not be changed.', { about: t });
 }
 
 /** Show the review screen again, with a spoken note about what just happened. */
-async function returnToReview(note) {
+async function returnToReview(note, { about = null } = {}) {
   // Started mid-interview: report what happened and carry on where we were,
   // rather than dropping the user on the summary with the form unfinished.
   if (resumeAfterPrompt) {
@@ -1582,12 +1823,13 @@ async function returnToReview(note) {
     await askCurrent({ prefix: `${note} Back to your question.` });
     return;
   }
+  if (await askNextWithheld(note)) return;
 
   clearCorrectionState();
 
   ui.interview.hidden = true;
   ui.review.hidden = false;
-  renderSummary(ui.summary, engine.answers());
+  renderSummary(ui.summary, engine.answers(), { reveal: revealSensitive });
   showDownloadButtons();
 
   const missing = engine.missingRequired();
@@ -1595,7 +1837,7 @@ async function returnToReview(note) {
     ? ` ${missing.length} required ${missing.length === 1 ? 'answer is' : 'answers are'} still blank.`
     : '';
   const msg = `${note}${tail} You can change another answer, or download your forms.`;
-  ui.reviewIntro.textContent = msg;
+  ui.reviewIntro.textContent = `${onScreen(note, about)}${tail} You can change another answer, or download your forms.`;
   announce(msg, true);
   await speech.speak(msg);
   el('fix-answer').focus();
@@ -1617,6 +1859,11 @@ async function sayAndListen(msg) {
  * is why the spoken confirmation for both mentions it.
  */
 async function exportForms(ids) {
+  touchActivity();
+  // Numbers this session does not have — not saved last time, or cleared
+  // while the page sat idle — are asked for before a form is filled without
+  // them.
+  if (await askNextWithheld('Before I fill in your forms, I need a number again.')) return;
   const answers = engine.answers();
   const saved = [];
   let fellBack = false;
@@ -1627,11 +1874,13 @@ async function exportForms(ids) {
       saved.push(filename);
       fellBack = fellBack || fallback;
     }
-    const msg = `Downloaded ${saved.join(' and ')}.`;
+    const erase = 'When you have checked your forms, select Erase everything to remove your '
+      + 'answers from this computer. The downloaded forms stay in your downloads folder.';
+    const msg = `Downloaded ${saved.join(' and ')}. ${erase}`;
     setStatus(msg);
     announce(msg, true);
     const spoken = fellBack ? [say.WORKSHEET_FALLBACK] : [];
-    spoken.push(saved.length > 1 ? say.BOTH_DOWNLOADED : say.DOWNLOADED);
+    spoken.push(saved.length > 1 ? say.BOTH_DOWNLOADED : say.DOWNLOADED, erase);
     await speakSegments(spoken);
   } catch (err) {
     console.error(err);
@@ -1643,6 +1892,10 @@ async function exportForms(ids) {
 
 function clearEverything() {
   store.clearState();
+  store.forgetKey();
+  withheld = [];
+  importedSession = null;
+  clearTimeout(idleTimer);
   engine?.reset();
   audio.releaseMic();
   const msg = 'Everything has been erased from this device.';
@@ -1661,10 +1914,23 @@ function clearEverything() {
 
 /** Offer the resume row whenever localStorage holds a session. */
 function showSavedSession() {
-  const saved = store.loadState();
-  if (!saved) { ui.resumeRow.hidden = true; return; }
-  const when = new Date(saved.savedAt).toLocaleString();
-  ui.resumeText.textContent = `You have a saved session from ${when}.`;
+  const info = importedSession
+    ? { savedAt: importedSession.savedAt, imported: true }
+    : store.savedSessionInfo();
+  if (!info) { ui.resumeRow.hidden = true; return; }
+  const when = info.savedAt ? new Date(info.savedAt).toLocaleString() : null;
+  let text;
+  if (info.imported) {
+    text = `Your answers are loaded from your file${when ? `, saved on ${when}` : ''}.`;
+  } else {
+    text = `You have a saved session from ${when}.`
+      + (info.locked
+        ? ' It is protected: enter your PIN above, then select Resume.'
+        : ' An older version saved it without a PIN. Enter one above to protect it from now on.')
+      + ' Your Social Security and bank numbers are never saved, so you will be asked for them again.'
+      + ` Saved sessions are deleted after ${Math.round(store.MAX_AGE_MS / 86400000)} days.`;
+  }
+  ui.resumeText.textContent = text;
   ui.resumeRow.hidden = false;
 }
 
@@ -1684,10 +1950,9 @@ async function onImportFile(event) {
   setImportStatus('Reading your file\u2026');
   try {
     const { state, savedAt, rebuiltCursor } = await readExportFile(file);
-    if (!store.saveState(state)) {
-      throw new ImportError('Your browser would not let this page save the file. '
-        + 'Private browsing blocks it. Try a normal window.');
-    }
+    // Held in memory for the resume this sets up, not written to storage:
+    // the file holds sensitive answers, and saving is for the PIN to decide.
+    importedSession = { savedAt, state, withheld: [] };
     showSavedSession();
     const when = savedAt ? new Date(savedAt).toLocaleString() : null;
     const msg = 'Your answers were loaded'
@@ -1696,7 +1961,7 @@ async function onImportFile(event) {
       + (rebuiltCursor
         ? 'That file did not record where you left off, so I will start at the first question you have not answered. '
         : '')
-      + 'Choose how you want to answer, then select Resume my saved session.';
+      + 'Choose how you want to answer, and a PIN if you want them saved, then select Resume my saved session.';
     setImportStatus(msg);
     announce(msg, true);
     ui.resume.focus();
@@ -1718,7 +1983,9 @@ function setStatus(text) { if (ui.status) ui.status.textContent = text; }
 function titleCase(s) { return String(s ?? '').replace(/^(.)/, (_, c) => c.toUpperCase()); }
 
 window.addEventListener('error', e => {
-  announce('Something went wrong. Your answers are saved on this device.', true);
+  announce(store.isPersisting()
+    ? 'Something went wrong. Your answers are saved on this device.'
+    : 'Something went wrong.', true);
   console.error(e.error ?? e.message);
 });
 

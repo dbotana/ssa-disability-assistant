@@ -123,5 +123,37 @@ check('tools/serve.mjs sends the same CSP as index.html', mjsCsp === csp, `serve
 check('both servers bind to 127.0.0.1 only',
   /\("127\.0\.0\.1", port\)/.test(py) && /listen\(port, '127\.0\.0\.1'\)/.test(mjs));
 
+// -- 3. what the browser or an extension would send on its own ------------
+//
+// A field with spell-checking on can be sent to Google (Chrome's Enhanced
+// Spell Check) or Microsoft (Edge's Editor); Grammarly and LanguageTool do
+// the same through their extensions. The CSP does not cover the browser's own
+// services or extensions, so every field a user types into opts out.
+
+for (const m of html.matchAll(/<(input|textarea)\b[^>]*>/g)) {
+  const tag = m[0];
+  if (/type="(radio|checkbox|file|button|submit)"/.test(tag)) continue;
+  const id = tag.match(/id="([^"]+)"/)?.[1] ?? tag.slice(0, 40);
+  check(`#${id} has spellcheck="false"`, /spellcheck="false"/.test(tag));
+  check(`#${id} has autocomplete="off"`, /autocomplete="off"/.test(tag));
+  check(`#${id} opts out of Grammarly`, /data-gramm="false"/.test(tag) && /data-enable-grammarly="false"/.test(tag));
+  check(`#${id} opts out of LanguageTool`, /data-lt-active="false"/.test(tag));
+}
+
+// -- 4. the origin the answers are stored under ------------------------------
+//
+// Saved answers belong to http://localhost:<port>. A port shared with other
+// local tools shares them too, so it is not a common default, and both
+// launchers use the same one or they would each see a different session.
+
+{
+  const pyPort = Number(py.match(/^FIRST_PORT = (\d+)$/m)?.[1]);
+  const mjsPort = Number(mjs.match(/^const FIRST_PORT = (\d+);$/m)?.[1]);
+  check('both servers start from the same port', pyPort === mjsPort, `py ${pyPort}, mjs ${mjsPort}`);
+  const COMMON = [3000, 3001, 4000, 4200, 5000, 5173, 5500, 8000, 8080, 8081, 8888, 9000];
+  check('the port is not a common dev-server default', !COMMON.includes(pyPort), String(pyPort));
+  check('the port is below the ephemeral range', pyPort > 1024 && pyPort + 20 < 32768, String(pyPort));
+}
+
 console.log(failures === 0 ? 'no-network: all checks passed' : `no-network: ${failures} failure(s)`);
 process.exit(failures === 0 ? 0 : 1);

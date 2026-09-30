@@ -42,8 +42,11 @@ Download the project, then double-click the launcher for your system:
 | Windows | `start-windows.bat` |
 | Linux | `start-linux.sh` |
 
-A terminal window opens, prints a `http://localhost:...` address, and opens
-your browser there. Chrome, Edge, Firefox and Safari all work. Leave that window open while you use the assistant, and
+A terminal window opens, checks the speech model and libraries, prints a
+`http://localhost:...` address, and opens the app in its own browser window —
+a separate Chrome or Edge profile with no extensions and no account sync —
+or, if neither is installed, in your usual browser. Chrome, Edge, Firefox and
+Safari all work. Leave that window open while you use the assistant, and
 press Control-C in it when you are finished.
 
 The launchers need either Python 3 or Node, and use whichever they find. macOS
@@ -61,7 +64,7 @@ installer.
 python3 tools/serve.py     # or: node tools/serve.mjs
 ```
 
-Both serve the project on the first free port at or after 8000, bound to
+Both serve the project on the first free port at or after 27183, bound to
 `127.0.0.1` so nothing is reachable from the rest of the network, and open a
 browser for you.
 
@@ -70,7 +73,8 @@ from ES modules, which browsers refuse to load over `file://`, and it fetches
 the blank PDF templates, which `file://` also blocks. Both need a real HTTP
 origin, which is all the launchers provide.
 
-Whichever way you run it, choose an input mode and start. The speech model
+Whichever way you run it, choose an input mode and, if you want to be able
+to stop and come back, a PIN, then start. The speech model
 loads from disk in a second or two; the first time, on a slow machine, it can
 take longer, and the setup screen shows its progress.
 
@@ -188,16 +192,52 @@ asks `normalize()` — is asked again rather than read back.
 - **The servers** (`tools/serve.py`, `tools/serve.mjs`) bind to `127.0.0.1`
   only, so nothing is reachable from the rest of the network.
 
+- **SSN and bank numbers are never saved**, encrypted or not. They are
+  removed from every save and held only in the open tab; a resumed session
+  asks for them again, once each, before the forms are ready. A session an
+  older version saved in plain text loses them the moment the page loads.
+- **Everything else is saved only with a PIN, and only encrypted.** The PIN
+  on the setup screen derives an AES-256-GCM key (PBKDF2-SHA256, 600,000
+  iterations) that never leaves the tab. No PIN, nothing is saved at all. A
+  wrong PIN opens nothing, and a saved session is deleted after 7 days.
+- **Numbers are masked on screen.** Only the last four digits of an SSN or
+  bank number are shown — in the read-back, the status line, the review
+  summary, and the answer box while one is typed — unless the user asks at
+  setup to see them. They are always read aloud, and given to the screen
+  reader, in full: hearing every digit is how a misheard one is caught.
+- **An unattended page forgets them.** After 15 minutes without a key, tap
+  or answer, the numbers are dropped from memory; downloading a form asks
+  for them again first. After a download, the user is told how to erase
+  everything.
+- **Its own browser window.** When Chrome, Edge, Chromium or Brave is
+  installed, the launchers open the app in a dedicated profile (kept in the
+  user's app-data folder, never a synced one) with extensions, account sync,
+  background requests, crash dumps, translation and autofill lookups all
+  turned off. `--default-browser` opts out; `SSA_BROWSER` names a browser in
+  an unusual place.
+- **Tampered files do not run.** Before serving, both launchers check the
+  speech model, its runtime and pdf-lib against their pinned SHA-256 hashes,
+  and refuse to start on any mismatch.
+- **Typed answers opt out of cloud spell-checkers.** Chrome's Enhanced Spell
+  Check and Edge's Editor send checked text to Google and Microsoft; the
+  answer box turns spell-check off and opts out of Grammarly and
+  LanguageTool.
+- **An uncommon port.** Saved answers belong to the origin
+  `http://localhost:<port>`, which everything served on that port shares.
+  The launchers use 27183, not a dev-tool default like 8000.
+
 What this does **not** protect against:
 
-- **Answers are stored in plain text** in the browser's `localStorage` so an
-  unfinished interview can be resumed. That includes the SSN and bank
-  numbers. Anyone who can use this browser profile can read them. Use
-  **Erase everything** when you finish, and do not use a shared computer.
+- **A short PIN against someone with the disk and time.** It can be guessed
+  offline; it keeps the saved answers out of casual reach and out of readable
+  backups, and is not a vault. That is why the numbers are never saved.
 - **The downloaded PDFs contain your answers**, SSN included. Treat them like
   the paper forms.
-- **Browser extensions** with access to all sites can read the page. Use a
-  browser profile without extensions you do not trust.
+- **Using your everyday browser** (no Chrome or Edge installed, or
+  `--default-browser`): its extensions can read the page.
+- **Someone who can change the project's files.** The launchers' integrity
+  check catches a swapped model or library, but whoever can edit those can
+  edit the launchers too.
 
 Users can say `skip` at any sensitive question and fill those fields in by
 hand.
@@ -352,6 +392,8 @@ node tests/audio-manifest.js     # every spoken string has a clip
 node tests/local-stt.js          # the on-device transcriber settles, and silence is not an answer
 node tests/no-network.js         # no network path in src/, and the CSP that enforces it
 node tests/vendor-integrity.js   # the model and runtime are the pinned bytes
+node tests/store-redact.js       # nothing sensitive on disk; the rest only encrypted, with a PIN
+node tests/launcher.js           # tampered files stop the launchers; the dedicated browser profile
 ```
 
 Three maintainer tools reach what `tests/` cannot:

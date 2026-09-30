@@ -4,7 +4,7 @@
 // so a screen reader can read it straight through without the user hunting
 // through a grid.
 
-import { SECTIONS, FORM_IDS, RATING_GROUPS, nodeActive, sectionActive } from './schema.js';
+import { SECTIONS, FORM_IDS, RATING_GROUPS, SENSITIVE_TYPES, nodeActive, sectionActive } from './schema.js';
 import { speakableValue, formatDate, formatMonthYear } from './a11y.js';
 import { choiceLabel } from './choice.js';
 
@@ -252,6 +252,20 @@ export function present(value, type, options = null) {
   return String(value);
 }
 
+/**
+ * Hide every digit of each number in some text but the last four, keeping
+ * the separators so the shape still reads: "987-65-4321" becomes
+ * "•••-••-4321", and a spoken read-back "9 8 7, 6 5, 4 3 2 1" keeps its
+ * spacing. A number of four digits or fewer is hidden entirely.
+ */
+export function maskDigits(text, keep = 4) {
+  return String(text ?? '').replace(/\d(?:[\s,.-]*\d)*/g, run => {
+    const total = run.replace(/\D/g, '').length;
+    let hide = total > keep ? total - keep : total;
+    return run.replace(/\d/g, d => (hide-- > 0 ? '\u2022' : d));
+  });
+}
+
 function groupDigits(value, groups, sep) {
   const digits = String(value).replace(/\D/g, '');
   const total = groups.reduce((a, b) => a + b, 0);
@@ -262,9 +276,16 @@ function groupDigits(value, groups, sep) {
   return out.join(sep);
 }
 
-/** Render the report into an element as semantic HTML. */
-export function renderSummary(container, answers) {
+/**
+ * Render the report into an element as semantic HTML.
+ *
+ * Social Security and bank numbers show only their last four digits unless
+ * `reveal` is set: this screen is the one most likely to be seen over a
+ * shoulder, shared, or recorded. The spoken read-back is not masked.
+ */
+export function renderSummary(container, answers, { reveal = false } = {}) {
   const report = buildReport(answers);
+  const shown = (value, type) => (!reveal && value && SENSITIVE_TYPES.has(type) ? maskDigits(value) : value);
   container.innerHTML = '';
 
   for (const section of report) {
@@ -288,7 +309,7 @@ export function renderSummary(container, answers) {
           dl.append(caption);
           block.columns.forEach((col, i) => {
             const dd = document.createElement('dd');
-            dd.textContent = `${col.label}: ${row[i] || 'not answered'}`;
+            dd.textContent = `${col.label}: ${shown(row[i], col.type) || 'not answered'}`;
             dl.append(dd);
           });
           container.append(dl);
@@ -300,7 +321,7 @@ export function renderSummary(container, answers) {
       const dt = document.createElement('dt');
       dt.textContent = block.label;
       const dd = document.createElement('dd');
-      dd.textContent = block.value || 'Not answered';
+      dd.textContent = shown(block.value, block.type) || 'Not answered';
       if (!block.answered) dd.className = 'empty';
       dl.append(dt, dd);
       container.append(dl);

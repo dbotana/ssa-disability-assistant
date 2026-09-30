@@ -111,16 +111,24 @@ function playUrl(src) {
 // -- the system voice ------------------------------------------------------
 
 let localVoice;   // undefined: not looked up yet; null: there is none
+let watchingVoices = false;
 
 /**
  * The on-device voice to use, preferring US English.
  *
  * Chrome fills getVoices() asynchronously, so an empty list on the first call
  * means "not yet", not "none": wait briefly for voiceschanged before deciding.
+ * The decision is then kept — waiting on every utterance would add a second
+ * and a half to each one on a machine with no voices — and looked at again
+ * only if the browser says its voices changed.
  */
 async function pickLocalVoice() {
   if (localVoice !== undefined) return localVoice;
   const synth = window.speechSynthesis;
+  if (synth?.addEventListener && !watchingVoices) {
+    watchingVoices = true;
+    synth.addEventListener('voiceschanged', () => { localVoice = undefined; });
+  }
   let voices = synth?.getVoices?.() ?? [];
   if (!voices.length && synth?.addEventListener) {
     await new Promise(resolve => {
@@ -132,13 +140,11 @@ async function pickLocalVoice() {
   }
   const local = voices.filter(v => v.localService === true);
   const us = v => /^en[-_]US$/i.test(v.lang);
-  const pick = local.find(v => us(v) && v.default)
+  localVoice = local.find(v => us(v) && v.default)
     ?? local.find(us)
     ?? local.find(v => /^en/i.test(v.lang))
     ?? null;
-  // "None" is only final once the list has actually loaded.
-  if (pick || voices.length) localVoice = pick;
-  return pick;
+  return localVoice;
 }
 
 /**

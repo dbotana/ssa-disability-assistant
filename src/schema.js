@@ -894,7 +894,11 @@ function hasEmergencyContact(a) {
 /** Field types whose values are read back digit-by-digit for confirmation. */
 export const DIGIT_TYPES = new Set(['ssn', 'phone', 'routing', 'account', 'zip']);
 
-/** Field types that hold personally sensitive values. */
+/**
+ * Field types that hold personally sensitive values. They are never saved to
+ * storage (store.js), are masked on screen (summary.js), and are dropped from
+ * memory after a period of inactivity (main.js).
+ */
 export const SENSITIVE_TYPES = new Set(['ssn', 'routing', 'account']);
 
 /** Section id -> title, for progress announcements. */

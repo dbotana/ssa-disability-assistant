@@ -467,6 +467,27 @@ export function createEngine(sections = SECTIONS, savedState = null) {
    * submit() here would advance the interview into whatever question happens
    * to follow the corrected one.
    */
+  /** Where the walk is now, to hand back to restoreCursor() later. */
+  function cursorSnapshot() {
+    return structuredClone(state.cursor);
+  }
+
+  /**
+   * Put the walk back where a detour found it.
+   *
+   * A correction jumps to the question being corrected, and without this the
+   * cursor stays there: a session saved afterwards resumes at the corrected
+   * question and walks forward through everything after it again. The undo
+   * entry jumpTo() pushed is dropped too, so `back` does not step into the
+   * detour.
+   */
+  function restoreCursor(saved) {
+    if (!saved) return;
+    const top = state.history.at(-1);
+    if (top && JSON.stringify(top) === JSON.stringify(saved)) state.history.pop();
+    state.cursor = structuredClone(saved);
+  }
+
   function setAnswer(questionId, value, { loopId = null, loopIndex = 0 } = {}) {
     if (loopId) {
       const node = nodes.find(n => n.id === loopId && n.type === 'loop');
@@ -768,6 +789,8 @@ export function createEngine(sections = SECTIONS, savedState = null) {
     skip,
     back,
     jumpTo,
+    cursorSnapshot,
+    restoreCursor,
     setAnswer,
     listItems,
     removeItem,

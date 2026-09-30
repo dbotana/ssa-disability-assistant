@@ -188,3 +188,11 @@ kbd {
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
+
+/* The answer box while a Social Security or bank number is being typed.
+   Drawn as dots, but still a text field underneath, so a screen reader
+   echoes each character as usual; a password field would not. */
+.masked {
+  -webkit-text-security: disc;
+  text-security: disc;
+}
