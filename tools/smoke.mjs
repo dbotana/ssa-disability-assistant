@@ -123,6 +123,23 @@ ok('space accepted the read-back', !/is that correct/i.test(q()), q());
 ok('and moved to the next question', /born/i.test(q()) || q().length > 0);
 ok('the controls are hidden again', nodes['readback-controls'].hidden === true);
 
+// A command during a correction leaves it open. It used to put the walk back
+// where the correction started without asking anything, so the answer typed
+// next, to the question still on screen, was filed as the city of birth.
+press('KeyC');
+await settle();
+await type('my first name');
+ok('a correction of the first name is open', /legal first name/i.test(q()), q());
+press('KeyW');
+await settle();
+await type('Jordan');
+ok('the answer after W corrects the first name', /first name is now jordan/i.test(nodes['review-intro'].textContent),
+  nodes['review-intro'].textContent);
+// "Change an answer" goes to the first blank required answer: where the walk was.
+listeners.get('fix-answer:click')({});
+await settle();
+ok('the walk picks up at the city of birth', /city were you born/i.test(q()), q());
+
 // Now reject one with N.
 while (!/social security number/i.test(q()) && guard++ < 40) await type('Portland');
 ok('reached the SSN question', /social security/i.test(q()), q());

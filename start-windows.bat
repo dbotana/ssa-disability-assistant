@@ -5,23 +5,30 @@ cd /d "%~dp0"
 REM The py launcher is tried first on purpose. Windows ships a fake "python"
 REM that only opens the Microsoft Store, so asking each candidate for its
 REM version is the only reliable way to tell a real interpreter from the stub.
+REM
+REM A server that stops by itself (a changed model file, no free port)
+REM has printed why; pause so the window stays open long enough to read it.
 py -3 --version >nul 2>&1 && (
   py -3 tools\serve.py
+  if errorlevel 1 pause
   goto :eof
 )
 
 python3 --version >nul 2>&1 && (
   python3 tools\serve.py
+  if errorlevel 1 pause
   goto :eof
 )
 
 python --version >nul 2>&1 && (
   python tools\serve.py
+  if errorlevel 1 pause
   goto :eof
 )
 
 node --version >nul 2>&1 && (
   node tools\serve.mjs
+  if errorlevel 1 pause
   goto :eof
 )
 

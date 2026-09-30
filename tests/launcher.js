@@ -7,6 +7,8 @@
 // missing file must both stop it — and that the two agree on the browser
 // flags that keep extensions, sync and background requests away from the
 // page. The Python half is skipped, with a note, where python3 is missing.
+// Also that serve.mjs survives a browser that will not start and a request
+// it cannot read, either of which used to stop it.
 //
 // Makes no network requests.
 
@@ -128,6 +130,50 @@ for (const [name, verify] of verifiers) {
     check(`${file} opens the page as an app window`, /--app=/.test(src));
     check(`${file} checks the files before serving`, /verify_?[fF]iles\(\)/.test(src));
   }
+
+  // A browser that is found but will not start — SSA_BROWSER naming a macOS
+  // .app folder rather than the program inside it — falls back to the usual
+  // browser, as serve.py does. Node reports the failure as an event, and
+  // unheard it stopped the server. The profile folder goes in a scratch home.
+  const scratchHome = mkdtempSync(join(tmpdir(), 'ssa-home-'));
+  const notABrowser = mkdtempSync(join(tmpdir(), 'ssa-not-a-browser-'));
+  const saved = Object.fromEntries(['HOME', 'USERPROFILE', 'LOCALAPPDATA', 'XDG_DATA_HOME', 'SSA_BROWSER']
+    .map(k => [k, process.env[k]]));
+  Object.assign(process.env, {
+    HOME: scratchHome, USERPROFILE: scratchHome, LOCALAPPDATA: scratchHome, XDG_DATA_HOME: scratchHome,
+    SSA_BROWSER: notABrowser
+  });
+  try {
+    let fellBack = null;
+    const opened = node.openBrowser('http://localhost:1/', false, url => { fellBack = url; });
+    check('a browser that will not start falls back to the usual one',
+      opened === null && fellBack === 'http://localhost:1/', `opened=${opened} fellBack=${fellBack}`);
+  } finally {
+    for (const [k, v] of Object.entries(saved)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; }
+    rmSync(scratchHome, { recursive: true, force: true });
+    rmSync(notABrowser, { recursive: true, force: true });
+  }
+}
+
+// -- the server survives what any web page can send it ---------------------------
+//
+// Any page open in any browser can make a request to localhost. In serve.mjs's
+// async handler a throw is an unhandled rejection, which ends Node, so one
+// malformed escape (<img src="http://localhost:27183/%">) used to stop the
+// server mid-interview.
+
+{
+  const status = async url => {
+    const res = { code: null, writeHead(code) { this.code = code; }, end() {}, destroy() {} };
+    try { await node.serveFile({ url }, res); } catch (err) { return `threw ${err.message}`; }
+    return res.code;
+  };
+  for (const url of ['/%', '/%E0%A4%A', '/a%ZZ']) {
+    const got = await status(url);
+    check(`serve.mjs answers ${url} with 400`, got === 400, String(got));
+  }
+  const up = await status('/..%2f..%2fetc%2fpasswd');
+  check('serve.mjs refuses a path out of the project', up === 403, String(up));
 }
 
 console.log(failures === 0 ? 'launcher: all checks passed' : `launcher: ${failures} failure(s)`);

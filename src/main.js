@@ -131,8 +131,8 @@ function boot() {
   store.scrubLegacy();
   showSavedSession();
 
-  ui.start.addEventListener('click', () => start(false));
-  ui.resume.addEventListener('click', () => start(true));
+  ui.start.addEventListener('click', () => startOnce(false));
+  ui.resume.addEventListener('click', () => startOnce(true));
   ui.discard.addEventListener('click', () => {
     store.clearState();
     importedSession = null;
@@ -173,6 +173,22 @@ function boot() {
 
   if (new URLSearchParams(location.search).get('mode') === 'text') {
     document.querySelector('input[name="mode"][value="text"]').checked = true;
+  }
+}
+
+// start() derives the PIN's key and loads the speech model before the setup
+// panel goes away, which can take seconds. A second press in that time would
+// run a second start over the first: a session the first press took off disk
+// is replaced by an empty one, and a PIN it set up is forgotten.
+let starting = false;
+
+async function startOnce(resume) {
+  if (starting) return;
+  starting = true;
+  try {
+    await start(resume);
+  } finally {
+    starting = false;
   }
 }
 
@@ -228,7 +244,7 @@ async function start(resume) {
   // The first save of a resumed session happens now, not at the first
   // answer: an older version's unencrypted copy was taken off disk as it was
   // read, and this puts the session back, encrypted, if there is a PIN.
-  if (saved) store.saveState(engine.getState());
+  if (saved) saveSession();
 
   ui.setup.hidden = true;
   ui.interview.hidden = false;
@@ -292,6 +308,9 @@ async function openSession(resume, pin) {
     }
     saved = store.takeLegacy();
   } else {
+    // A file loaded but not resumed is not kept: it holds the numbers the
+    // idle lock exists to drop, where the lock cannot reach them.
+    importedSession = null;
     store.clearState();
   }
   if (pin) {
@@ -303,6 +322,16 @@ async function openSession(resume, pin) {
 
 function setSetupStatus(text) {
   if (ui.setupStatus) ui.setupStatus.textContent = text;
+}
+
+/**
+ * Save the session. A correction still open is a detour, so what is saved is
+ * the place the walk returns to when it ends: saved mid-correction, a session
+ * would otherwise resume at the corrected question and walk the rest of the
+ * form again.
+ */
+function saveSession(options) {
+  return store.saveState(engine.getState({ returnTo: correcting?.restore }), options);
 }
 
 // -- sensitive answers on screen and in memory ------------------------------
@@ -350,12 +379,20 @@ async function lockSensitive() {
   const midAnswer = isSensitive(displayQuestion()) && readBackOpen();
   if (!held.length && !midAnswer) return;
 
+  const dropped = held.map(fieldOf);
+  // A number being asked for again came off `withheld` when it was asked.
+  // Cleared before it was confirmed, it is still owed.
+  if (midAnswer && correcting) dropped.push(fieldOf(correcting.target));
   for (const a of held) {
     engine.setAnswer(a.id, null, { loopId: a.loopId ?? null, loopIndex: a.loopIndex ?? 0 });
-    const w = a.loopId ? { id: a.id, loopId: a.loopId, loopIndex: a.loopIndex } : { id: a.id };
-    if (!withheld.some(x => sameField(x, w))) withheld.push(w);
   }
-  store.saveState(engine.getState());
+  for (const w of dropped) {
+    if (!withheld.some(x => sameField(x, w))) withheld.push({ ...w, idle: true });
+  }
+  // And on every save from now on, so a session resumed after the tab has
+  // closed asks for them too.
+  store.markWithheld(dropped);
+  saveSession();
   if (ui.textAnswer) ui.textAnswer.value = '';
   setStatus('');
 
@@ -393,6 +430,9 @@ function isAnswered({ id, loopId = null, loopIndex = 0 }) {
 const sameField = (a, b) => a.id === b.id && (a.loopId ?? null) === (b.loopId ?? null)
   && (a.loopIndex ?? 0) === (b.loopIndex ?? 0);
 
+/** Where an answer lives, as `withheld` and the store record it. */
+const fieldOf = f => (f.loopId ? { id: f.id, loopId: f.loopId, loopIndex: f.loopIndex ?? 0 } : { id: f.id });
+
 /**
  * Ask for the next sensitive answer that a resumed session did not have.
  *
@@ -416,8 +456,12 @@ async function askNextWithheld(note = '') {
     correcting = { target, question: q, restore };
     ui.review.hidden = true;
     ui.interview.hidden = false;
-    const why = 'This was not saved when you stopped last time, for your security.';
-    await askCurrent({ prefix: note ? `${note} ${why}` : why });
+    const why = w.idle
+      ? 'I cleared this while the page was not in use.'
+      : 'This was not saved when you stopped last time, for your security.';
+    // The prompt alone does not say which spouse; the item number does.
+    const which = target.loopId ? ` This one is for ${target.itemLabel} ${target.itemNumber}.` : '';
+    await askCurrent({ prefix: `${note ? `${note} ` : ''}${why}${which}` });
     return true;
   }
   return false;
@@ -617,8 +661,7 @@ async function handleTranscript(transcript) {
   // that actually holds something.
   if (!pending && namesSomethingToDelete(transcript)) {
     setStatus('');
-    resumeAfterPrompt = true;
-    await beginDeletion(transcript);
+    await deleteMidInterview(transcript);
     return;
   }
 
@@ -698,7 +741,7 @@ function commit(value) {
   // the interview into whatever question follows the corrected one.
   if (correcting) { finishCorrection(value); return; }
   engine.submit(value);
-  store.saveState(engine.getState());
+  saveSession();
   // An addition is the same kind of detour. It ends when the walk leaves the
   // group being added to — either the user said no to "another one?", or the
   // group was the last thing in the form.
@@ -720,6 +763,12 @@ async function reask(message) {
 }
 
 // -- global commands -------------------------------------------------------
+
+// Commands that only tell the user something. They leave a correction open:
+// the question on screen is still the one being answered, and abandoning it
+// puts the walk back where the correction started — so the next answer would
+// be filed under a question the user is not looking at.
+const KEEPS_CORRECTION = new Set(['repeat', 'help', 'where', 'readback', 'save_quit']);
 
 async function runCommand(cmd) {
   // Repeating is the one command that means "say that again", not "move on",
@@ -746,7 +795,7 @@ async function runCommand(cmd) {
     return;
   }
   // Leaving the correction flow by any other route abandons it cleanly.
-  if ((correcting || inCorrectionPrompt()) && cmd !== 'repeat' && cmd !== 'help') {
+  if ((correcting || inCorrectionPrompt()) && !KEEPS_CORRECTION.has(cmd)) {
     clearCorrectionState();
   }
 
@@ -758,7 +807,7 @@ async function runCommand(cmd) {
       return;
     case 'back':
       engine.back();
-      store.saveState(engine.getState());
+      saveSession();
       // Stepping out of the group backwards ends the addition, the same way
       // walking off its end does.
       if (adding && !stillAdding()) { await finishAddition(); return; }
@@ -766,7 +815,7 @@ async function runCommand(cmd) {
       return;
     case 'skip':
       engine.skip();
-      store.saveState(engine.getState());
+      saveSession();
       if (adding && !stillAdding()) { await finishAddition(); return; }
       await askCurrent();
       return;
@@ -796,7 +845,7 @@ async function runCommand(cmd) {
       await askWhichField();
       return;
     case 'save_quit':
-      if (store.saveState(engine.getState())) {
+      if (saveSession()) {
         await store.flush();
         await speech.speak(say.SAVED);
         setStatus('Saved, encrypted with your PIN. Your place is kept on this device.');
@@ -811,6 +860,8 @@ async function runCommand(cmd) {
     case 'restart':
       engine.reset();
       store.clearState();
+      // A new interview owes nothing the old one was asked for.
+      withheld = [];
       await speech.speak(say.STARTING_OVER);
       await askCurrent({ announceSection: true });
       return;
@@ -1228,8 +1279,7 @@ async function handleTypedDirect(text) {
   if (cmd) { await runCommand(cmd); return; }
 
   if (!pending && namesSomethingToDelete(text)) {
-    resumeAfterPrompt = true;
-    await beginDeletion(text);
+    await deleteMidInterview(text);
     return;
   }
 
@@ -1248,8 +1298,9 @@ async function handleTypedDirect(text) {
   // Through the local parser first, the same way a spoken answer goes. Without
   // it normalize() sees the raw text and can only accept what is already in
   // the shape it wants — so a typed "March 14th 1979" was refused on a date
-  // question that had just asked for exactly that.
-  const local = parseLocal(q, text);
+  // question that had just asked for exactly that. Free text is the
+  // exception: `typed` keeps it exactly as the user wrote it.
+  const local = parseLocal(q, text, { typed: true });
   const result = normalize(
     local ?? { command: null, value: text, confidence: 1, needsClarification: false, clarifyPrompt: null },
     q
@@ -1404,7 +1455,7 @@ async function handleSttError(err) {
 
 async function finishInterview() {
   if (await askNextWithheld()) return;
-  store.saveState(engine.getState());
+  saveSession();
   ui.interview.hidden = true;
   ui.review.hidden = false;
   audio.earcon('done');
@@ -1630,7 +1681,7 @@ async function beginAddition(add) {
   awaitingFieldName = false;
   choosing = null;
   adding = { loopId, itemLabel, startCount: nextNumber - 1 };
-  store.saveState(engine.getState());
+  saveSession();
 
   ui.review.hidden = true;
   ui.interview.hidden = false;
@@ -1651,7 +1702,7 @@ async function finishAddition() {
   const { loopId, itemLabel, startCount } = adding;
   const added = (engine.answers()[loopId]?.length ?? 0) - startCount;
   adding = null;
-  store.saveState(engine.getState());
+  saveSession();
   // Said as a count of entries rather than a plural of the label: "children"
   // and "household members" do not pluralize the way "conditions" does.
   await returnToReview(
@@ -1673,6 +1724,21 @@ async function finishAddition() {
 function namesSomethingToDelete(text) {
   if (!isDeletionPhrase(text)) return false;
   return resolveDeletion(text, engine.answers()).reason !== 'none';
+}
+
+/**
+ * "Remove that last provider", said in the middle of the interview rather
+ * than at the review prompt. Finishing resumes the question that was open.
+ *
+ * A correction still open is dropped first, putting the walk back where it
+ * was. Removing an entry renumbers the ones after it: removeItem() repairs
+ * the walk's own cursor, but not the one a correction saved to return to,
+ * which would then point past the end of the list and lose the next answer.
+ */
+async function deleteMidInterview(text) {
+  if (correcting) clearCorrectionState();
+  resumeAfterPrompt = true;
+  await beginDeletion(text);
 }
 
 /**
@@ -1754,7 +1820,7 @@ async function handleDeleteConfirmation(text) {
   }
 
   const removed = engine.removeItem(loopId, item.index);
-  store.saveState(engine.getState());
+  saveSession();
   await returnToReview(removed
     ? `I removed ${describeItem(item)}.`
     : 'That entry could not be removed.');
@@ -1794,7 +1860,7 @@ async function finishCorrection(value) {
   // than offering a half-filled form for download.
   if (ok && t.id === 'forms' && !t.loopId) {
     const next = engine.rewalk();
-    store.saveState(engine.getState());
+    saveSession();
     if (next) {
       clearCorrectionState();
       ui.review.hidden = true;
@@ -1805,7 +1871,7 @@ async function finishCorrection(value) {
     }
   }
 
-  store.saveState(engine.getState());
+  saveSession();
 
   const what = describeTarget(t);
   await returnToReview(ok
@@ -1819,7 +1885,7 @@ async function returnToReview(note, { about = null } = {}) {
   // rather than dropping the user on the summary with the form unfinished.
   if (resumeAfterPrompt) {
     clearCorrectionState();
-    store.saveState(engine.getState());
+    saveSession();
     await askCurrent({ prefix: `${note} Back to your question.` });
     return;
   }

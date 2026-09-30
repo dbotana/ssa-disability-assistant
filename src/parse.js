@@ -142,14 +142,20 @@ const PRESENT = /\b(still|ongoing|present|current(ly)?|to this day|up to now|con
 /**
  * Interpret a transcript locally.
  *
+ * `typed` is for text the user typed rather than spoke. Free text is then
+ * left alone (null here, and the caller keeps it as written): parseText()
+ * cleans up what a transcriber wraps around speech, and applied to typed
+ * text it rewrites the user's own capitals and full stops — "de la Cruz",
+ * "iPhone", "Jr." — on a form where names have to be exact.
+ *
  * @returns {{command:null, value:*, confidence:number, needsClarification:false,
  *            clarifyPrompt:null}|null} null when the answer should be asked again.
  */
-export function parseLocal(question, transcript) {
+export function parseLocal(question, transcript, { typed = false } = {}) {
   const raw = String(transcript ?? '').trim();
   if (!raw) return null;
 
-  const value = parseByType(question, raw);
+  const value = parseByType(question, raw, typed);
   if (value === null) return null;
 
   return {
@@ -161,7 +167,7 @@ export function parseLocal(question, transcript) {
   };
 }
 
-function parseByType(question, raw) {
+function parseByType(question, raw, typed) {
   switch (question.type) {
     case 'yesno': return parseYesNo(raw);
     case 'ssn':
@@ -175,7 +181,7 @@ function parseByType(question, raw) {
     case 'monthyear': return parseMonthYear(raw, question);
     case 'money':
     case 'number': return parseNumber(raw);
-    default: return parseText(raw);
+    default: return typed ? null : parseText(raw);
   }
 }
 

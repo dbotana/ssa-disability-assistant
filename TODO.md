@@ -113,11 +113,63 @@ With transcription local and the numbers kept out of storage, the downloaded fil
 
 ## Known quirks
 
-None open.
+- [ ] **Deleting a marriage shifts which spouse's number is owed.** The
+      re-ask list (`withheld` in main.js, `carried` in store.js) records a
+      spouse's SSN by its position in the marriages list. Delete a marriage
+      after resuming and the positions after it renumber, so the re-ask can
+      skip a spouse whose number is owed or ask about one who never had one.
+      `removeItem()` repairs the engine's cursors; these two lists need the
+      same repair.
 
 ---
 
 # Closed
+
+## Review of the local-only fork
+
+Found by driving `main.js` against a stub DOM with real storage and
+WebCrypto, not by the test suite, which passed throughout. Each is now
+covered by a test or by `tools/smoke.mjs`.
+
+- [x] **A command during a correction filed the next answer under another
+      question.** `clearCorrectionState()` began restoring the pre-correction
+      cursor, and `where`, `read back` and `save` all called it without asking
+      anything again: the corrected question stayed on screen while the walk
+      pointed elsewhere. Resuming a session made it worse — at the SSN re-ask,
+      pressing W then typing the number recorded it as a medical condition,
+      and saved it. Commands that only report something now leave the
+      correction open (`KEEPS_CORRECTION`), and a save made mid-correction
+      stores the place the walk returns to (`engine.getState({ returnTo })`).
+- [x] **The idle lock forgot what it promised to ask again.** In a session
+      that was not resumed, the lock cleared the numbers and saved a
+      `withheld` list without them, so after the tab closed they were never
+      asked for. `store.markWithheld()` keeps them on every later save. A
+      number cleared mid-read-back of its own re-ask goes back on the list,
+      and the re-ask says the page was idle rather than "not saved when you
+      stopped last time".
+- [x] **A second press of Start or Resume ran a second start.** The setup
+      panel stays up through key derivation and the model load. Resume twice
+      lost an older unencrypted session outright; Start twice forgot the PIN,
+      so nothing was saved. `startOnce()` ignores the second press.
+- [x] **Deleting an entry during a correction lost the next answer.** The
+      correction's saved cursor was not repaired by `removeItem()` and pointed
+      past the end of the list. A mid-interview deletion now drops an open
+      correction first.
+- [x] **Typed free text was rewritten.** `parseText()` capitalized and
+      stripped full stops from typed answers too ("de la Cruz", "Jr.").
+      `parseLocal(…, { typed: true })` leaves it as written.
+- [x] **A long session was silently not saved.** Base64 by spreading the
+      ciphertext into one call overflows the stack past about 100 KB, and
+      `saveState()` swallowed the error while "save and quit" said it worked.
+- [x] **The Node server could be stopped from outside.** A malformed escape
+      (`GET /%`, sendable by any web page) was an unhandled rejection, and a
+      browser that would not start (`SSA_BROWSER` naming a `.app` folder)
+      was an unhandled spawn error. Both now fall back as `serve.py` does.
+- [x] **The Windows launcher closed before its STOPPED message could be
+      read.** It now pauses when the server exits with an error.
+- [x] **Smaller:** the withheld re-ask for a spouse names the marriage; a
+      restart clears the re-ask list; a file loaded but not resumed is not
+      kept in memory, out of the idle lock's reach.
 
 ## Local-only fork
 

@@ -144,36 +144,97 @@ export function findBrowser() {
   return null;
 }
 
+/**
+ * Start a program and leave it running; returns whether it started.
+ *
+ * A program that cannot be run (SSA_BROWSER naming a .app folder, a Linux
+ * with no xdg-open) does not throw: spawn() leaves `pid` unset and emits an
+ * 'error' event, which, unheard, takes the server down with it.
+ */
+function launch(cmd, args) {
+  try {
+    const child = spawn(cmd, args, { stdio: 'ignore', detached: true });
+    child.on('error', () => { /* reported by the missing pid */ });
+    child.unref();
+    return child.pid !== undefined;
+  } catch {
+    return false;
+  }
+}
+
 function openDefault(url) {
   const cmd = process.platform === 'darwin' ? 'open'
     : process.platform === 'win32' ? 'cmd'
       : 'xdg-open';
   const args = process.platform === 'win32' ? ['/c', 'start', '', url] : [url];
-  try {
-    spawn(cmd, args, { stdio: 'ignore', detached: true }).unref();
-  } catch {
-    /* the URL is printed either way */
-  }
+  launch(cmd, args);   // the URL is printed either way
 }
 
-/** Open the page; returns the name of what opened it, or null. */
-function openBrowser(url, useDefault) {
+/**
+ * Open the page; returns the name of what opened it, or null. A browser that
+ * is found but will not start falls back to the ordinary one, as it does in
+ * tools/serve.py. `openFallback` is for tests/launcher.js.
+ */
+export function openBrowser(url, useDefault, openFallback = openDefault) {
   const exe = useDefault ? null : findBrowser();
   if (exe) {
     try {
       const profile = profileDir();
       mkdirSync(profile, { recursive: true });
       try { chmodSync(profile, 0o700); } catch { /* Windows */ }
-      spawn(exe, [`--user-data-dir=${profile}`, ...BROWSER_FLAGS, `--app=${url}`],
-        { stdio: 'ignore', detached: true }).unref();
-      return basename(exe).replace(/\.exe$/i, '');
+      if (launch(exe, [`--user-data-dir=${profile}`, ...BROWSER_FLAGS, `--app=${url}`])) {
+        return basename(exe).replace(/\.exe$/i, '');
+      }
     } catch { /* fall through to the ordinary browser */ }
   }
-  openDefault(url);
+  openFallback(url);
   return null;
 }
 
 // -- serving ---------------------------------------------------------------------
+
+/** Answer one request from the project directory. */
+export async function serveFile(req, res) {
+  const send = (code, body) => {
+    res.writeHead(code, { ...HEADERS, 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end(body);
+  };
+
+  // A request this cannot read is refused, not left to throw: in this async
+  // handler a throw is an unhandled rejection, which ends the process. Any
+  // page open in any browser can send one — <img src="…/%"> is enough.
+  let file;
+  try {
+    const { pathname } = new URL(req.url, 'http://localhost');
+    file = resolve(join(ROOT, decodeURIComponent(pathname)));
+  } catch {
+    return send(400, 'Bad request');
+  }
+
+  // Keep the server inside the project directory. Without this, a crafted
+  // path walks up into the user's home folder.
+  if (file !== ROOT && !file.startsWith(ROOT + sep)) return send(403, 'Forbidden');
+
+  try {
+    if ((await stat(file)).isDirectory()) file = join(file, 'index.html');
+  } catch {
+    return send(404, 'Not found');
+  }
+
+  try {
+    const info = await stat(file);
+    res.writeHead(200, {
+      ...HEADERS,
+      'Content-Type': TYPES[extname(file).toLowerCase()] ?? 'application/octet-stream',
+      'Content-Length': info.size,
+      'Cache-Control': 'no-store'
+    });
+    // An unreadable file ends this response, not the server.
+    createReadStream(file).on('error', () => res.destroy()).pipe(res);
+  } catch {
+    send(404, 'Not found');
+  }
+}
 
 function main(argv) {
   const useDefault = argv.includes('--default-browser');
@@ -192,44 +253,7 @@ function main(argv) {
     process.exit(1);
   }
 
-  const server = createServer(async (req, res) => {
-    const send = (code, body) => {
-      res.writeHead(code, { ...HEADERS, 'Content-Type': 'text/plain; charset=utf-8' });
-      res.end(body);
-    };
-
-    let pathname;
-    try {
-      ({ pathname } = new URL(req.url, 'http://localhost'));
-    } catch {
-      return send(400, 'Bad request');
-    }
-
-    let file = resolve(join(ROOT, decodeURIComponent(pathname)));
-
-    // Keep the server inside the project directory. Without this, a crafted
-    // path walks up into the user's home folder.
-    if (file !== ROOT && !file.startsWith(ROOT + sep)) return send(403, 'Forbidden');
-
-    try {
-      if ((await stat(file)).isDirectory()) file = join(file, 'index.html');
-    } catch {
-      return send(404, 'Not found');
-    }
-
-    try {
-      const info = await stat(file);
-      res.writeHead(200, {
-        ...HEADERS,
-        'Content-Type': TYPES[extname(file).toLowerCase()] ?? 'application/octet-stream',
-        'Content-Length': info.size,
-        'Cache-Control': 'no-store'
-      });
-      createReadStream(file).pipe(res);
-    } catch {
-      send(404, 'Not found');
-    }
-  });
+  const server = createServer(serveFile);
 
   let port = FIRST_PORT;
 

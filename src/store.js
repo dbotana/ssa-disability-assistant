@@ -91,7 +91,8 @@ const fieldKey = w => JSON.stringify([w.id, w.loopId ?? null, w.loopIndex ?? 0])
 
 let key = null;        // AES-GCM CryptoKey, non-extractable; null = not saving
 let salt = null;       // the PBKDF2 salt that key was derived with
-// Fields withheld by the session this one resumed. They stay withheld in
+// Fields withheld by the session this one resumed, and fields whose answers
+// were dropped from memory while it ran (markWithheld). They stay withheld in
 // every later save, answered again or not: they are never on disk either way.
 let carried = [];
 let writing = Promise.resolve();
@@ -143,9 +144,27 @@ export function isPersisting() {
   return key !== null;
 }
 
+/**
+ * List these fields as withheld in every later save, though the state no
+ * longer holds them. For answers dropped from memory mid-session (main.js's
+ * idle lock): without this, the next save records nothing to ask again, and
+ * a session resumed after the tab closes never asks for them.
+ */
+export function markWithheld(fields) {
+  const seen = new Set(carried.map(fieldKey));
+  for (const w of fields) if (!seen.has(fieldKey(w))) { carried.push(w); seen.add(fieldKey(w)); }
+}
+
 // -- encoding ------------------------------------------------------------------
 
-const toB64 = bytes => btoa(String.fromCharCode(...new Uint8Array(bytes)));
+// In slices: spread whole, a ciphertext past about 100 KB overflows the call
+// stack, and saveState() would drop the save without a word.
+function toB64(bytes) {
+  const all = new Uint8Array(bytes);
+  let text = '';
+  for (let i = 0; i < all.length; i += 0x8000) text += String.fromCharCode(...all.subarray(i, i + 0x8000));
+  return btoa(text);
+}
 const fromB64 = text => Uint8Array.from(atob(text), c => c.charCodeAt(0));
 
 function readJson(k) {

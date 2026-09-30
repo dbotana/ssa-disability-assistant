@@ -11,6 +11,8 @@
 //   - A session an older version saved in plain text loses its numbers the
 //     first time the page loads, and is taken off disk when it is resumed.
 //   - "Erase everything" cannot be undone by a save still being encrypted.
+//   - A number the idle lock drops mid-session is still asked for after a
+//     resume, and a long session is saved rather than silently skipped.
 //
 // Also checks the engine side of re-asking: a correction must put the walk
 // back where it found it, or a session saved afterwards resumes mid-form.
@@ -34,6 +36,7 @@ globalThis.localStorage = {
 
 const store = await import('../src/store.js');
 const { SECTIONS } = await import('../src/schema.js');
+const { createEngine } = await import('../src/engine.js');
 const { startEngine, filler } = await import('./lib/walk.js');
 
 const KEY = 'ssa-prep.state.v3';
@@ -179,6 +182,46 @@ const NAME = full.answers.first_name;
   check('a save queued before an erase does not bring it back', !disk.has(KEY));
 }
 
+// -- a number dropped from memory mid-session is still owed ------------------
+//
+// main.js's idle lock clears a sensitive answer while the session runs. The
+// next save no longer holds it, so unless the store is told, nothing on disk
+// says to ask for it again, and a session resumed later never does.
+
+{
+  store.forgetKey();
+  await store.usePin(PIN);
+  const locked = structuredClone(full);
+  delete locked.answers.ssn;              // what the lock leaves behind
+  check('the cleared SSN is not in the state any more (setup)',
+    !store.redact(locked).withheld.some(w => w.id === 'ssn'));
+  store.markWithheld([{ id: 'ssn' }]);
+  store.saveState(locked);
+  await store.flush();
+  store.forgetKey();
+  const back = await store.unlock(PIN);
+  check('a number cleared mid-session is still listed to ask again',
+    back.withheld.some(w => w.id === 'ssn'), JSON.stringify(back.withheld));
+}
+
+// -- a long session still saves -----------------------------------------------
+//
+// The ciphertext is base64 for storage. Converted in one call, a session past
+// about 100 KB overflowed the stack, and the save was dropped without a word
+// while "save and quit" reported that it had worked.
+
+{
+  const long = structuredClone(full);
+  long.answers.first_name = 'x'.repeat(300000);
+  disk.delete(KEY);                       // so what is found is this save
+  store.saveState(long);
+  await store.flush();
+  check('a 300 KB session is written', JSON.parse(disk.get(KEY) ?? 'null')?.v === 3);
+  store.forgetKey();
+  const back = await store.unlock(PIN);
+  check('and opens again', back.state.answers.first_name?.length === 300000);
+}
+
 // -- a session saved in plain text by an older version ------------------------
 
 {
@@ -204,6 +247,15 @@ const NAME = full.answers.first_name;
   const before = e.cursorSnapshot();
   e.jumpTo('ssn');
   check('jumpTo moves the walk (setup)', e.current()?.id === 'ssn');
+
+  // Saved while the correction is still open ("save and quit", the idle
+  // lock), the state is the one the correction will return to.
+  const midway = e.getState({ returnTo: before });
+  check('saved mid-correction, a session resumes where the walk was',
+    createEngine(SECTIONS, midway).current() === null, createEngine(SECTIONS, midway).current()?.id);
+  check('without the detour on its undo stack', midway.history.length === depth);
+  check('and the live walk is still on the corrected question', e.current()?.id === 'ssn');
+
   e.setAnswer('ssn', SSN);
   e.restoreCursor(before);
   check('after a correction the interview is still finished', e.current() === null, e.current()?.id);

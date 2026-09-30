@@ -459,14 +459,6 @@ export function createEngine(sections = SECTIONS, savedState = null) {
     return null;
   }
 
-  /**
-   * Write one answer in place, without moving the cursor.
-   *
-   * This is what a correction is: the user is fixing a value they already
-   * gave, and the forward walk should stay exactly where it was. Using
-   * submit() here would advance the interview into whatever question happens
-   * to follow the corrected one.
-   */
   /** Where the walk is now, to hand back to restoreCursor() later. */
   function cursorSnapshot() {
     return structuredClone(state.cursor);
@@ -482,12 +474,23 @@ export function createEngine(sections = SECTIONS, savedState = null) {
    * detour.
    */
   function restoreCursor(saved) {
-    if (!saved) return;
-    const top = state.history.at(-1);
-    if (top && JSON.stringify(top) === JSON.stringify(saved)) state.history.pop();
-    state.cursor = structuredClone(saved);
+    if (saved) rewind(state, saved);
   }
 
+  function rewind(target, saved) {
+    const top = target.history.at(-1);
+    if (top && JSON.stringify(top) === JSON.stringify(saved)) target.history.pop();
+    target.cursor = structuredClone(saved);
+  }
+
+  /**
+   * Write one answer in place, without moving the cursor.
+   *
+   * This is what a correction is: the user is fixing a value they already
+   * gave, and the forward walk should stay exactly where it was. Using
+   * submit() here would advance the interview into whatever question happens
+   * to follow the corrected one.
+   */
   function setAnswer(questionId, value, { loopId = null, loopIndex = 0 } = {}) {
     if (loopId) {
       const node = nodes.find(n => n.id === loopId && n.type === 'loop');
@@ -798,7 +801,14 @@ export function createEngine(sections = SECTIONS, savedState = null) {
     missingRequired,
     answers: () => structuredClone(state.answers),
     isComplete: () => state.cursor.node >= nodes.length,
-    getState: () => structuredClone(state),
+    // `returnTo` is the cursorSnapshot() of a detour still open: the copy is
+    // the state as restoreCursor() will leave it, which is what a save made
+    // in the middle of a correction should keep.
+    getState: ({ returnTo = null } = {}) => {
+      const copy = structuredClone(state);
+      if (returnTo) rewind(copy, returnTo);
+      return copy;
+    },
     reset: () => {
       state.answers = {};
       seek(0);

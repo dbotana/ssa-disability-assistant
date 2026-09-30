@@ -226,6 +226,20 @@ val('text', 'um', 'Um');
 defer('text', '...');
 defer('text', ' . ');
 
+// Typed free text is not a transcript, and is left exactly as written: null
+// here, and main.js keeps the text itself. The clean-up above would rewrite
+// a name's own capitals and full stops on the form.
+for (const s of ['de la Cruz', 'iPhone repair shop', 'Smith Jr.', 'Acme Tools, Inc.']) {
+  const r = parseLocal(q('text'), s, { typed: true });
+  check(`typed text ${JSON.stringify(s)} is left as written`, r === null,
+    r ? `got ${JSON.stringify(r.value)}` : '');
+}
+// Typed answers of every other type still go through their parser.
+{
+  const r = parseLocal(q('date'), 'March 14th 1979', { typed: true });
+  check('a typed date is still parsed', r?.value === '1979-03-14', JSON.stringify(r?.value));
+}
+
 // -- choice ------------------------------------------------------------------
 
 const opts = id => findQuestion(id).options;
