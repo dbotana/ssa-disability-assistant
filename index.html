@@ -3,6 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- The enforcement behind "nothing leaves this computer". connect-src 'self'
+     means this page, and any script that ever ends up running in it, can make
+     requests only to the localhost server that served it. 'wasm-unsafe-eval'
+     is what WebAssembly compilation needs, and allows nothing else.
+     This tag covers the document only: the speech worker gets its policy from
+     its own response, which is why tools/serve.* also send this policy as a
+     header on every file. tests/no-network.js checks both. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; connect-src 'self'; media-src 'self' blob:; img-src 'self' data:; style-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
 <title>Voice Assistant for Disability Forms</title>
 <link rel="stylesheet" href="styles.css">
 </head>
@@ -29,33 +38,23 @@
     <div class="callout" role="note">
       <h3>Please read this first</h3>
       <p>
-        This page runs entirely in your browser. Your answers are stored on this
-        device only and are never sent to any server except OpenAI, which
-        receives one question and one answer at a time so it can understand what
-        you said.
+        Everything happens on this computer. When you speak, your words are
+        turned into text here, by a speech model stored with this program — the
+        recording is never sent anywhere. Your answers are saved in this browser
+        only, and nothing is sent to any company or server.
       </p>
       <p>
-        Because there is no server, your OpenAI key is held in this browser tab.
+        Your answers, including your Social Security number, stay saved in this
+        browser until you erase them.
         <strong>Use this on a device you trust and do not use it on a shared or
-        public computer.</strong> This tool asks for your Social Security number
-        and, for the Starter Kit, bank account numbers. You can say <em>skip</em>
-        at any of those questions and fill them in by hand later.
+        public computer.</strong> You can say <em>skip</em> at any sensitive
+        question and fill it in by hand later.
       </p>
       <p>
         The first question asks which form you are filling out. This tool fills
         in the forms for you to review, sign, and send yourself. It does not
         send anything to the Social Security Administration or to Maine's
         Department of Health and Human Services.
-      </p>
-    </div>
-
-    <div class="field">
-      <label for="api-key">OpenAI API key</label>
-      <input type="password" id="api-key" autocomplete="off" spellcheck="false"
-             aria-describedby="api-key-help" placeholder="sk-...">
-      <p id="api-key-help" class="help">
-        Kept in this tab only and erased when you close it. Leave this blank to
-        use typing mode with your browser's built-in voice.
       </p>
     </div>
 
@@ -93,20 +92,6 @@
       </p>
     </div>
 
-    <div class="field" id="stt-row" hidden>
-      <label class="radio">
-        <input type="checkbox" id="use-browser-stt">
-        Use my browser's speech recognition when it can
-      </label>
-      <p id="stt-help" class="help">
-        Faster, and it does not use your API key. Your browser sends the
-        recording to its maker — Google in Chrome and Edge, Apple in Safari —
-        instead of to OpenAI. Leave this off to send recordings only to OpenAI.
-        Either way, your answers are saved on this device and are never sent to
-        the Social Security Administration.
-      </p>
-    </div>
-
     <div class="field" id="import-row">
       <label for="import-file">Continue from a file you saved</label>
       <input type="file" id="import-file" accept="application/json,.json"
@@ -126,6 +111,7 @@
     </div>
 
     <button type="button" id="start-button" class="primary">Start the interview</button>
+    <p id="setup-status" class="help" role="status"></p>
   </section>
 
   <!-- ---------- Interview ---------- -->

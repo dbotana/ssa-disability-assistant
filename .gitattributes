@@ -4,3 +4,8 @@
 # Shell launchers must keep LF even on Windows checkouts.
 *.sh text eol=lf
 *.command text eol=lf
+
+# The speech model and its WebAssembly runtime. Committed as ordinary files
+# (each is under GitHub's 100 MB limit), never diffed or normalized.
+*.onnx binary
+*.wasm binary

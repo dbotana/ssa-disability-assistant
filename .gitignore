@@ -14,3 +14,4 @@ ai-product-milestone-1-package/
 .DS_Store
 node_modules/
 _site/
+__pycache__/

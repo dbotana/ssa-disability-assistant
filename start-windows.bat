@@ -27,14 +27,13 @@ node --version >nul 2>&1 && (
 
 echo.
 echo   This PC does not have Python or Node installed, so the assistant
-echo   cannot run locally.
+echo   cannot start.
 echo.
-echo   You can use it in your browser instead, with nothing to install:
-echo.
-echo       https://dbotana.github.io/ssa-disability-assistant/
-echo.
-echo   Or install Python from https://www.python.org/downloads/ and
+echo   Install Python from https://www.python.org/downloads/ and
 echo   double-click this file again. Tick "Add python.exe to PATH"
 echo   in the installer.
+echo.
+echo   (This version runs only on your own computer, so that what you say
+echo   never leaves it. There is no web address to use instead.)
 echo.
 pause

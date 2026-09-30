@@ -1,22 +1,23 @@
-// Local answer parsing, tried before the model.
+// Local answer parsing. In this fork it is the only parsing there is.
 //
-// Most answers on this form are not a judgment call. "Yes", nine spoken
-// digits, and "March 14th 1979" have exactly one correct reading, and paying a
-// model to produce it adds latency and cost to the most common turns in the
-// interview — loop repeats and confirmation read-backs are pure yes/no, and
-// they are asked more than anything else.
+// Upstream tried this first and sent anything it was unsure of to a language
+// model. Here nothing leaves the device, so there is no model to defer to:
+// what this file cannot read with certainty is asked again, with the
+// question's own hint about the shape it wants.
 //
-// The contract is deliberately all-or-nothing: parseLocal() returns a result
-// it is *certain* of, or null. Null means "ask the model", which is the
-// behavior that existed before this file. It never returns a hedge, and it
-// never returns a low-confidence guess, because the one thing worse than
-// spending a fraction of a cent is writing a wrong Social Security number
-// onto a benefits application.
+// The contract is still all-or-nothing: parseLocal() returns a result it is
+// *certain* of, or null, and null means "ask again". It never returns a
+// hedge, and it never returns a low-confidence guess, because the one thing
+// worse than a second question is a wrong Social Security number on a
+// benefits application.
 //
-// Validation is not repeated here. normalize() in llm.js already enforces
-// every type's shape and stays the single place that decides what is
-// well-formed; parseLocal() only turns spoken forms into something for it to
-// check.
+// Free text is the exception, because there is nothing to be certain *of*:
+// the answer is the words. parseText() only strips what a transcript wraps
+// around them. The user hears it read back before it is kept.
+//
+// Validation is not repeated here. normalize() in validate.js enforces every
+// type's shape and stays the single place that decides what is well-formed;
+// parseLocal() only turns spoken forms into something for it to check.
 
 import { matchChoice } from './choice.js';
 
@@ -141,7 +142,8 @@ const PRESENT = /\b(still|ongoing|present|current(ly)?|to this day|up to now|con
 /**
  * Interpret a transcript locally.
  *
- * @returns a result shaped like llm.extract()'s, or null to defer to the model.
+ * @returns {{command:null, value:*, confidence:number, needsClarification:false,
+ *            clarifyPrompt:null}|null} null when the answer should be asked again.
  */
 export function parseLocal(question, transcript) {
   const raw = String(transcript ?? '').trim();
@@ -173,11 +175,37 @@ function parseByType(question, raw) {
     case 'monthyear': return parseMonthYear(raw, question);
     case 'money':
     case 'number': return parseNumber(raw);
-    // Free text is exactly the fuzzy work the model is good at: stripping
-    // filler, fixing capitalization, deciding what part of a rambling answer
-    // is the answer. Nothing local would do it better.
-    default: return null;
+    default: return parseText(raw);
   }
+}
+
+// -- free text -------------------------------------------------------------
+
+/**
+ * Hesitation and lead-ins that are never part of a free-text answer.
+ *
+ * Narrower than LEAD_FILLER on purpose. That list is safe for a date or a
+ * number, where "well" or "so" cannot be the answer; here it could be the
+ * start of one ("Well Street", "So-Young"). Each alternative must be followed
+ * by a comma or a space, and is only removed when something is left after it.
+ */
+const TEXT_LEAD = /^(?:(?:um+|uh+|er+|erm|hmm+|mm+)[\s,.]+|(?:my answer is|the answer is)[\s,:]+)/i;
+
+/**
+ * Free text as spoken: drop lead-in filler and the full stop a transcriber
+ * adds to every utterance, and start with a capital. "um, the Maine Medical
+ * Center." becomes "The Maine Medical Center".
+ */
+function parseText(raw) {
+  let s = raw.replace(/\s+/g, ' ').trim();
+  for (let i = 0; i < 3; i++) {
+    const next = s.replace(TEXT_LEAD, '').trim();
+    if (!next || next === s) break;
+    s = next;
+  }
+  s = s.replace(/[.!?\s]+$/, '').trim();
+  if (!s || !/[\p{L}\p{N}]/u.test(s)) return null;
+  return { value: s.charAt(0).toUpperCase() + s.slice(1), confidence: 1 };
 }
 
 // -- yes / no --------------------------------------------------------------

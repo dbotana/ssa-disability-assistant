@@ -1,0 +1,11 @@
+{
+  "ssn-grouped":   { "type": "ssn",     "value": "987654321" },
+  "ssn-digits":    { "type": "ssn",     "value": "987654320" },
+  "ssn-paused":    { "type": "ssn",     "value": "987654329" },
+  "phone":         { "type": "phone",   "value": "2075550142" },
+  "date":          { "type": "date",    "value": "1979-03-14" },
+  "yes":           { "type": "yesno",   "value": true },
+  "text-hospital": { "type": "text",    "value": "Maine Medical Center in Portland" },
+  "routing":       { "type": "routing", "value": "123456789" },
+  "silence":       { "type": "text",    "value": null }
+}

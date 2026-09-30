@@ -1,0 +1,9 @@
+{
+  "name": "ssa-disability-assistant-local-tools",
+  "private": true,
+  "description": "Maintainer-only tooling. The app itself has no dependencies and no build step.",
+  "type": "module",
+  "devDependencies": {
+    "@huggingface/transformers": "3.8.1"
+  }
+}

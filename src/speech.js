@@ -1,33 +1,39 @@
-// Spoken output: an utterance queue over pre-synthesized clips, the TTS API,
-// and the browser's built-in synthesizer, in that order.
+// Spoken output: an utterance queue over pre-synthesized clips and the
+// operating system's own voices, in that order.
 //
-// The fallback chain is not a nicety. If the key is missing, the network
-// drops, or the TTS call fails, a blind user must still hear the question —
-// going silent is the one failure this app cannot have. Every layer added
-// here therefore falls through to the one below it on any error at all.
+// Going silent is the one failure this app cannot have — a blind user must
+// still hear the question — so every layer falls through to the one below it
+// on any error at all. The last layer is the live region: announce() in
+// a11y.js puts the same text where a screen reader will read it.
 //
 // Most of what this app says is fixed text from schema.js and phrases.js,
-// pre-synthesized into audio/ by tools/build-audio.mjs. Those clips cost
-// nothing to play, work with no API key, and work offline.
+// pre-synthesized into audio/ by tools/build-audio.mjs. Those clips are
+// static files; playing one sends nothing anywhere.
+//
+// Everything else — read-backs holding a user's answer, spoken digit by digit
+// for an SSN — goes to speechSynthesis, and only with a voice the browser
+// reports as localService. That restriction is the point: Chrome lists
+// "Google US English" and friends alongside the system voices, and those are
+// synthesized on Google's servers. Handing one a Social Security number would
+// undo everything else this fork does. Upstream also sent these read-backs to
+// the OpenAI TTS API and kept the audio in Cache Storage; both are gone.
 
-import { synthesize } from './llm.js';
-import { hashText } from './ttshash.js';
+import { hashText, VOICE } from './ttshash.js';
 
 let current = null;          // { audio } | { utterance }
 let queue = [];
 let speaking = false;
-let useFallback = false;
-let voicePref = 'alloy';
 
 // Hashes of the clips sitting in audio/. Empty until loadManifest() resolves,
-// and empty forever if it fails — a missing manifest costs money, not speech.
+// and empty forever if it fails — a missing manifest costs polish, not speech.
 let manifest = new Set();
 let manifestReady = null;
 
-const CACHE_NAME = 'tts-v1';
+// Upstream cached synthesized read-backs, which contain users' answers, in
+// Cache Storage under this name. Anyone who ran that version on this origin
+// may still have it; remove it.
+try { globalThis.caches?.delete('tts-v1').catch(() => {}); } catch { /* no Cache API */ }
 
-export function setVoice(v) { voicePref = v; }
-export function forceFallback(on) { useFallback = !!on; }
 export function isSpeaking() { return speaking; }
 
 /**
@@ -63,129 +69,97 @@ async function drain() {
     const item = queue.shift();
     try {
       await play(item.text);
-    } catch {
-      try { await fallbackSpeak(item.text); } catch { /* nothing left to try */ }
-    }
+    } catch { /* nothing left to try; the live region still has the text */ }
     item.resolve();
   }
   speaking = false;
 }
 
-/**
- * One utterance, cheapest source first.
- *
- * The pre-synthesized check deliberately runs before the useFallback guard.
- * useFallback means "the API is not usable" — no key, auth rejected, offline —
- * none of which stop a local mp3 from playing. Checking it first would hand a
- * key-free user robotic browser speech for questions we already have in the
- * real voice.
- */
+/** One utterance: the recorded clip if there is one, else a local voice. */
 async function play(text) {
-  const key = await cacheKey(text);
-
+  const key = await clipKey(text);
   if (key && manifest.has(key)) {
     try { return await playUrl(`audio/${key}.mp3`); } catch { /* fall through */ }
   }
-
-  if (key) {
-    const hit = await cacheGet(key);
-    if (hit) {
-      try { return await playBuffer(hit); } catch { /* fall through */ }
-    }
-  }
-
-  if (useFallback) return fallbackSpeak(text);
-
-  let buffer;
-  try {
-    buffer = await synthesize(text, { voice: voicePref });
-  } catch (err) {
-    // An auth failure will not fix itself; stop paying the latency cost.
-    if (err?.kind === 'auth' || err?.kind === 'network') useFallback = true;
-    throw err;
-  }
-
-  if (key) cachePut(key, buffer);
-  return playBuffer(buffer);
+  return localSpeak(text);
 }
 
 /** Hash for this utterance, or null when hashing is unavailable. */
-async function cacheKey(text) {
+async function clipKey(text) {
   await loadManifest();
   try {
-    return await hashText(text, voicePref);
+    return await hashText(text, VOICE);
   } catch {
-    // crypto.subtle needs a secure context. On file:// there is no hashing,
-    // no cache, and no manifest — just the paid path, which still works.
+    // crypto.subtle needs a secure context. Without it there is no clip
+    // lookup, and everything is spoken by the local voice instead.
     return null;
   }
 }
 
-// -- runtime cache ---------------------------------------------------------
-//
-// Dynamic text — read-backs holding a user's answer, model-authored clarify
-// prompts — is not in audio/, but the same user hears the same read-back every
-// time they correct the same field. The Cache API stores the Response as-is,
-// so there is no encoding step and no schema to version.
-
-async function cacheGet(key) {
-  try {
-    const cache = await caches.open(CACHE_NAME);
-    const res = await cache.match(cacheUrl(key));
-    return res ? await res.arrayBuffer() : null;
-  } catch {
-    return null;   // private mode, storage denied, no Cache API
-  }
-}
-
-function cachePut(key, buffer) {
-  try {
-    caches.open(CACHE_NAME)
-      .then(cache => cache.put(cacheUrl(key), new Response(buffer, {
-        headers: { 'Content-Type': 'audio/mpeg' }
-      })))
-      .catch(() => { /* best effort */ });
-  } catch { /* best effort */ }
-}
-
-const cacheUrl = key => `https://tts.local/${key}.mp3`;
-
 // -- playback --------------------------------------------------------------
 
-function playBuffer(buffer) {
-  const blob = new Blob([buffer], { type: 'audio/mpeg' });
-  const url = URL.createObjectURL(blob);
-  return playUrl(url, url);
-}
-
-/**
- * @param {string} src what to play
- * @param {string|null} objectUrl revoke this when done, if we created one
- */
-function playUrl(src, objectUrl = null) {
+function playUrl(src) {
   return new Promise((resolve, reject) => {
     const audio = new Audio(src);
-    current = { audio, url: objectUrl };
-    audio.onended = () => { cleanup(objectUrl); resolve(); };
-    audio.onerror = () => { cleanup(objectUrl); reject(new Error('playback failed')); };
-    audio.play().catch(err => { cleanup(objectUrl); reject(err); });
+    current = { audio };
+    audio.onended = () => { current = null; resolve(); };
+    audio.onerror = () => { current = null; reject(new Error('playback failed')); };
+    audio.play().catch(err => { current = null; reject(err); });
   });
 }
 
-function cleanup(url) {
-  if (url) URL.revokeObjectURL(url);
-  current = null;
+// -- the system voice ------------------------------------------------------
+
+let localVoice;   // undefined: not looked up yet; null: there is none
+
+/**
+ * The on-device voice to use, preferring US English.
+ *
+ * Chrome fills getVoices() asynchronously, so an empty list on the first call
+ * means "not yet", not "none": wait briefly for voiceschanged before deciding.
+ */
+async function pickLocalVoice() {
+  if (localVoice !== undefined) return localVoice;
+  const synth = window.speechSynthesis;
+  let voices = synth?.getVoices?.() ?? [];
+  if (!voices.length && synth?.addEventListener) {
+    await new Promise(resolve => {
+      const done = () => { synth.removeEventListener('voiceschanged', done); resolve(); };
+      synth.addEventListener('voiceschanged', done);
+      setTimeout(done, 1500);
+    });
+    voices = synth.getVoices?.() ?? [];
+  }
+  const local = voices.filter(v => v.localService === true);
+  const us = v => /^en[-_]US$/i.test(v.lang);
+  const pick = local.find(v => us(v) && v.default)
+    ?? local.find(us)
+    ?? local.find(v => /^en/i.test(v.lang))
+    ?? null;
+  // "None" is only final once the list has actually loaded.
+  if (pick || voices.length) localVoice = pick;
+  return pick;
 }
 
-function fallbackSpeak(text) {
-  return new Promise((resolve, reject) => {
-    if (!window.speechSynthesis) { reject(new Error('no speech synthesis')); return; }
+/**
+ * Speak with a local voice, or not at all. Never rejects: when no on-device
+ * voice exists the text is already in the live region, and a remote voice is
+ * not an acceptable substitute.
+ */
+async function localSpeak(text) {
+  const synth = window.speechSynthesis;
+  if (!synth || typeof SpeechSynthesisUtterance === 'undefined') return;
+  const voice = await pickLocalVoice();
+  if (!voice) return;
+  await new Promise(resolve => {
     const u = new SpeechSynthesisUtterance(text);
+    u.voice = voice;
+    u.lang = voice.lang;
     u.rate = 0.95;
     u.onend = () => { current = null; resolve(); };
     u.onerror = () => { current = null; resolve(); };  // never strand the queue
     current = { utterance: u };
-    window.speechSynthesis.speak(u);
+    synth.speak(u);
   });
 }
 
@@ -193,10 +167,7 @@ function fallbackSpeak(text) {
 export function cancel() {
   queue.forEach(item => item.resolve());
   queue = [];
-  if (current?.audio) {
-    current.audio.pause();
-    if (current.url) URL.revokeObjectURL(current.url);
-  }
+  if (current?.audio) current.audio.pause();
   try { window.speechSynthesis?.cancel(); } catch { /* not available */ }
   current = null;
   speaking = false;

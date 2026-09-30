@@ -3,11 +3,10 @@
 // "Change my phone number" has to land on a specific question id before
 // engine.jumpTo() can do anything with it. That is this module's only job.
 //
-// It is deliberately local and deterministic. Correction is the one place a
-// user goes when the interview already got something wrong, so sending the
-// phrase back to the model — and risking a second wrong answer, this time
-// about *which field to overwrite* — is exactly the wrong trade. Local
-// matching also means correction still works in typing mode with no API key.
+// It is deliberately deterministic. Correction is the one place a user goes
+// when the interview already got something wrong, so guessing — and risking a
+// second wrong answer, this time about *which field to overwrite* — is
+// exactly the wrong trade.
 //
 // A target is:
 //   { id, loopId?, loopIndex?, label, prompt, ambiguous?, candidates? }

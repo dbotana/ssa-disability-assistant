@@ -1,9 +1,16 @@
-// Pre-synthesize every fixed spoken string to audio/.
+// Pre-synthesize every fixed spoken string to audio/. MAINTAINER-ONLY.
 //
-// The interview script never changes at runtime, so paying to synthesize it on
-// every session — and again on every "repeat" — is pure waste. This walks the
-// schema plus the fixed phrase list, synthesizes each clip once, and writes
-// content-hashed mp3s that speech.js serves for free.
+// This is the one place this project calls a cloud API, and it never sees a
+// user's data: its input is the fixed interview script from schema.js and
+// phrases.js, the same text anyone can read in this repository. It runs on a
+// maintainer's machine, its output is committed, and the app only ever plays
+// the resulting files. Anything that contains an answer is spoken at runtime
+// by an on-device voice instead (see speech.js).
+//
+// The interview script never changes at runtime, so this walks the schema
+// plus the fixed phrase list, synthesizes each clip once, and writes
+// content-hashed mp3s that speech.js plays from disk. A string with no clip
+// is read by the system voice, so skipping this costs polish, not function.
 //
 // Usage:
 //   node tools/build-audio.mjs            synthesize anything missing

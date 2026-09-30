@@ -1,0 +1,27 @@
+name: Tests
+
+# This fork is never deployed. It runs only from a copy on the user's own
+# computer, so that nothing they say is served through, or sent to, anyone
+# else's server. CI therefore only tests.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # `|| exit 1` matters: a bare for-loop's status is only its last test's.
+      - name: Run tests
+        run: for t in tests/*.js; do node "$t" || exit 1; done

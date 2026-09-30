@@ -4,14 +4,14 @@
 //   1. It never produces a value that normalize() would reject. If it did, a
 //      user would hear a confident read-back of an answer the form cannot
 //      hold.
-//   2. It returns null on anything ambiguous. Null costs a model call; a wrong
-//      confident answer costs a wrong Social Security number on a benefits
-//      application.
+//   2. It returns null on anything ambiguous. Null costs a second question; a
+//      wrong confident answer costs a wrong Social Security number on a
+//      benefits application.
 //
 // Makes no API calls.
 
 import { parseLocal } from '../src/parse.js';
-import { normalize } from '../src/llm.js';
+import { normalize } from '../src/validate.js';
 import { SECTIONS, findQuestion } from '../src/schema.js';
 
 let failures = 0;
@@ -28,10 +28,10 @@ function val(type, input, expected, extra = {}) {
   const r = parseLocal(q(type, extra), input);
   check(`${type} ${JSON.stringify(input)} -> ${JSON.stringify(expected)}`,
     r !== null && r.value === expected,
-    r === null ? 'got null (deferred to model)' : `got ${JSON.stringify(r.value)}`);
+    r === null ? 'got null (would be asked again)' : `got ${JSON.stringify(r.value)}`);
 }
 
-/** Asserts the parser deferred. */
+/** Asserts the parser returned null, so the question would be asked again. */
 function defer(type, input, extra = {}) {
   const r = parseLocal(q(type, extra), input);
   check(`${type} ${JSON.stringify(input)} defers`, r === null,
@@ -118,8 +118,8 @@ val('date', 'January 1st 05', '2005-01-01');
 
 // Month, day, year — the order every date question now asks for out loud.
 // These are the shapes a user who followed that instruction actually says.
-// Spoken out, the prompt's own example is words, not digits, and a session
-// with no API key has nothing but this parser to read them with.
+// Spoken out, the prompt's own example is words, not digits, and this parser
+// is the only thing that reads them.
 val('date', 'March fourteenth nineteen seventy nine', '1979-03-14');
 val('date', 'march fourteenth, nineteen seventy-nine', '1979-03-14');
 val('date', 'the fourteenth of March nineteen seventy nine', '1979-03-14');
@@ -200,14 +200,31 @@ val('number', '12', 12);
 defer('money', 'eight hundred to a thousand');
 defer('money', 'between 800 and 1000');
 defer('money', '800 or 900');
-defer('money', 'twelve hundred');       // number words: defer to the model
+defer('money', 'twelve hundred');       // number words: asked again
 defer('number', 'a few');
 
-// -- free text always defers ----------------------------------------------
+// -- free text is the words, with the wrapping removed ----------------------
+//
+// There is no model to hand free text to, so the parser keeps what was said.
+// It removes only what a transcriber wraps around an answer: hesitation at
+// the front, and the full stop at the end.
 
-for (const s of ['John', 'Springfield', 'diabetes', 'Dr. Smith at City Clinic']) {
-  defer('text', s);
+for (const s of ['John', 'Springfield', 'Dr. Smith at City Clinic']) {
+  val('text', s, s);
 }
+val('text', 'diabetes', 'Diabetes');
+val('text', 'Maine Medical Center in Portland.', 'Maine Medical Center in Portland');
+val('text', 'um, the Maine Medical Center.', 'The Maine Medical Center');
+val('text', 'uh, uh John Smith', 'John Smith');
+val('text', 'My answer is: retired teacher.', 'Retired teacher');
+// Words that are filler in a date are answers in free text.
+val('text', 'Well Street', 'Well Street');
+val('text', 'So-Young Kim', 'So-Young Kim');
+val('text', 'Okay Corral Road', 'Okay Corral Road');
+// Filler on its own is kept rather than erased; the read-back catches it.
+val('text', 'um', 'Um');
+defer('text', '...');
+defer('text', ' . ');
 
 // -- choice ------------------------------------------------------------------
 
@@ -295,13 +312,13 @@ for (const section of SECTIONS) {
 check('the schema has questions to test', allQuestions.length > 50,
   `found ${allQuestions.length}`);
 
-// Property 1: every text question defers, always.
+// Property 1: every text question keeps what was said.
 {
-  const leaked = allQuestions
+  const lost = allQuestions
     .filter(x => x.type === 'text')
-    .filter(x => parseLocal(x, 'some typed answer') !== null);
-  check('parseLocal never answers a free-text question', leaked.length === 0,
-    leaked.slice(0, 3).map(x => `  ${x.id}`).join('\n'));
+    .filter(x => parseLocal(x, 'some typed answer')?.value !== 'Some typed answer');
+  check('every free-text question keeps the answer', lost.length === 0,
+    lost.slice(0, 3).map(x => `  ${x.id}`).join('\n'));
 }
 
 // Property 2: the parser and the validator never disagree. A confident local
@@ -329,8 +346,9 @@ check('the schema has questions to test', allQuestions.length > 50,
     bad.slice(0, 5).join('\n     '));
 }
 
-// Property 3: confidence is never in the hedge zone. The guard at llm.js:294
-// treats < 0.5 as "re-ask"; the local parser must be certain or silent.
+// Property 3: confidence is never in the hedge zone. normalize() in
+// validate.js treats < 0.5 as "re-ask"; the local parser must be certain or
+// silent.
 {
   const probes = ['yes', 'no', '123456789', 'March 14th 79', 'march of 79', '3/79', '1200'];
   const hedged = [];

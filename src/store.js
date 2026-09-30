@@ -1,13 +1,12 @@
 // Local persistence. Answers live in localStorage so a dropped session can be
-// resumed; the API key lives in sessionStorage and is never written beside the
-// answers. Nothing here ever leaves the device.
+// resumed. Nothing here ever leaves the device — but note that it is plain
+// text, SSN included, readable by anyone with this browser profile.
 
 const STATE_KEY = 'ssa-prep.state.v2';
 // Written before the form question existed. Still read, so an unfinished
 // session survives the upgrade: the engine sees it has no `schema` and
 // rebuilds its place as a Starter Kit session.
 const LEGACY_STATE_KEYS = ['ssa-prep.state.v1'];
-const KEY_KEY = 'ssa-prep.openai-key';
 
 export function saveState(state) {
   try {
@@ -41,16 +40,4 @@ export function clearState() {
 
 export function hasSavedSession() {
   return loadState() !== null;
-}
-
-export function getApiKey() {
-  try { return sessionStorage.getItem(KEY_KEY) || ''; } catch { return ''; }
-}
-
-export function setApiKey(key) {
-  try { sessionStorage.setItem(KEY_KEY, key.trim()); } catch { /* memory-only */ }
-}
-
-export function clearApiKey() {
-  try { sessionStorage.removeItem(KEY_KEY); } catch { /* nothing to do */ }
 }

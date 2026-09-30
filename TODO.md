@@ -1,7 +1,12 @@
 # Next steps
 
-Status: the site is complete and works end to end. Everything still open is
-either verification that needs a human, a known limitation, or an improvement.
+Status: this is the local-only fork. Speech is transcribed on the device,
+answers are parsed locally, and the browser's Content-Security-Policy refuses
+any request off localhost. The interview works end to end — verified in
+headless Chromium with a fake microphone: a spoken answer transcribed,
+read back, kept, stored, and the next question asked, with zero requests
+off localhost. Everything still open is either verification that needs a
+human, a known limitation, or an improvement.
 
 Open items come first, ordered roughly by what would block real use. Closed
 items are kept below with the detail of what was actually done, so a later
@@ -32,13 +37,27 @@ cover is still open.
       announced exactly once, nothing is announced twice, and no announcement
       clobbers another mid-sentence. The new transcript read-back adds a turn
       to every voice answer, so this is worth more now than it was.
-- [ ] **Safari and Chrome recording.** The mime negotiation in
-      [src/audio.js](src/audio.js#L15-L27) handles both in theory; only Chrome's
-      path has been reasoned through and exercised. Safari produces
-      `audio/mp4` — confirm the transcription endpoint accepts what we send it.
-- [ ] **Transcription accuracy on digits.** Say a 9-digit SSN naturally and
-      one digit at a time. If accuracy is poor, the `hintFor()` prompts in
-      [src/llm.js](src/llm.js) are the first thing to adjust.
+- [ ] **Safari and Firefox recording.** Chrome's webm/opus is verified: it
+      decodes and transcribes (`tools/browser-check.html`, run in headless
+      Chromium). Safari records `audio/mp4` — open the browser check in Safari
+      and confirm `decodeAudioData` handles it, and that Safari's WebAssembly
+      threads work under the servers' cross-origin isolation headers.
+- [ ] **Transcription accuracy on digits, with real voices.**
+      `tools/stt-eval.mjs` scores 9/9 on synthetic `say` recordings, which are
+      far cleaner than a person. Record real speakers — naturally, digit by
+      digit, in pause-separated groups, with an accent, in a noisy room — using
+      the non-issuable SSNs 987-65-4320 through 4329, add them to
+      `tests/fixtures/speech/`, and re-run. If base.en falls short, try
+      `whisper-small.en` (`tools/fetch-model.mjs`), which is ~250 MB. There
+      is no transcription hint any more; accuracy fixes go in the model choice
+      or in `parse.js`.
+- [ ] **Timing on a slow machine.** About 0.4 s per answer on an Apple
+      Silicon Mac, on CPU. Measure on an older Windows laptop; if it is over a
+      couple of seconds, the "Transcribing…" status needs an earcon or a
+      spoken "one moment".
+- [ ] **Check that a local system voice exists** on a stock Windows and a
+      stock Linux install. With none, read-backs are silent and only the
+      screen reader's live region carries them.
 - [ ] **A voice pass through the Developmental Services interview.** Choose
       "developmental services" and "both" out loud; answer the A–E ratings by
       word and by letter; confirm the scale being spoken once per section is
@@ -59,9 +78,8 @@ cover is still open.
 
 ## 2. Security — before this goes near real claimants
 
-- [ ] **Move the API key server-side.** The single most important change. A
-      small token-minting backend removes the key from the browser entirely.
-      Until then this is a personal-use tool. See the README's privacy section.
+With transcription local, these two are now the largest exposures left.
+
 - [ ] **Decide whether SSN and bank numbers belong in `localStorage` at all.**
       Right now the saved-session blob contains them in plain text. An option to
       resume *without* persisting sensitive fields would be a reasonable middle
@@ -76,9 +94,16 @@ cover is still open.
       build were scratch scripts against a DOM shim and weren't kept. Playwright
       would make them permanent, at the cost of adding a dev dependency to a
       site that currently has none.
-- [ ] **Test the error recovery paths.** Expired key mid-interview, mic revoked
-      mid-interview, offline mid-interview. Each has a spoken recovery path in
-      `handleLlmError()` — none has been exercised against a real failure.
+- [ ] **Test the error recovery paths.** Mic revoked mid-interview, the speech
+      worker dying mid-interview, a missing model file at startup. Each has a
+      recovery path (`handleSttError()`, `speechModelFailed()`), and
+      `tests/local-stt.js` covers the worker side with stubs — none has been
+      exercised against a real failure in a browser.
+- [ ] **Keep the browser checks.** `tools/browser-check.html` covers the
+      worker, the CSP and cross-origin isolation, but it is run by hand. The
+      headless-Chromium driver used to verify this fork (fake microphone fed
+      from a WAV, driving a real voice answer through `main.js`) was a scratch
+      script; making it permanent would need Playwright as a dev dependency.
 - [ ] **Test with a very long answer set** — 20 providers, 15 jobs — to confirm
       PDF pagination holds up beyond the 12-provider case that was checked.
 
@@ -91,6 +116,33 @@ None open.
 ---
 
 # Closed
+
+## Local-only fork
+
+- [x] **No audio or answer leaves the device.** OpenAI transcription,
+      extraction and TTS are gone (`llm.js` became `validate.js`, keeping only
+      `normalize()`), and so is the browser's cloud `SpeechRecognition`
+      (`stt.js`). Whisper base.en runs in a Web Worker on the WebAssembly
+      backend (`localstt.js`, `whisper-worker.js`); model and runtime are
+      committed and pinned by hash.
+- [x] **The browser enforces it.** CSP with `connect-src 'self'` in
+      `index.html` and as a header from both servers (the header is what
+      covers the worker). Checked statically by `tests/no-network.js` and in
+      a real browser by `tools/browser-check.html`.
+- [x] **Free text without a model.** `parseText()` in `parse.js` strips
+      hesitation and the transcriber's full stop; the read-back catches the
+      rest.
+- [x] **Read-backs stay on the device too.** `speech.js` uses only voices the
+      browser reports as `localService`, never Chrome's network "Google"
+      voices, and deletes upstream's Cache Storage of synthesized read-backs.
+- [x] **WASM rather than WebGPU.** The committed q8 weights are the only
+      variant small enough to commit without Git LFS, and onnxruntime's WebGPU
+      backend runs their int8 matmuls on the CPU anyway. Revisit only with a
+      second, ~200 MB fp32/q4 copy of the model.
+- [x] **Move the API key server-side.** Moot: there is no key.
+- [x] **No hosted copy.** The GitHub Pages deploy is replaced by a test-only
+      CI workflow, and the launchers no longer suggest the hosted upstream
+      site when Python is missing.
 
 ## Known quirks
 
@@ -292,7 +344,7 @@ Two things fell out of this work:
       already runs through exactly that. Covered by
       [tests/import-json.js](tests/import-json.js).
 
-## 6. Deployment
+## 6. Deployment (upstream; replaced in this fork — see *Local-only fork*)
 
 - [x] **Pick a host.** GitHub Pages, deployed by `.github/workflows/pages.yml`
       on every push to `main`. The workflow runs the tests first, then publishes

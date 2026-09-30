@@ -1,8 +1,10 @@
 // Application controller.
 //
-// Owns the turn loop: ask -> listen -> transcribe -> extract -> confirm ->
+// Owns the turn loop: ask -> listen -> transcribe -> parse -> confirm ->
 // commit -> advance. Every state change is announced, and every failure has a
-// spoken recovery path.
+// spoken recovery path. Every step runs on this device: speech is transcribed
+// by localstt.js and answers are read by parse.js, and nothing is sent
+// anywhere.
 
 import { SECTIONS, FORM_TITLES, formsOf } from './schema.js';
 import { createEngine } from './engine.js';
@@ -10,7 +12,7 @@ import { initA11y, announce, focusMain, speakableValue, formatTimeRemaining } fr
 import * as store from './store.js';
 import * as audio from './audio.js';
 import * as speech from './speech.js';
-import * as llm from './llm.js';
+import { normalize } from './validate.js';
 import { renderSummary, summaryText, downloadJson } from './summary.js';
 import {
   resolveTarget, resolveChoice, describeTarget,
@@ -21,7 +23,7 @@ import { downloadForm } from './fill.js';
 import { readExportFile, ImportError } from './importer.js';
 import * as say from './phrases.js';
 import { parseLocal } from './parse.js';
-import * as stt from './stt.js';
+import * as localstt from './localstt.js';
 
 const el = id => document.getElementById(id);
 
@@ -32,8 +34,9 @@ let engine = null;
 // to use: both the talk button and the text box are on screen for the whole
 // interview, and either one can answer any question.
 let mode = 'voice';               // voice | handsfree | text
-// Set only when the microphone genuinely cannot be used — denied, missing, or
-// the key was rejected. Everything else leaves the voice lane open.
+// Set only when voice genuinely cannot work — the microphone is denied or
+// missing, or the speech model cannot run. Everything else leaves the voice
+// lane open.
 let voiceDisabled = false;
 // Which lane the last answer came from. Decides where focus lands after the
 // next question so someone typing is not thrown back to the talk button, and
@@ -50,13 +53,6 @@ let pending = null;               // { question, value } awaiting confirmation
 let checking = null;              // { transcript, question }
 let lastSpoken = '';
 let lastSegments = [];            // the same utterance, unjoined, for `repeat`
-
-// Browser speech recognition runs alongside the recorder, not instead of it.
-// If it returns a transcript the recording is discarded unheard; if it returns
-// nothing, the audio is already captured and the paid API takes the turn. That
-// costs nothing extra and means a recognition failure never loses what the
-// user just said.
-let sttAttempt = null;            // { promise, controller }
 
 // Correction state. Exactly one of these is active at a time: the user is
 // naming a field, choosing between candidates, or answering the re-asked
@@ -86,7 +82,6 @@ function boot() {
     setup: el('setup-panel'),
     interview: el('interview-panel'),
     review: el('review-panel'),
-    apiKey: el('api-key'),
     start: el('start-button'),
     resumeRow: el('resume-row'),
     resumeText: el('resume-text'),
@@ -103,21 +98,17 @@ function boot() {
     textSubmit: el('text-submit'),
     summary: el('summary'),
     reviewIntro: el('review-intro'),
-    sttRow: el('stt-row'),
-    useBrowserStt: el('use-browser-stt'),
     confirmAnswers: el('confirm-answers'),
     readbackControls: el('readback-controls'),
     acceptReadback: el('accept-readback'),
     rejectReadback: el('reject-readback'),
     importFile: el('import-file'),
-    importStatus: el('import-status')
+    importStatus: el('import-status'),
+    setupStatus: el('setup-status')
   });
-
-  if (stt.isSupported()) ui.sttRow.hidden = false;
 
   showSavedSession();
 
-  ui.apiKey.value = store.getApiKey();
   ui.start.addEventListener('click', () => start(false));
   ui.resume.addEventListener('click', () => start(true));
   ui.discard.addEventListener('click', () => {
@@ -162,39 +153,8 @@ function boot() {
 }
 
 async function start(resume) {
-  const key = ui.apiKey.value.trim();
   mode = document.querySelector('input[name="mode"]:checked').value;
-  stt.setPermitted(ui.useBrowserStt?.checked);
   confirmEachAnswer = ui.confirmAnswers?.checked !== false;
-
-  if (key) {
-    store.setApiKey(key);
-    setStatus('Checking your API key…');
-    const check = await llm.verifyKey();
-    if (!check.ok) {
-      const msg = check.kind === 'auth'
-        ? 'That API key was rejected. Check it and try again, or leave it blank to use typing mode.'
-        : `Could not reach OpenAI: ${check.message}`;
-      announce(msg, true);
-      setStatus(msg);
-      return;
-    }
-  } else if (mode !== 'text') {
-    // With browser recognition allowed, a voice interview needs no key at all:
-    // speech comes from the pre-synthesized clips, listening from the browser,
-    // and answers from the local parser. Questions it cannot parse become a
-    // re-ask rather than a model call.
-    if (stt.isPermitted()) {
-      speech.forceFallback(true);
-      announce('No API key given. I will use your browser to listen and speak. '
-        + 'Some answers may need a second try.', true);
-    } else {
-      mode = 'text';
-      document.querySelector('input[name="mode"][value="text"]').checked = true;
-      announce('No API key given, so I switched to typing mode with your browser voice.', true);
-      speech.forceFallback(true);
-    }
-  }
 
   if (mode !== 'text') {
     try {
@@ -205,6 +165,21 @@ async function start(resume) {
       announce(err.kind === 'denied'
         ? 'Microphone access was blocked, so I switched to typing mode. You can allow the microphone in your browser settings and reload.'
         : 'No microphone is available, so I switched to typing mode.', true);
+    }
+  }
+
+  // The speech model loads before the first question, so the first answer is
+  // not the one that waits for it. Typing mode still starts it, in the
+  // background, because the talk button is on screen there too.
+  if (!voiceDisabled) {
+    if (mode === 'text') {
+      loadSpeechModel().catch(() => {});
+    } else {
+      try {
+        await loadSpeechModel();
+      } catch (err) {
+        speechModelFailed(err);
+      }
     }
   }
 
@@ -225,6 +200,44 @@ async function start(resume) {
 
   await speech.speak(introFor(mode));
   askCurrent({ announceSection: true });
+}
+
+/**
+ * Start the on-device transcriber, reporting progress on screen. Loading is
+ * from this computer's disk, so it is usually a second or two; the progress
+ * is for the slow machine where it is not.
+ */
+function loadSpeechModel() {
+  // Shown on both panels: typing mode starts the interview while this runs.
+  const show = text => {
+    setStatus(text);
+    if (ui.setupStatus) ui.setupStatus.textContent = text;
+  };
+  show('Loading the speech model…');
+  announce('Loading the speech model.', true);
+  let lastPct = -1;
+  return localstt.load(({ file, loaded, total }) => {
+    if (!total || !/\.onnx$/.test(file ?? '')) return;
+    const pct = Math.floor((loaded / total) * 10) * 10;
+    if (pct !== lastPct) { lastPct = pct; show(`Loading the speech model… ${pct}%`); }
+  }).finally(() => {
+    // Clear only our own text. In typing mode the interview is already under
+    // way, and the status line may by now say something that matters.
+    if (ui.status?.textContent.startsWith('Loading the speech model')) setStatus('');
+    if (ui.setupStatus) ui.setupStatus.textContent = '';
+  });
+}
+
+/** The model cannot run here. Voice closes; typing carries the interview. */
+function speechModelFailed(err) {
+  console.error(err);
+  mode = 'text';
+  const msg = err?.kind === 'unsupported'
+    ? 'This browser cannot run the speech model, so I switched to typing mode.'
+    : 'The speech model could not start, so I switched to typing mode.';
+  setStatus(msg);
+  announce(msg, true);
+  disableVoice();
 }
 
 function introFor(m) {
@@ -369,18 +382,17 @@ async function handleTranscript(transcript) {
   // A transcript read-back is open: this turn is a yes/no about what was heard
   // last time, not an answer to the form question. Checked before everything
   // else for the same reason the delete confirmation is — a bare "no" here
-  // means "that is not what I said", and must never reach the extractor.
+  // means "that is not what I said", and must never reach the parser.
   if (checking) { await handleTranscriptCheck(transcript); return; }
 
-  // "Which answer would you like to change?" is matched locally, never by the
-  // model — see the note at the top of correct.js.
+  // "Which answer would you like to change?" is matched by correct.js, not by
+  // the answer parser — see the note at the top of that file.
   if (inCorrectionPrompt()) { setStatus(''); await handleFieldName(transcript); return; }
 
   // "Remove that last provider" mid-interview is a command, not an answer.
-  // The model has no delete command to return — left to the extractor this
-  // would be recorded as the value of whatever question is open — so the
-  // phrase is caught locally, before extraction, and only when it names a
-  // group that actually holds something.
+  // Left to the parser it would be recorded as the value of whatever question
+  // is open, so the phrase is caught first, and only when it names a group
+  // that actually holds something.
   if (!pending && namesSomethingToDelete(transcript)) {
     setStatus('');
     resumeAfterPrompt = true;
@@ -388,9 +400,9 @@ async function handleTranscript(transcript) {
     return;
   }
 
-  // Navigation words are matched locally on the voice path too, not only when
-  // typed. "Go back" is a fixed vocabulary; paying a model to recognize it
-  // adds a network round trip to the least ambiguous thing a user can say.
+  // Navigation words are matched on the voice path too, not only when typed.
+  // Checked before parsing, so "skip" on a free-text question is a command and
+  // not an answer of "Skip".
   if (!pending) {
     const cmd = localCommand(transcript);
     if (cmd) { setStatus(''); await runCommand(cmd); return; }
@@ -403,32 +415,17 @@ async function handleTranscript(transcript) {
   // which is why it is reshaped here rather than handled separately.
   const asked = pending ? { ...q, type: 'yesno', prompt: 'Is that correct?' } : q;
 
-  // Most turns never reach the model: yes/no, digit strings, and dates have
-  // one correct reading, and parseLocal() returns it or returns null. Null
-  // means it was not certain, which is the only case worth paying for.
-  let result = parseLocal(asked, transcript);
-
-  if (!result && !store.getApiKey()) {
-    // No key and the local parser was not sure. A re-ask is the honest
-    // outcome; there is nothing else to consult.
+  // parseLocal() returns the one correct reading or null. Null means it was
+  // not certain, and with nothing else to consult a re-ask is the honest
+  // outcome — carrying the question's hint about the shape it wants.
+  const local = parseLocal(asked, transcript);
+  if (!local) {
     await reask(asked.hint ? `${say.REASK.generic} ${asked.hint}` : say.REASK.generic);
     return;
   }
-
-  if (!result) {
-    setStatus('Thinking…');
-    audio.earcon('think');
-    try {
-      result = await llm.extract(asked, transcript);
-    } catch (err) {
-      await handleLlmError(err);
-      return;
-    }
-  } else {
-    // parseLocal() produces a candidate; normalize() stays the single place
-    // that decides whether a value is well formed.
-    result = llm.normalize(result, asked);
-  }
+  // parseLocal() produces a candidate; normalize() stays the single place
+  // that decides whether a value is well formed.
+  const result = normalize(local, asked);
 
   if (result.command) { await runCommand(result.command); return; }
 
@@ -614,7 +611,6 @@ async function onTalkDown(e) {
   announce('Listening', true);
   try {
     await audio.startRecording();
-    beginSttAttempt();
   } catch (err) {
     resetTalkButton();
     announce('The microphone is not available. Switching to typing.', true);
@@ -637,9 +633,9 @@ async function listenHandsFree() {
   ui.talk.textContent = 'Listening — speak now';
   // Nobody reads out nine digits without breathing. At the default silence
   // window a pause after "five five five" ended the capture, and the rest of
-  // the number was never recorded at all — no transcriber, paid or free, can
-  // recover audio that was not captured. Digit fields get a window long
-  // enough to group them in, and a longer ceiling to match.
+  // the number was never recorded at all — no transcriber can recover audio
+  // that was not captured. Digit fields get a window long enough to group
+  // them in, and a longer ceiling to match.
   const digits = needsAccurateDigits(askedQuestion());
   try {
     await audio.startRecording({
@@ -652,7 +648,6 @@ async function listenHandsFree() {
         await sendAudio(blob);
       }
     });
-    beginSttAttempt();
   } catch {
     resetTalkButton();
     disableVoice();
@@ -662,29 +657,6 @@ async function listenHandsFree() {
 /** How long a pause may last inside a spoken digit string before it ends. */
 const DIGIT_SILENCE_MS = 3000;
 const DIGIT_MAX_CAPTURE_MS = 60000;
-
-/**
- * Start listening with the browser's recognizer, if the user allowed it.
- *
- * Fire and forget: sendAudio() awaits whatever this produced, and a null
- * result simply means the paid path handles the turn.
- */
-function beginSttAttempt() {
-  if (!stt.isPermitted()) { sttAttempt = null; return; }
-  const controller = new AbortController();
-  // Same reason the recorder gets a longer silence window: left in
-  // single-utterance mode the recognizer finalizes on the first pause and
-  // reports only the digits before it.
-  const digits = needsAccurateDigits(askedQuestion());
-  sttAttempt = {
-    controller,
-    promise: stt.listen({
-      signal: controller.signal,
-      continuous: digits,
-      timeoutMs: digits ? DIGIT_MAX_CAPTURE_MS : undefined
-    })
-  };
-}
 
 /**
  * The question a capture starting right now would be answering.
@@ -699,27 +671,17 @@ function askedQuestion() {
   return (pending || checking) ? { ...q, type: 'yesno' } : q;
 }
 
-/** Collect whatever the browser recognizer heard, and clear the attempt. */
-async function takeSttResult() {
-  const attempt = sttAttempt;
-  sttAttempt = null;
-  if (!attempt) return null;
-  attempt.controller.abort();
-  try { return await attempt.promise; } catch { return null; }
-}
-
 async function sendAudio(blob) {
-  // Four cheap filters before paying to transcribe. The size check catches a
-  // recorder that produced nothing; the duration check catches a bumped space
-  // bar; the level check catches a turn that captured only room tone, whether
-  // it auto-stopped on a cough or the user pressed and released without
-  // saying anything. All four end the same way — ask again — because the one
-  // thing that must not happen is the form moving on from a question the user
-  // never actually answered.
+  // Four cheap filters before transcribing. The size check catches a recorder
+  // that produced nothing; the duration check catches a bumped space bar; the
+  // level check catches a turn that captured only room tone, whether it
+  // auto-stopped on a cough or the user pressed and released without saying
+  // anything. All four end the same way — ask again — because the one thing
+  // that must not happen is the form moving on from a question the user never
+  // actually answered.
   if (!blob || blob.size < 800
       || audio.lastCaptureDurationMs() < MIN_CAPTURE_MS
       || !audio.lastCaptureHadSpeech()) {
-    takeSttResult();
     await reask(say.REASK.nothingHeard);
     return;
   }
@@ -727,43 +689,32 @@ async function sendAudio(blob) {
   setStatus('Transcribing…');
   try {
     // Shaped as yes/no while a read-back is open, which keeps the digit gate
-    // below from forcing a paid transcription of the word "yes" just because
-    // the question it belongs to asks for a Social Security number.
+    // below from refusing the word "yes" just because the question it belongs
+    // to asks for a Social Security number.
     const asked = askedQuestion();
-    if (!asked) { takeSttResult(); return; }
+    if (!asked) return;
 
-    let transcript = await takeSttResult();
-
-    // The browser recognizer has no equivalent of the transcription hint that
-    // primes the paid API for digit strings, and these are the fields where a
-    // misread digit does lasting damage. When it returns something that is not
-    // cleanly a number of the right shape, spend the money rather than lean on
-    // the read-back to catch it.
-    //
-    // "Of the right shape" has to include the length. A recognizer that
-    // finalized after the first group of an SSN returns a clean, parseable
-    // "555", and trusting it here is how nine spoken digits became three.
-    if (transcript && needsAccurateDigits(asked) && !digitsSurviveNormalize(asked, transcript)) {
-      transcript = null;
-    }
-
-    if (!transcript && !store.getApiKey()) {
-      // Nothing usable and nothing to fall back to. On a digit field what was
-      // heard was most likely a truncated capture rather than silence, and
-      // "I did not hear anything" sends the user looking for a microphone
-      // problem they do not have. reask() adds the question's own hint, which
-      // is where the advice about pausing between groups lives.
-      await reask(needsAccurateDigits(asked) ? say.REASK.unsure : say.REASK.nothingHeard);
-      return;
-    }
-    if (!transcript) {
-      transcript = await llm.transcribe(blob, { hint: llm.hintFor(asked) });
-    }
+    const transcript = await localstt.transcribe(blob);
 
     // A transcriber handed near-silence does not return nothing; it returns a
     // short plausible phrase. Reject those rather than record them.
     if (isEmptyTranscript(transcript)) {
       await reask(say.REASK.nothingHeard);
+      return;
+    }
+
+    // These are the fields where a misread digit does lasting damage. A
+    // transcript that is not cleanly a number of the right shape is asked
+    // again rather than read back — and "the right shape" includes the
+    // length, because a capture that ended after the first group of an SSN
+    // is a clean, parseable "555". reask() adds the question's own hint,
+    // which is where the advice about pausing between groups lives.
+    // Commands and "remove that provider" are let through to be handled.
+    if (needsAccurateDigits(asked) && !localCommand(transcript)
+        && !namesSomethingToDelete(transcript)
+        && !digitsSurviveNormalize(asked, transcript)) {
+      setStatus(`You said: ${transcript}`);
+      await reask(say.REASK.unsure);
       return;
     }
 
@@ -778,7 +729,7 @@ async function sendAudio(blob) {
     // "I heard nothing" is a re-ask, not an error: no earcon, no lecture, and
     // the question stays open.
     if (err?.kind === 'empty') { await reask(say.REASK.nothingHeard); return; }
-    await handleLlmError(err);
+    await handleSttError(err);
   } finally {
     busy = false;
   }
@@ -901,7 +852,6 @@ function hideReadBackControls() {
  */
 function dropOpenCapture() {
   if (audio.isRecording()) audio.cancelRecording();
-  takeSttResult();
   resetTalkButton();
 }
 
@@ -954,7 +904,7 @@ async function rejectReadBack() {
   resumeListening();
 }
 
-/** Types where an unnoticed digit error is worth paying to avoid. */
+/** Types where an unnoticed digit error does lasting damage. */
 const ACCURATE_DIGIT_TYPES = new Set(['ssn', 'routing', 'account', 'phone']);
 const needsAccurateDigits = q => ACCURATE_DIGIT_TYPES.has(q?.type);
 
@@ -964,7 +914,7 @@ const needsAccurateDigits = q => ACCURATE_DIGIT_TYPES.has(q?.type);
  * The local parser deliberately does not check length — parseSensitiveDigits()
  * hands anything numeric straight through so that normalize() stays the single
  * place that decides what is well formed. That is right for parsing and wrong
- * for deciding whether to spend money on a better transcription: "555" is a
+ * for deciding whether a transcript is worth reading back: "555" is a
  * perfectly good parse of a recording that actually contained nine digits.
  *
  * So ask normalize(), rather than writing the lengths out a second time here
@@ -972,7 +922,7 @@ const needsAccurateDigits = q => ACCURATE_DIGIT_TYPES.has(q?.type);
  */
 function digitsSurviveNormalize(question, transcript) {
   const local = parseLocal(question, transcript);
-  return !!local && !llm.normalize(local, question).needsClarification;
+  return !!local && !normalize(local, question).needsClarification;
 }
 
 async function submitTyped() {
@@ -991,10 +941,9 @@ async function submitTyped() {
     // question", and it is handled inside handleFieldName().
     if (inCorrectionPrompt()) { await handleFieldName(text); return; }
 
-    // handleTranscript() matches navigation words locally before anything
-    // else, so the typed path only needs its own check on the key-free route.
-    if (store.getApiKey()) await handleTranscript(text);
-    else await handleTypedDirect(text);
+    // Typed text is taken as written: no transcript read-back, and no
+    // clean-up of words the user chose to type.
+    await handleTypedDirect(text);
   } finally {
     busy = false;
   }
@@ -1039,7 +988,7 @@ function localCommand(text) {
   return null;
 }
 
-/** Typing mode with no API key: parse locally so the app works key-free. */
+/** A typed answer: parsed locally, or taken as written for free text. */
 async function handleTypedDirect(text) {
   const cmd = localCommand(text);
   if (cmd) { await runCommand(cmd); return; }
@@ -1065,10 +1014,9 @@ async function handleTypedDirect(text) {
   // Through the local parser first, the same way a spoken answer goes. Without
   // it normalize() sees the raw text and can only accept what is already in
   // the shape it wants — so a typed "March 14th 1979" was refused on a date
-  // question that had just asked for exactly that, in a mode whose whole
-  // purpose is working without the model.
+  // question that had just asked for exactly that.
   const local = parseLocal(q, text);
-  const result = llm.normalize(
+  const result = normalize(
     local ?? { command: null, value: text, confidence: 1, needsClarification: false, clarifyPrompt: null },
     q
   );
@@ -1094,12 +1042,11 @@ async function handleTypedDirect(text) {
 /**
  * Close the voice lane for good.
  *
- * Only for a microphone that cannot work — permission denied, no device, or an
- * API key the transcriber rejected. Everything else leaves the talk button on
- * screen, because a user who typed one answer has not given up on speaking.
+ * Only for voice that cannot work — microphone permission denied, no device,
+ * or a speech model that cannot run. Everything else leaves the talk button
+ * on screen, because a user who typed one answer has not given up on speaking.
  */
 function disableVoice() {
-  takeSttResult();
   voiceDisabled = true;
   mode = 'text';
   lastInputWasText = true;
@@ -1135,7 +1082,7 @@ let spaceHeld = false;
 
 function onKeyDown(e) {
   if (ui.interview?.hidden) return;
-  const typing = e.target === ui.textAnswer || e.target === ui.apiKey;
+  const typing = e.target === ui.textAnswer;
 
   // While an answer is being read back the space bar keeps it, rather than
   // starting a recording. This is the whole point of the read-back for a
@@ -1178,9 +1125,6 @@ function onKeyDown(e) {
   const map = { Enter: 'repeat', KeyB: 'back', KeyS: 'skip', KeyW: 'where', KeyR: 'readback', KeyC: 'correct' };
   if (e.code === 'Escape' && audio.isRecording()) {
     audio.cancelRecording();
-    // Stop the recognizer too, and drop whatever it heard. Left running, its
-    // result would arrive on whatever turn happens to be open next.
-    takeSttResult();
     resetTalkButton();
     setStatus('Cancelled.');
     announce('Cancelled', true);
@@ -1207,16 +1151,17 @@ function onKeyUp(e) {
 
 // -- errors ----------------------------------------------------------------
 
-async function handleLlmError(err) {
+async function handleSttError(err) {
   audio.earcon('error');
   const kind = err?.kind ?? 'unknown';
+  // The model itself is gone — the worker died or never loaded. Retrying the
+  // turn would fail the same way, so the interview carries on by keyboard.
+  if (kind === 'model' || kind === 'unsupported') { speechModelFailed(err); return; }
   const msg = say.ERRORS[kind] ?? say.ERRORS.unknown;
   setStatus(msg);
   announce(msg, true);
-  if (kind === 'auth' || kind === 'network') speech.forceFallback(true);
   await speech.speak(msg);
-  if (kind === 'auth') disableVoice();
-  else if (mode === 'handsfree') queueListen();
+  if (mode === 'handsfree') queueListen();
 }
 
 // -- finish, review, export ------------------------------------------------
@@ -1698,7 +1643,6 @@ async function exportForms(ids) {
 
 function clearEverything() {
   store.clearState();
-  store.clearApiKey();
   engine?.reset();
   audio.releaseMic();
   const msg = 'Everything has been erased from this device.';
@@ -1709,7 +1653,6 @@ function clearEverything() {
   ui.interview.hidden = true;
   ui.setup.hidden = false;
   ui.resumeRow.hidden = true;
-  ui.apiKey.value = '';
   if (ui.importFile) ui.importFile.value = '';
   setImportStatus('');
 }
@@ -1732,7 +1675,7 @@ function setImportStatus(text) {
 /**
  * Load a file written by "Save my answers as a file" into this device's saved
  * session, then offer it on the resume row. The file is not started straight
- * away: the mode, microphone and API key still have to be settled first, and
+ * away: the mode, microphone and speech model still have to be settled first, and
  * those are the same choices the resume button already runs through.
  */
 async function onImportFile(event) {

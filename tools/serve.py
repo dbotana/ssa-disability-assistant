@@ -8,6 +8,11 @@ serves one.
 
 Bound to 127.0.0.1 on purpose. The default for http.server is every interface,
 which would put a form holding someone's SSN on the local network.
+
+Every response carries the same Content-Security-Policy as index.html. The
+<meta> tag there covers the page; this header is what covers the speech
+worker, which takes its policy from its own response. tools/serve.mjs sends
+the identical set, and tests/no-network.js checks all three agree.
 """
 
 import functools
@@ -21,6 +26,19 @@ ROOT = Path(__file__).resolve().parent.parent
 FIRST_PORT = 8000
 TRIES = 20
 
+HEADERS = {
+    # Nothing is fetched from anywhere but this server.
+    "Content-Security-Policy": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; connect-src 'self'; media-src 'self' blob:; img-src 'self' data:; style-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'",
+    # Cross-origin isolation. It lets the speech model's WebAssembly run on
+    # several threads (SharedArrayBuffer), which makes transcription a few
+    # times faster, and it also shuts out cross-origin windows and embeds.
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Cross-Origin-Embedder-Policy": "require-corp",
+    "Cross-Origin-Resource-Policy": "same-origin",
+    "Referrer-Policy": "no-referrer",
+    "X-Content-Type-Options": "nosniff",
+}
+
 
 class Server(http.server.ThreadingHTTPServer):
     # ThreadingHTTPServer, not a bare TCPServer, for two reasons. It sets
@@ -33,10 +51,25 @@ class Server(http.server.ThreadingHTTPServer):
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
+    # Not left to the mimetypes module: it has no .wasm before Python 3.12,
+    # and on Windows it reads .js from the registry, which is sometimes
+    # text/plain. A browser refuses a module or a streamed WebAssembly file
+    # served as the wrong type.
+    extensions_map = {
+        **http.server.SimpleHTTPRequestHandler.extensions_map,
+        ".js": "text/javascript",
+        ".mjs": "text/javascript",
+        ".wasm": "application/wasm",
+        ".onnx": "application/octet-stream",
+        ".json": "application/json",
+    }
+
     def end_headers(self):
         # Without this a stale copy survives a `git pull`, and the user is
         # debugging a version they no longer have.
         self.send_header("Cache-Control", "no-store")
+        for name, value in HEADERS.items():
+            self.send_header(name, value)
         super().end_headers()
 
     def log_message(self, fmt, *args):

@@ -10,13 +10,12 @@ fi
 
 cat <<'MSG'
 
-  Python 3 and Node are both missing, so the assistant cannot run locally.
+  Python 3 and Node are both missing, so the assistant cannot start.
 
-  You can use it in your browser instead, with nothing to install:
+  Install Python 3 with your package manager and run this again.
 
-      https://dbotana.github.io/ssa-disability-assistant/
-
-  Or install Python 3 with your package manager and run this again.
+  (This version runs only on your own computer, so that what you say
+  never leaves it. There is no web address to use instead.)
 
 MSG
 exit 1

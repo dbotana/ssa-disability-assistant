@@ -2,7 +2,8 @@
 //
 // This is the fallback for machines with Node but no Python. It mirrors
 // tools/serve.py exactly: same ports, same 127.0.0.1-only binding, same
-// browser launch. See that file for why file:// is not an option.
+// security headers, same browser launch. See that file for why file:// is not
+// an option, and why the headers matter.
 
 import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
@@ -24,6 +25,8 @@ const TYPES = {
   '.mjs': 'text/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
   '.pdf': 'application/pdf',
+  '.wasm': 'application/wasm',
+  '.onnx': 'application/octet-stream',
   '.mp3': 'audio/mpeg',
   '.wav': 'audio/wav',
   '.svg': 'image/svg+xml',
@@ -31,6 +34,16 @@ const TYPES = {
   '.jpg': 'image/jpeg',
   '.ico': 'image/vnd.microsoft.icon',
   '.woff2': 'font/woff2'
+};
+
+// Identical to HEADERS in tools/serve.py.
+const HEADERS = {
+  'Content-Security-Policy': "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; connect-src 'self'; media-src 'self' blob:; img-src 'self' data:; style-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'",
+  'Cross-Origin-Opener-Policy': 'same-origin',
+  'Cross-Origin-Embedder-Policy': 'require-corp',
+  'Cross-Origin-Resource-Policy': 'same-origin',
+  'Referrer-Policy': 'no-referrer',
+  'X-Content-Type-Options': 'nosniff'
 };
 
 function openBrowser(url) {
@@ -47,7 +60,7 @@ function openBrowser(url) {
 
 const server = createServer(async (req, res) => {
   const send = (code, body) => {
-    res.writeHead(code, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.writeHead(code, { ...HEADERS, 'Content-Type': 'text/plain; charset=utf-8' });
     res.end(body);
   };
 
@@ -73,6 +86,7 @@ const server = createServer(async (req, res) => {
   try {
     const info = await stat(file);
     res.writeHead(200, {
+      ...HEADERS,
       'Content-Type': TYPES[extname(file).toLowerCase()] ?? 'application/octet-stream',
       'Content-Length': info.size,
       'Cache-Control': 'no-store'

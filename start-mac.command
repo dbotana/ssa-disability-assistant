@@ -14,14 +14,13 @@ fi
 cat <<'MSG'
 
   This Mac does not have Python or Node installed, so the assistant
-  cannot run locally.
+  cannot start.
 
-  You can use it in your browser instead, with nothing to install:
-
-      https://dbotana.github.io/ssa-disability-assistant/
-
-  Or install Python from https://www.python.org/downloads/ and
+  Install Python from https://www.python.org/downloads/ and
   double-click this file again.
+
+  (This version runs only on your own computer, so that what you say
+  never leaves it. There is no web address to use instead.)
 
 MSG
 # Without this the window closes before the message can be read.

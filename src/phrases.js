@@ -3,11 +3,11 @@
 // These live here rather than inline at their call sites for one reason:
 // tools/build-audio.mjs pre-synthesizes them, and a string that exists in two
 // places will eventually differ in one of them. A drifted copy does not fail
-// loudly — it just misses the audio cache forever and quietly bills the user
-// for speech that is already on disk. One definition, imported by both.
+// loudly — it just misses the recorded clip forever and is read by the
+// system voice instead. One definition, imported by both.
 //
 // Anything containing a user's answer belongs at its call site instead; it is
-// synthesized at runtime and cached per-listener.
+// spoken at runtime by an on-device voice and never recorded anywhere.
 
 export const INTRO = {
   text: 'Typing mode. I will ask a question, you type the answer and press Enter. '
@@ -54,9 +54,9 @@ export const ANSWER_AGAIN = 'Go ahead. Say your answer again, or type it instead
 export const TYPING_LANE = 'Typing. Press Escape when you want the space bar to talk again.';
 export const VOICE_LANE = 'Voice. Hold the space bar to talk, or press T to type.';
 
-// Reask and clarification prompts. The model can author its own clarifyPrompt,
-// which is dynamic and synthesized at runtime; these are the fixed fallbacks
-// used when it does not, and they are by far the common case.
+// Reask and clarification prompts. normalize() in validate.js writes a few
+// type-specific ones of its own; these are the fixed fallbacks, and they are
+// by far the common case.
 export const REASK = {
   generic: 'I did not catch that. Could you say it again?',
   yesno: 'Please answer yes or no. Is that correct?',
@@ -66,12 +66,10 @@ export const REASK = {
   unsure: 'I am not sure I heard that correctly. Could you say it again?'
 };
 
-// Spoken recovery for each LlmError kind. Keyed to match err.kind.
+// Spoken recovery for each SttError kind that leaves the voice lane open.
+// Keyed to match err.kind. A model that cannot run at all closes the lane
+// instead, and says so in main.js the same way a missing microphone does.
 export const ERRORS = {
-  auth: 'Your API key was rejected. Reload the page and enter a valid key, or continue in typing mode.',
-  rate: 'OpenAI is rate limiting the request. Give it a moment and try again.',
-  network: 'I cannot reach OpenAI right now. Check your connection and try again.',
-  server: 'OpenAI had a server error. Please try that answer again.',
   empty: 'I did not hear anything. Please try again, or say skip.',
   unknown: 'Something went wrong. Please try that answer again.'
 };
