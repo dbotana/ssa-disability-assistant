@@ -1,0 +1,57 @@
+# The Social Security number by voice: the digit gate refuses a capture that
+# is not cleanly nine digits, and the read-back speaks the parsed digits in
+# their groups, so a misheard digit is caught before it is kept.
+scenario: ssn digit gate and digit read-back
+steps:
+  - start:
+      mode: voice
+      confirm: false
+  - say: starter kit
+  - say: Ada
+  - say: Lovelace
+  # Date of birth confirms itself whatever the read-back setting.
+  - say: March 14th 1979
+  - say: yes
+  - say: Bangor
+  - say: Maine
+  - say: United States
+  - expect:
+      question: "Social Security number"
+
+  # A capture that ended after the first group parses cleanly as "555", and
+  # is refused rather than read back.
+  - say: five five five
+  - expect:
+      readback: closed
+      spoken: "not sure I heard that correctly"
+      answers:
+        ssn: null
+
+  # Words around the digits are not digits.
+  - say: my social is 987 65 4321
+  - expect:
+      readback: closed
+      answers:
+        ssn: null
+
+  # The field confirms itself even with read-backs turned off, digit by digit.
+  - say: "9, 8, 7, 6, 5, 4, 3, 2, 1"
+  - expect:
+      readback: open
+      question: "I heard 9 8 7, 6 5, 4 3 2 1"
+  - say: no
+  - expect:
+      readback: closed
+      question: "Social Security number"
+      answers:
+        ssn: null
+
+  - say: 987-65-4321
+  - expect:
+      readback: open
+      spoken: "I heard 9 8 7, 6 5, 4 3 2 1"
+  - say: "yes it is"
+  - expect:
+      readback: closed
+      answers:
+        ssn: "987654321"

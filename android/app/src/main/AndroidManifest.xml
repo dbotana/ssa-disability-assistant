@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The whole point of this app is that nothing leaves the device. It asks for
+  the microphone (RECORD_AUDIO, and MODIFY_AUDIO_SETTINGS for headset routing)
+  and nothing that reaches a network. The removals below strip INTERNET and
+  ACCESS_NETWORK_STATE from any library manifest that brings one in, in both
+  the <uses-permission> and the <uses-permission-sdk-23> forms; a removal of
+  one form does not touch the other. Behind them: the build fails if either
+  survives into a merged manifest (verify<Variant>NoNetworkPermissions), and CI
+  audits every APK and AAB module (tools/audit-permissions.sh).
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission
+        android:name="android.permission.INTERNET"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.ACCESS_NETWORK_STATE"
+        tools:node="remove" />
+    <uses-permission-sdk-23
+        android:name="android.permission.INTERNET"
+        tools:node="remove" />
+    <uses-permission-sdk-23
+        android:name="android.permission.ACCESS_NETWORK_STATE"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission
+        android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+
+    <application
+        android:label="@string/app_name"
+        android:icon="@mipmap/ic_launcher"
+        android:theme="@style/Theme.SsaAssistant"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:supportsRtl="true"
+        android:hardwareAccelerated="true">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:launchMode="singleTask">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- The model is passed in as a ParcelFileDescriptor through an
+             isolated-process bound service, so a native crash or OOM kills
+             only that process. The declaration itself lands with the LLM in
+             M6; the app manifest keeps the wiring point documented. -->
+    </application>
+</manifest>

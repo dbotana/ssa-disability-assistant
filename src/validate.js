@@ -90,7 +90,10 @@ export function normalize(result, question) {
       break;
     case 'money':
     case 'number': {
-      const n = Number(String(out.value).replace(/[^0-9.\-]/g, ''));
+      // Number('') is 0, so a typed "a few" or "none" — nothing numeric in it
+      // at all — would otherwise be committed as zero.
+      const numeric = String(out.value).replace(/[^0-9.\-]/g, '');
+      const n = /\d/.test(numeric) ? Number(numeric) : NaN;
       if (!Number.isFinite(n)) fail('Could you say that as a number?');
       else out.value = n;
       break;

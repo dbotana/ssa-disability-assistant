@@ -26,10 +26,8 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-import { SECTIONS, sectionCountsByForm } from '../src/schema.js';
-import { allPhrases } from '../src/phrases.js';
-import { canonical, normalizeText, VOICE, TTS_INSTRUCTIONS } from '../src/ttshash.js';
-import { formatTimeRemaining } from '../src/a11y.js';
+import { canonical, VOICE, TTS_INSTRUCTIONS } from '../src/ttshash.js';
+import { collectCorpus } from './tts-corpus.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const AUDIO_DIR = join(ROOT, 'audio');
@@ -47,87 +45,7 @@ function hash(text) {
   return createHash('sha256').update(canonical(text), 'utf8').digest('hex').slice(0, 16);
 }
 
-// -- the corpus ------------------------------------------------------------
-
-/**
- * Every string the app can speak without a user's answer in it.
- *
- * Section preambles and item labels are emitted as their own clips rather than
- * baked into the question text. main.js speaks them as separate utterances so
- * each is an independent cache hit — otherwise "Section 3 of 19. <question>"
- * would be a distinct string from "<question>" and neither would ever be
- * reused.
- */
-function collectCorpus() {
-  const out = new Set();
-  const add = t => { const s = normalizeText(t); if (s) out.add(s); };
-
-  allPhrases().forEach(add);
-
-  // Sections are numbered among those the chosen forms use, so each form
-  // choice has its own count: "Section 3 of 20." for the Starter Kit alone,
-  // "of 19" for the DS application, "of 32" for both.
-  for (const count of sectionCountsByForm()) {
-    for (let i = 1; i <= count; i++) add(`Section ${i} of ${count}.`);
-  }
-
-  SECTIONS.forEach(section => {
-    add(`${section.title}.`);
-
-    for (const q of section.questions) {
-      add(q.prompt);
-      add(q.warn);
-      add(q.hint);
-      add(q.entryPrompt);
-      add(q.repeatPrompt);
-
-      for (const f of q.fields ?? []) {
-        add(f.prompt);
-        add(f.warn);
-        add(f.hint);
-      }
-
-      // "Provider 2." — spoken at the top of each loop item after the first.
-      if (q.itemLabel) {
-        for (let n = 2; n <= MAX_LOOP_ITEMS; n++) {
-          add(`${titleCase(q.itemLabel)} ${n}.`);
-        }
-        // Opening the first item of an empty list from the review screen has
-        // no "Provider 2." to announce it, so it says this instead.
-        add(`Adding a new ${q.itemLabel}.`);
-      }
-    }
-  });
-
-  // formatTimeRemaining() buckets hard, so its whole range is a few dozen
-  // strings. Enumerating them costs pennies once and makes every section
-  // break free.
-  for (const seconds of TIME_SAMPLES) {
-    const left = formatTimeRemaining(seconds);
-    if (left) add(`${left} left.`);
-  }
-
-  return [...out];
-}
-
-// Must match MAX_LOOP_ITEMS in src/correct.js, which refuses to add past it
-// for exactly this reason: item 13 would have no clip to announce it.
-const MAX_LOOP_ITEMS = 12;
-
-/** Enough sample points to hit every bucket formatTimeRemaining can return. */
-const TIME_SAMPLES = (() => {
-  const s = [30];
-  for (let m = 1; m <= 60; m += 1) s.push(m * 60);
-  for (let m = 60; m <= 300; m += 15) s.push(m * 60);
-  return s;
-})();
-
-/** Must match titleCase() in src/main.js, or multi-word labels never hit. */
-function titleCase(s) {
-  return String(s).replace(/^(.)/, (_, c) => c.toUpperCase());
-}
-
-// -- synthesis -------------------------------------------------------------
+// -- synthesis -------------------------------------------------------------// -- synthesis -------------------------------------------------------------
 
 async function synthesize(text, key) {
   const res = await fetch(`${BASE}/audio/speech`, {

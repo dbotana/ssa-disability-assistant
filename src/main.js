@@ -1,99 +1,42 @@
-// Application controller.
+// Application controller: the web adapter around turn.js.
 //
-// Owns the turn loop: ask -> listen -> transcribe -> parse -> confirm ->
-// commit -> advance. Every state change is announced, and every failure has a
-// spoken recovery path. Every step runs on this device: speech is transcribed
-// by localstt.js and answers are read by parse.js, and nothing is sent
-// anywhere.
+// Everything the interview *decides* lives in turn.js — a pure state machine
+// over injected ports that Android re-implements in Kotlin. This file is only
+// what a browser needs: DOM wiring, the microphone, the local transcriber,
+// session opening and PDF export. Every step runs on this device: speech is
+// transcribed by localstt.js and answers are read by parse.js, and nothing is
+// sent anywhere.
 
-import { SECTIONS, FORM_TITLES, formsOf, SENSITIVE_TYPES } from './schema.js';
+import { SECTIONS, FORM_TITLES, formsOf } from './schema.js';
 import { createEngine } from './engine.js';
 import { initA11y, announce, focusMain, speakableValue, formatTimeRemaining } from './a11y.js';
 import * as store from './store.js';
 import * as audio from './audio.js';
 import * as speech from './speech.js';
 import { normalize } from './validate.js';
-import { renderSummary, summaryText, downloadJson, maskDigits } from './summary.js';
-import {
-  resolveTarget, resolveChoice, describeTarget,
-  isDeletionPhrase, resolveDeletion, describeItem,
-  isAdditionPhrase, resolveAddition, buildTargets
-} from './correct.js';
+import { renderSummary, summaryText, downloadJson } from './summary.js';
+import * as correct from './correct.js';
 import { downloadForm } from './fill.js';
 import { readExportFile, ImportError } from './importer.js';
 import * as say from './phrases.js';
 import { parseLocal } from './parse.js';
 import * as localstt from './localstt.js';
+import { createTurnController } from './turn.js';
 
 const el = id => document.getElementById(id);
 
 const ui = {};
-let engine = null;
-// How the app *listens* — whether it opens the recorder on its own, and where
-// it puts focus after speaking. It no longer decides what the user is allowed
-// to use: both the talk button and the text box are on screen for the whole
-// interview, and either one can answer any question.
-let mode = 'voice';               // voice | handsfree | text
-// Set only when voice genuinely cannot work — the microphone is denied or
-// missing, or the speech model cannot run. Everything else leaves the voice
-// lane open.
-let voiceDisabled = false;
-// Which lane the last answer came from. Decides where focus lands after the
-// next question so someone typing is not thrown back to the talk button, and
-// someone speaking is not dropped into a text field.
-let lastInputWasText = false;
-let busy = false;
-// Whether an ordinary answer is read back for confirmation before it commits.
-// Off is a deliberate choice by someone who can read the screen and would
-// rather not hear every answer twice; the `confirm` fields ignore it.
-let confirmEachAnswer = true;
-let pending = null;               // { question, value } awaiting confirmation
-// The verbatim transcript of a voice answer, read back for a spoken yes/no
-// before anything is extracted from it. See askTranscriptCheck().
-let checking = null;              // { transcript, question }
-let lastSpoken = '';
-let lastSegments = [];            // the same utterance, unjoined, for `repeat`
-
-// Correction state. Exactly one of these is active at a time: the user is
-// naming a field, choosing between candidates, or answering the re-asked
-// question. All three return to the review screen when they finish.
-let correcting = null;            // { target, question } being re-asked
-let choosing = null;              // { candidates } offered for disambiguation
-let choosingItem = null;          // { loopId, itemLabel, candidates } to delete
-let confirmingDelete = null;      // { loopId, item } awaiting a yes/no
-// Growing a loop group from the review screen. Unlike the others this one
-// stays set while ordinary questions are answered — the fields of the new
-// item — and ends when the walk leaves that group.
-let adding = null;                // { loopId, itemLabel, startCount }
-// Deletion can start mid-interview, not only from the review screen. When it
-// does, finishing has to resume the question that was open, not jump to the
-// summary and strand the rest of the form.
-let resumeAfterPrompt = false;
-let awaitingFieldName = false;    // the "which answer?" prompt is open
-
-// Social Security and bank numbers are never saved (see store.js). These are
-// the ones a resumed session had been given before and must ask for again —
-// each once, before the forms are offered for download.
-let withheld = [];                // [{ id, loopId?, loopIndex? }]
+let turn = null;
 // A session read from an imported file, held in memory only until the
 // resume it sets up. It may hold sensitive answers; it is never written to
 // storage as it is.
 let importedSession = null;       // { savedAt, state, withheld }
-// Social Security and bank numbers are masked on screen unless the user asked
-// at setup to see them. Speech and the screen reader's live region always get
-// the full value: that read-back is how a wrong digit is caught.
-let revealSensitive = false;
-// Sensitive answers are dropped from memory after this long with no key, tap
-// or answer, and asked for again before the forms are filled.
-const IDLE_LOCK_MS = 15 * 60 * 1000;
-let idleTimer = null;
 
 // -- boot ------------------------------------------------------------------
 
 function boot() {
   initA11y();
-  // Warm the pre-synthesized clip index before the first question. play()
-  // awaits it anyway; doing it here keeps that await off the first utterance.
+  // Warm the pre-synthesized clip index before the first question.
   speech.loadManifest();
   Object.assign(ui, {
     setup: el('setup-panel'),
@@ -150,36 +93,112 @@ function boot() {
   // Deliberately not wired through [data-command]: runCommand() clears the
   // read-back state as its first act, which is exactly what these two must
   // not do.
-  ui.acceptReadback?.addEventListener('click', () => acceptReadBack());
-  ui.rejectReadback?.addEventListener('click', () => rejectReadBack());
+  ui.acceptReadback?.addEventListener('click', () => turn?.acceptReadBack());
+  ui.rejectReadback?.addEventListener('click', () => turn?.rejectReadBack());
 
   document.querySelectorAll('[data-command]').forEach(b =>
-    b.addEventListener('click', () => runCommand(b.dataset.command)));
+    b.addEventListener('click', () => turn?.runCommand(b.dataset.command)));
 
-  el('download-all').addEventListener('click', () => exportForms([...formsOf(engine.answers())]));
-  el('download-ssa').addEventListener('click', () => exportForms(['ssa']));
-  el('download-ds').addEventListener('click', () => exportForms(['ds']));
+  el('download-all').addEventListener('click', () => turn?.exportForms([...formsOf(turn.snapshot().answers)]));
+  el('download-ssa').addEventListener('click', () => turn?.exportForms(['ssa']));
+  el('download-ds').addEventListener('click', () => turn?.exportForms(['ds']));
   el('download-json').addEventListener('click', () => {
-    downloadJson(engine.answers(), engine.getState());
+    downloadJson(turn.snapshot().answers, turn.engineState());
     announce('Your answers were saved as a file.', true);
   });
-  el('read-back').addEventListener('click', () => speech.speak(summaryText(engine.answers())));
-  el('fix-answer').addEventListener('click', startReview);
-  el('clear-data').addEventListener('click', clearEverything);
+  el('clear-data').addEventListener('click', () => {
+    turn?.clearEverything();
+    importedSession = null;
+    if (ui.importFile) ui.importFile.value = '';
+    setImportStatus('');
+    ui.resumeRow.hidden = true;
+  });
+  el('read-back').addEventListener('click', () => speech.speak(summaryText(turn.snapshot().answers)));
+  el('fix-answer').addEventListener('click', () => turn?.startReview());
 
   document.addEventListener('keydown', onKeyDown);
   document.addEventListener('keyup', onKeyUp);
-  document.addEventListener('pointerdown', touchActivity);
+  document.addEventListener('pointerdown', () => turn?.touch());
 
   if (new URLSearchParams(location.search).get('mode') === 'text') {
     document.querySelector('input[name="mode"][value="text"]').checked = true;
   }
 }
 
+// -- the turn controller ports --------------------------------------------------
+
+function makeTurn(saved) {
+  turn = createTurnController({
+    createEngine: (state, opts) => createEngine(SECTIONS, state ?? null, opts),
+    say,
+    parseLocal,
+    normalize,
+    speakable: speakableValue,
+    formatTimeRemaining,
+    correct,
+    store,
+    speech,
+    audio,
+    stt: localstt,
+    announce,
+    onState: render,
+    onExport: async ({ forms, answers }) => {
+      for (const id of forms) {
+        setStatus(`Filling in the ${FORM_TITLES[id]}…`);
+        await downloadForm(id, answers);
+      }
+    },
+    onReadBack: async answers => { speech.speak(summaryText(answers)); }
+  });
+  return turn;
+}
+
+/** Render the controller's snapshot onto the page. */
+function render(s) {
+  ui.setup.hidden = s.panel !== 'setup';
+  ui.interview.hidden = s.panel !== 'interview';
+  ui.review.hidden = s.panel !== 'review';
+  ui.textEntry.hidden = false;
+  ui.talk.hidden = s.voiceDisabled;
+
+  ui.sectionLabel.textContent = s.sectionLabel;
+  ui.question.textContent = s.questionText;
+  ui.hint.textContent = s.hintText;
+  setStatus(s.statusText);
+  ui.progressLine.textContent = s.progressText;
+  ui.reviewIntro.textContent = s.reviewIntro;
+  ui.readbackControls.hidden = !s.readbackOpen;
+  if (ui.textAnswer?.classList) {
+    if (s.inputMasked) ui.textAnswer.classList.add('masked');
+    else ui.textAnswer.classList.remove('masked');
+  }
+
+  if (s.panel === 'review') {
+    renderSummary(ui.summary, s.answers, { reveal: s.revealSensitive });
+    showDownloadButtons();
+  }
+  if (s.focus === 'download') firstDownloadButton()?.focus();
+  else if (s.focus === 'fix') el('fix-answer')?.focus();
+  else if (s.lane === 'text' || s.voiceDisabled) ui.textAnswer.focus();
+  else focusMain();
+}
+
+function showDownloadButtons() {
+  const chosen = formsOf(turn.snapshot().answers);
+  el('download-all').hidden = chosen.size < 2;
+  el('download-ssa').hidden = !chosen.has('ssa');
+  el('download-ds').hidden = !chosen.has('ds');
+}
+
+function firstDownloadButton() {
+  return ['download-all', 'download-ssa', 'download-ds'].map(el).find(b => b && !b.hidden) ?? null;
+}
+
+function setStatus(text) { if (ui.status) ui.status.textContent = text; }
+
 // start() derives the PIN's key and loads the speech model before the setup
 // panel goes away, which can take seconds. A second press in that time would
-// run a second start over the first: a session the first press took off disk
-// is replaced by an empty one, and a PIN it set up is forgotten.
+// run a second start over the first.
 let starting = false;
 
 async function startOnce(resume) {
@@ -193,12 +212,11 @@ async function startOnce(resume) {
 }
 
 async function start(resume) {
-  mode = document.querySelector('input[name="mode"]:checked').value;
-  confirmEachAnswer = ui.confirmAnswers?.checked !== false;
-  revealSensitive = ui.showSensitive?.checked === true;
+  const mode = document.querySelector('input[name="mode"]:checked').value;
+  const confirmEachAnswer = ui.confirmAnswers?.checked !== false;
+  const revealSensitive = ui.showSensitive?.checked === true;
 
   // The saved session, and the key that protects what is saved from here on.
-  // Settled first, so a wrong PIN costs nothing else.
   let saved;
   try {
     saved = await openSession(resume, ui.pin?.value ?? '');
@@ -216,75 +234,36 @@ async function start(resume) {
     try {
       await audio.initMic();
     } catch (err) {
-      mode = 'text';
-      voiceDisabled = true;
-      announce(err.kind === 'denied'
+      const msg = err.kind === 'denied'
         ? 'Microphone access was blocked, so I switched to typing mode. You can allow the microphone in your browser settings and reload.'
-        : 'No microphone is available, so I switched to typing mode.', true);
+        : 'No microphone is available, so I switched to typing mode.';
+      announce(msg, true);
+      makeTurn(saved);
+      await turn.start({ mode: 'text', confirm: confirmEachAnswer, reveal: revealSensitive, saved });
+      return;
     }
   }
 
   // The speech model loads before the first question, so the first answer is
-  // not the one that waits for it. Typing mode still starts it, in the
-  // background, because the talk button is on screen there too.
-  if (!voiceDisabled) {
-    if (mode === 'text') {
-      loadSpeechModel().catch(() => {});
-    } else {
-      try {
-        await loadSpeechModel();
-      } catch (err) {
-        speechModelFailed(err);
-      }
+  // not the one that waits for it.
+  if (mode !== 'text') {
+    try {
+      await loadSpeechModel();
+    } catch (err) {
+      speechModelFailed(err);
     }
+  } else {
+    loadSpeechModel().catch(() => {});
   }
 
-  engine = createEngine(SECTIONS, saved?.state ?? null);
-  withheld = (saved?.withheld ?? []).filter(w => !isAnswered(w));
-  // The first save of a resumed session happens now, not at the first
-  // answer: an older version's unencrypted copy was taken off disk as it was
-  // read, and this puts the session back, encrypted, if there is a PIN.
-  if (saved) saveSession();
-
-  ui.setup.hidden = true;
-  ui.interview.hidden = false;
-  ui.review.hidden = true;
-  // Both lanes, always. The mode radio picks how the interview *starts*, not
-  // what stays available: a typing-mode user can hold the talk button (the
-  // microphone is requested lazily on the first press), and a voice-mode user
-  // can type an answer and then go straight back to speaking.
-  ui.textEntry.hidden = false;
-  ui.talk.hidden = voiceDisabled;
-  lastInputWasText = mode === 'text';
-
-  await speech.speak(introFor(mode));
-  if (!store.isPersisting()) {
-    const msg = 'You did not set a PIN, so nothing is being saved. '
-      + 'If you close this page, your answers will be lost.';
-    announce(msg, true);
-    await speech.speak(msg);
-  }
-  if (withheld.length) {
-    const msg = 'For your security, your Social Security and bank numbers were not saved when you '
-      + 'stopped last time. I will ask for them again before your forms are ready.';
-    announce(msg, true);
-    await speech.speak(msg);
-  }
-  touchActivity();
-  askCurrent({ announceSection: true });
+  makeTurn(saved);
+  await turn.start({ mode, confirm: confirmEachAnswer, reveal: revealSensitive, saved });
+  turn.setConfirmEachAnswer(confirmEachAnswer);
 }
 
 /**
  * Open the session this interview continues, and set up how it is saved.
- *
- *   - Resume an encrypted session: its PIN opens it, and keeps protecting it.
- *   - Resume an imported file, or a session an older version left
- *     unencrypted: a PIN, if given, protects it from now on.
- *   - Start fresh: the saved session is deleted; a PIN, if given, protects
- *     the new one.
- *
- * No PIN means nothing is saved at all. Throws StoreError with a message
- * meant for the user.
+ * Throws StoreError with a message meant for the user.
  */
 async function openSession(resume, pin) {
   if (pin && pin.length < store.MIN_PIN_LENGTH) {
@@ -308,8 +287,6 @@ async function openSession(resume, pin) {
     }
     saved = store.takeLegacy();
   } else {
-    // A file loaded but not resumed is not kept: it holds the numbers the
-    // idle lock exists to drop, where the lock cannot reach them.
     importedSession = null;
     store.clearState();
   }
@@ -324,156 +301,9 @@ function setSetupStatus(text) {
   if (ui.setupStatus) ui.setupStatus.textContent = text;
 }
 
-/**
- * Save the session. A correction still open is a detour, so what is saved is
- * the place the walk returns to when it ends: saved mid-correction, a session
- * would otherwise resume at the corrected question and walk the rest of the
- * form again.
- */
-function saveSession(options) {
-  return store.saveState(engine.getState({ returnTo: correcting?.restore }), options);
-}
+// -- the speech model -----------------------------------------------------------
 
-// -- sensitive answers on screen and in memory ------------------------------
-
-const isSensitive = q => SENSITIVE_TYPES.has(q?.type);
-
-/** The question whatever is on screen right now is about. */
-function displayQuestion() {
-  return checking?.question ?? pending?.question ?? correcting?.question ?? engine?.current() ?? null;
-}
-
-/**
- * Text for the screen: digits hidden, all but the last four, when it is
- * about a sensitive question. The spoken and announced versions are never
- * masked — hearing every digit is how a misheard one is caught.
- */
-function onScreen(text, q) {
-  return revealSensitive || !isSensitive(q) ? text : maskDigits(text);
-}
-
-/** Hide what is typed into the answer box while it is a sensitive number. */
-function setInputMask(q) {
-  if (!ui.textAnswer?.classList) return;
-  if (!revealSensitive && isSensitive(q)) ui.textAnswer.classList.add('masked');
-  else ui.textAnswer.classList.remove('masked');
-}
-
-/** Any key, tap, or answer: restart the idle clock. */
-function touchActivity() {
-  clearTimeout(idleTimer);
-  if (!engine) return;
-  idleTimer = setTimeout(() => { lockSensitive().catch(() => {}); }, IDLE_LOCK_MS);
-  idleTimer?.unref?.();   // Node, in tests: never hold the process open
-}
-
-/**
- * Nobody has touched the page for IDLE_LOCK_MS: drop the Social Security and
- * bank numbers from memory, so a computer left unattended does not hand them
- * to whoever sits down at it — on screen, read back, or in a downloaded PDF.
- * They join `withheld` and are asked for again before the forms are filled.
- */
-async function lockSensitive() {
-  if (!engine) return;
-  const held = store.sensitiveAnswers(engine.getState());
-  const midAnswer = isSensitive(displayQuestion()) && readBackOpen();
-  if (!held.length && !midAnswer) return;
-
-  const dropped = held.map(fieldOf);
-  // A number being asked for again came off `withheld` when it was asked.
-  // Cleared before it was confirmed, it is still owed.
-  if (midAnswer && correcting) dropped.push(fieldOf(correcting.target));
-  for (const a of held) {
-    engine.setAnswer(a.id, null, { loopId: a.loopId ?? null, loopIndex: a.loopIndex ?? 0 });
-  }
-  for (const w of dropped) {
-    if (!withheld.some(x => sameField(x, w))) withheld.push({ ...w, idle: true });
-  }
-  // And on every save from now on, so a session resumed after the tab has
-  // closed asks for them too.
-  store.markWithheld(dropped);
-  saveSession();
-  if (ui.textAnswer) ui.textAnswer.value = '';
-  setStatus('');
-
-  const msg = 'For your security, I cleared your Social Security and bank numbers from this page '
-    + `after ${Math.round(IDLE_LOCK_MS / 60000)} minutes without activity. `
-    + 'I will ask for them again before your forms are ready.';
-
-  if (!ui.review.hidden) {
-    renderSummary(ui.summary, engine.answers(), { reveal: revealSensitive });
-    ui.reviewIntro.textContent = msg;
-    announce(msg, true);
-    await speech.speak(msg);
-    return;
-  }
-  if (midAnswer) {
-    // A number was being read back: it is gone, so ask the question again.
-    hideReadBackControls();
-    if (correcting) { await returnToReview(msg); return; }
-    pending = null;
-    checking = null;
-    await askCurrent({ prefix: msg });
-    return;
-  }
-  announce(msg, true);
-  await speech.speak(msg);
-}
-
-/** Does this field have an answer in the current session? */
-function isAnswered({ id, loopId = null, loopIndex = 0 }) {
-  const answers = engine.answers();
-  const v = loopId ? answers[loopId]?.[loopIndex]?.[id] : answers[id];
-  return v != null && v !== '';
-}
-
-const sameField = (a, b) => a.id === b.id && (a.loopId ?? null) === (b.loopId ?? null)
-  && (a.loopIndex ?? 0) === (b.loopIndex ?? 0);
-
-/** Where an answer lives, as `withheld` and the store record it. */
-const fieldOf = f => (f.loopId ? { id: f.id, loopId: f.loopId, loopIndex: f.loopIndex ?? 0 } : { id: f.id });
-
-/**
- * Ask for the next sensitive answer that a resumed session did not have.
- *
- * Asked as a correction — written in place, then back to the review — so it
- * does not restart the walk from that question. Each is asked once: saying
- * skip leaves it blank, and it is not asked again this session.
- * @returns {Promise<boolean>} whether a question was asked
- */
-async function askNextWithheld(note = '') {
-  while (withheld.length) {
-    const w = withheld.shift();
-    if (isAnswered(w)) continue;
-    const target = buildTargets(engine.answers()).find(t => sameField(t, w));
-    if (!target) continue;   // its form or its loop entry is gone
-    // Cleared first: ending a skipped correction restores the cursor it
-    // saved, which must happen before this one jumps, not undo the jump.
-    clearCorrectionState();
-    const restore = engine.cursorSnapshot();
-    const q = engine.jumpTo(target.id, target.loopIndex ?? 0, target.loopId ?? null);
-    if (!q) continue;
-    correcting = { target, question: q, restore };
-    ui.review.hidden = true;
-    ui.interview.hidden = false;
-    const why = w.idle
-      ? 'I cleared this while the page was not in use.'
-      : 'This was not saved when you stopped last time, for your security.';
-    // The prompt alone does not say which spouse; the item number does.
-    const which = target.loopId ? ` This one is for ${target.itemLabel} ${target.itemNumber}.` : '';
-    await askCurrent({ prefix: `${note ? `${note} ` : ''}${why}${which}` });
-    return true;
-  }
-  return false;
-}
-
-/**
- * Start the on-device transcriber, reporting progress on screen. Loading is
- * from this computer's disk, so it is usually a second or two; the progress
- * is for the slow machine where it is not.
- */
 function loadSpeechModel() {
-  // Shown on both panels: typing mode starts the interview while this runs.
   const show = text => {
     setStatus(text);
     if (ui.setupStatus) ui.setupStatus.textContent = text;
@@ -486,875 +316,88 @@ function loadSpeechModel() {
     const pct = Math.floor((loaded / total) * 10) * 10;
     if (pct !== lastPct) { lastPct = pct; show(`Loading the speech model… ${pct}%`); }
   }).finally(() => {
-    // Clear only our own text. In typing mode the interview is already under
-    // way, and the status line may by now say something that matters.
     if (ui.status?.textContent.startsWith('Loading the speech model')) setStatus('');
     if (ui.setupStatus) ui.setupStatus.textContent = '';
   });
 }
 
-/** The model cannot run here. Voice closes; typing carries the interview. */
-function speechModelFailed(err) {
-  console.error(err);
-  mode = 'text';
-  const msg = err?.kind === 'unsupported'
-    ? 'This browser cannot run the speech model, so I switched to typing mode.'
-    : 'The speech model could not start, so I switched to typing mode.';
+function speechModelFailed() {
+  const msg = 'The speech model could not start, so I switched to typing mode.';
   setStatus(msg);
   announce(msg, true);
-  disableVoice();
+  turn?.disableVoice();
 }
 
-function introFor(m) {
-  return say.INTRO[m] ?? say.INTRO.voice;
-}
+// -- input: voice, typing, keys -----------------------------------------------------
 
-// -- the turn loop ---------------------------------------------------------
-
-async function askCurrent({ announceSection = false, prefix = '' } = {}) {
-  pending = null;
-  checking = null;
-  const q = engine.current();
-
-  if (!q) { await finishInterview(); return; }
-
-  // Spoken as separate utterances rather than one concatenated string. Each
-  // segment is a fixed phrase that tools/build-audio.mjs has already
-  // synthesized, so each is an independent cache hit; joined into one string
-  // it would be a unique combination every time and never reuse anything.
-  const segments = [];
-  // A correction is a detour, not progress through the form. Announcing the
-  // section it happens to land in is confusing, and recording it as the
-  // current section would suppress the real header on the next question.
-  if (correcting) {
-    ui.sectionLabel.textContent = `Changing an answer — ${q.sectionTitle}`;
-  } else if (adding) {
-    ui.sectionLabel.textContent = `Adding a ${adding.itemLabel} — ${q.sectionTitle}`;
-  } else if (announceSection || q.section !== askCurrent.lastSection) {
-    const p = engine.progress();
-    // Until the form question is answered there is no section count to give:
-    // it depends on which form, or both, is being filled out.
-    if (p.sectionCount) {
-      segments.push(`Section ${p.sectionNumber} of ${p.sectionCount}.`, `${q.sectionTitle}.`);
-      ui.sectionLabel.textContent = `Section ${p.sectionNumber} of ${p.sectionCount} — ${q.sectionTitle}`;
-    } else {
-      segments.push(`${q.sectionTitle}.`);
-      ui.sectionLabel.textContent = q.sectionTitle;
-    }
-    askCurrent.lastSection = q.section;
-    // Offer the estimate at a section break, but only when it has actually
-    // changed since the last time it was spoken. There are up to 32 sections;
-    // hearing "about 40 minutes left" at four of them in a row is nagging, and
-    // it is the *change* that carries information.
-    const left = formatTimeRemaining(p.secondsRemaining);
-    if (left && left !== askCurrent.lastSpokenEstimate) {
-      segments.push(`${left} left.`);
-      askCurrent.lastSpokenEstimate = left;
-    }
-  }
-  // A correction re-asks one known field, so the section preamble and the
-  // "next I will need…" warning are both noise — the user asked for this
-  // question by name and has already heard its current value read back.
-  updateProgressLine();
-  if (q.warn && !correcting) segments.push(q.warn);
-  if (!correcting && q.loopPhase === 'field' && q.itemNumber > 1 && isFirstFieldOfItem(q)) {
-    segments.push(`${titleCase(q.itemLabel)} ${q.itemNumber}.`);
-  }
-  if (prefix) segments.push(prefix);
-  segments.push(q.prompt);
-
-  ui.question.textContent = q.prompt;
-  ui.hint.textContent = q.hint || '';
-  setInputMask(q);
-  hideReadBackControls();
-  announce(segments.join(' '));
-  await speakSegments(segments);
-
-  ui.textAnswer.value = '';
-  resumeListening();
-}
-
-/**
- * Hand the turn back to the user after speaking.
- *
- * Hands-free reopens the recorder; otherwise this only decides where focus
- * lands, because both lanes stay live either way. Focus follows the lane the
- * last answer came from: someone who just typed keeps their cursor in the
- * text box, and someone who just spoke keeps the talk button under the space
- * bar. Whichever way it lands, the other lane is one keystroke away.
- */
-function resumeListening() {
-  if (mode === 'handsfree' && !voiceDisabled) { queueListen(); return; }
-  if (voiceDisabled || lastInputWasText || mode === 'text') { ui.textAnswer.focus(); return; }
-  focusMain();
-}
-
-/**
- * Reopen the hands-free microphone once the current turn has let go of `busy`.
- *
- * Everything that speaks a prompt and then wants to listen again — a re-ask, a
- * value read-back, the transcript read-back — is awaited from inside
- * sendAudio(), which holds `busy` until its `finally`. Calling
- * listenHandsFree() from there hits its own guard and silently does nothing,
- * and a hands-free user is left with a question asked and no microphone open.
- * Deferring past the end of the turn is the whole fix.
- */
-function queueListen(attempt = 0) {
-  if (attempt > 100) return;          // ~6s; `busy` is cleared in a finally
-  setTimeout(() => {
-    if (busy) { queueListen(attempt + 1); return; }
-    listenHandsFree();
-  }, 60);
-}
-
-/**
- * Speak a sequence of fixed phrases as separate utterances.
- *
- * Each one is looked up in the pre-synthesized clip index independently, so a
- * question preceded by a section header costs nothing even though that exact
- * combination has never been spoken before. Only the first call interrupts;
- * the rest queue behind it, or they would cancel each other.
- */
-async function speakSegments(segments) {
-  lastSegments = segments.filter(Boolean);
-  lastSpoken = lastSegments.join(' ');
-  for (const [i, text] of lastSegments.entries()) {
-    await speech.speak(text, { interrupt: i === 0 });
-  }
-}
-
-/**
- * Redraw the on-screen progress line. Silent by design: it is aria-hidden and
- * outside the live regions, so it updates every question without a screen
- * reader narrating a number that barely moved. The spoken version is the
- * "where am I" command, which the user asks for when they want it.
- */
-function updateProgressLine() {
-  if (!ui.progressLine) return;
-  const p = engine.progress();
-  const left = formatTimeRemaining(p.secondsRemaining);
-  ui.progressLine.textContent = left
-    ? `${p.percent}% done \u00b7 ${left} left`
-    : `${p.percent}% done`;
-}
-
-function isFirstFieldOfItem(q) {
-  const node = SECTIONS.flatMap(s => s.questions).find(n => n.id === q.loopId);
-  return node?.fields?.[0]?.id === q.id;
-}
-
-/** Handle one answer: extract, validate, confirm if needed, commit. */
-async function handleTranscript(transcript) {
-  // A transcript read-back is open: this turn is a yes/no about what was heard
-  // last time, not an answer to the form question. Checked before everything
-  // else for the same reason the delete confirmation is — a bare "no" here
-  // means "that is not what I said", and must never reach the parser.
-  if (checking) { await handleTranscriptCheck(transcript); return; }
-
-  // "Which answer would you like to change?" is matched by correct.js, not by
-  // the answer parser — see the note at the top of that file.
-  if (inCorrectionPrompt()) { setStatus(''); await handleFieldName(transcript); return; }
-
-  // "Remove that last provider" mid-interview is a command, not an answer.
-  // Left to the parser it would be recorded as the value of whatever question
-  // is open, so the phrase is caught first, and only when it names a group
-  // that actually holds something.
-  if (!pending && namesSomethingToDelete(transcript)) {
-    setStatus('');
-    await deleteMidInterview(transcript);
-    return;
-  }
-
-  // Navigation words are matched on the voice path too, not only when typed.
-  // Checked before parsing, so "skip" on a free-text question is a command and
-  // not an answer of "Skip".
-  if (!pending) {
-    const cmd = localCommand(transcript);
-    if (cmd) { setStatus(''); await runCommand(cmd); return; }
-  }
-
-  const q = pending?.question ?? engine.current();
-  if (!q) return;
-
-  // A confirmation read-back is a yes/no question about the value just heard,
-  // which is why it is reshaped here rather than handled separately.
-  const asked = pending ? { ...q, type: 'yesno', prompt: 'Is that correct?' } : q;
-
-  // parseLocal() returns the one correct reading or null. Null means it was
-  // not certain, and with nothing else to consult a re-ask is the honest
-  // outcome — carrying the question's hint about the shape it wants.
-  const local = parseLocal(asked, transcript);
-  if (!local) {
-    await reask(asked.hint ? `${say.REASK.generic} ${asked.hint}` : say.REASK.generic);
-    return;
-  }
-  // parseLocal() produces a candidate; normalize() stays the single place
-  // that decides whether a value is well formed.
-  const result = normalize(local, asked);
-
-  if (result.command) { await runCommand(result.command); return; }
-
-  // Awaiting a yes/no on a read-back. The spoken yes and the keyed one end up
-  // in the same two functions, so there is one definition of what accepting
-  // an answer does.
-  if (pending) {
-    if (result.value === true) { await acceptReadBack(); return; }
-    if (result.value === false) { await rejectReadBack(); return; }
-    await reask(say.REASK.yesno);
-    return;
-  }
-
-  if (result.needsClarification || result.value == null) {
-    await reask(result.clarifyPrompt || say.REASK.generic);
-    return;
-  }
-
-  // High-stakes fields are read back before they are committed. This one
-  // ignores the confirm-each-answer preference: it is the check that catches a
-  // wrong digit in an SSN or a bank account, and it is cheap next to the cost
-  // of getting one wrong.
-  if (q.confirm) {
-    pending = { question: q, value: result.value };
-    const readBack = `I heard ${speakableValue(result.value, q.type, q.options)}. Is that correct?`;
-    ui.question.textContent = onScreen(readBack, q);
-    setInputMask(null);
-    ui.hint.textContent = ACCEPT_HINT;
-    showReadBackControls();
-    announce(readBack);
-    await speech.speak(readBack);
-    resumeListening();
-    return;
-  }
-
-  commit(result.value);
-}
-
-function commit(value) {
-  touchActivity();
-  // With read-backs off this line is the only confirmation that an answer
-  // landed, so it says what was recorded rather than going blank.
-  const asked = correcting?.question ?? engine.current();
-  setStatus(!confirmEachAnswer && asked && value != null
-    ? onScreen(`Recorded: ${speakableValue(value, asked.type, asked.options)}`, asked)
-    : '');
-  // A correction writes in place and returns to review; it must not advance
-  // the interview into whatever question follows the corrected one.
-  if (correcting) { finishCorrection(value); return; }
-  engine.submit(value);
-  saveSession();
-  // An addition is the same kind of detour. It ends when the walk leaves the
-  // group being added to — either the user said no to "another one?", or the
-  // group was the last thing in the form.
-  if (adding && !stillAdding()) { finishAddition(); return; }
-  askCurrent();
-}
-
-/** Is the forward walk still inside the group being added to? */
-function stillAdding() {
-  return !!adding && engine.current()?.loopId === adding.loopId;
-}
-
-async function reask(message) {
-  const q = engine.current();
-  const hint = q?.hint ? ` ${q.hint}` : '';
-  announce(message + hint, true);
-  await speech.speak(message + hint);
-  resumeListening();
-}
-
-// -- global commands -------------------------------------------------------
-
-// Commands that only tell the user something. They leave a correction open:
-// the question on screen is still the one being answered, and abandoning it
-// puts the walk back where the correction started — so the next answer would
-// be filed under a question the user is not looking at.
-const KEEPS_CORRECTION = new Set(['repeat', 'help', 'where', 'readback', 'save_quit']);
-
-async function runCommand(cmd) {
-  // Repeating is the one command that means "say that again", not "move on",
-  // and at a read-back what wants repeating is the read-back. Clearing the
-  // state here would throw away the value the user is being asked about —
-  // which is what pressing Enter used to do, silently.
-  if (cmd === 'repeat' && readBackOpen()) {
-    announce(lastSpoken);
-    await speakSegments(lastSegments.length ? lastSegments : [lastSpoken]);
-    resumeListening();
-    return;
-  }
-
-  pending = null;
-  checking = null;
-  hideReadBackControls();
-
-  // While one answer is being corrected, the forward-walk commands would
-  // resume the interview from the middle of the form: engine.skip() submits
-  // and advances, and back() steps to whatever preceded the corrected
-  // question. In a correction both simply mean "leave it as it was".
-  if (correcting && (cmd === 'back' || cmd === 'skip')) {
-    await returnToReview(say.UNCHANGED);
-    return;
-  }
-  // Leaving the correction flow by any other route abandons it cleanly.
-  if ((correcting || inCorrectionPrompt()) && !KEEPS_CORRECTION.has(cmd)) {
-    clearCorrectionState();
-  }
-
-  switch (cmd) {
-    case 'repeat':
-      announce(lastSpoken);
-      await speakSegments(lastSegments.length ? lastSegments : [lastSpoken]);
-      if (mode === 'handsfree') queueListen();
-      return;
-    case 'back':
-      engine.back();
-      saveSession();
-      // Stepping out of the group backwards ends the addition, the same way
-      // walking off its end does.
-      if (adding && !stillAdding()) { await finishAddition(); return; }
-      await askCurrent({ prefix: say.GOING_BACK });
-      return;
-    case 'skip':
-      engine.skip();
-      saveSession();
-      if (adding && !stillAdding()) { await finishAddition(); return; }
-      await askCurrent();
-      return;
-    case 'where': {
-      const p = engine.progress();
-      // The estimate is the useful half of this answer once it exists — a
-      // percentage does not tell someone whether they can finish before they
-      // have to leave. It is still read after the percentage rather than
-      // instead of it, since the percentage is the number that never moves
-      // backward and is the one worth trusting.
-      const left = formatTimeRemaining(p.secondsRemaining);
-      const where = p.sectionCount
-        ? `You are in section ${p.sectionNumber} of ${p.sectionCount}, ${p.sectionTitle}.`
-        : 'You are at the start, choosing which form to fill out.';
-      const msg = `${where} About ${p.percent} percent done`
-        + (left ? `, ${left} left at the pace you have been going.` : '.');
-      announce(msg, true);
-      await speech.speak(msg);
-      if (mode === 'handsfree') queueListen();
-      return;
-    }
-    case 'readback':
-      await speech.speak(summaryText(engine.answers()));
-      if (mode === 'handsfree') queueListen();
-      return;
-    case 'correct':
-      await askWhichField();
-      return;
-    case 'save_quit':
-      if (saveSession()) {
-        await store.flush();
-        await speech.speak(say.SAVED);
-        setStatus('Saved, encrypted with your PIN. Your place is kept on this device.');
-      } else {
-        const msg = 'Nothing is being saved, because no PIN was set when you started. '
-          + 'If you close this page, your answers will be lost.';
-        setStatus(msg);
-        announce(msg, true);
-        await speech.speak(msg);
-      }
-      return;
-    case 'restart':
-      engine.reset();
-      store.clearState();
-      // A new interview owes nothing the old one was asked for.
-      withheld = [];
-      await speech.speak(say.STARTING_OVER);
-      await askCurrent({ announceSection: true });
-      return;
-    case 'clear_data':
-      clearEverything();
-      return;
-    case 'finish':
-      await finishInterview();
-      return;
-    case 'help':
-    default:
-      await speech.speak(say.HELP);
-      if (mode === 'handsfree') queueListen();
-  }
-}
-
-// -- input: voice, hands free, typing --------------------------------------
-
-async function onTalkDown(e) {
+function onTalkDown(e) {
   e?.preventDefault();
-  // Not gated on `mode`. Someone who chose typing at the start, or who just
-  // typed an answer, can still press and hold to speak — the microphone is
-  // requested here, lazily, on the first press. Only a microphone that has
-  // actually failed closes this lane.
-  if (busy || voiceDisabled || audio.isRecording()) return;
-  lastInputWasText = false;
-  setStatus('Listening…');
-  ui.talk.dataset.recording = 'true';
-  ui.talk.textContent = 'Listening — release to send';
-  announce('Listening', true);
-  try {
-    await audio.startRecording();
-  } catch (err) {
-    resetTalkButton();
-    announce('The microphone is not available. Switching to typing.', true);
-    disableVoice();
+  if (!ui.talk.hidden) {
+    ui.talk.dataset.recording = 'true';
+    ui.talk.textContent = 'Listening — release to send';
   }
+  turn?.onTalkDown();
 }
 
-async function onTalkUp(e) {
+function onTalkUp(e) {
   e?.preventDefault();
   if (!audio.isRecording()) return;
   resetTalkButton();
-  const blob = await audio.stopRecording();
-  await sendAudio(blob);
+  turn?.onTalkUp();
 }
 
-async function listenHandsFree() {
-  if (busy || voiceDisabled || mode !== 'handsfree') return;
-  setStatus('Listening…');
-  ui.talk.dataset.recording = 'true';
-  ui.talk.textContent = 'Listening — speak now';
-  // Nobody reads out nine digits without breathing. At the default silence
-  // window a pause after "five five five" ended the capture, and the rest of
-  // the number was never recorded at all — no transcriber can recover audio
-  // that was not captured. Digit fields get a window long enough to group
-  // them in, and a longer ceiling to match.
-  const digits = needsAccurateDigits(askedQuestion());
-  try {
-    await audio.startRecording({
-      autoStop: true,
-      silenceMs: digits ? DIGIT_SILENCE_MS : undefined,
-      maxMs: digits ? DIGIT_MAX_CAPTURE_MS : undefined,
-      onAutoStop: async () => {
-        resetTalkButton();
-        const blob = await audio.stopRecording();
-        await sendAudio(blob);
-      }
-    });
-  } catch {
-    resetTalkButton();
-    disableVoice();
-  }
-}
-
-/** How long a pause may last inside a spoken digit string before it ends. */
-const DIGIT_SILENCE_MS = 3000;
-const DIGIT_MAX_CAPTURE_MS = 60000;
-
-/**
- * The question a capture starting right now would be answering.
- *
- * While a read-back is open the expected answer is yes or no, whatever the
- * underlying field happens to be — an SSN question being confirmed does not
- * need a three-second silence window to hear the word "yes".
- */
-function askedQuestion() {
-  const q = checking?.question ?? pending?.question ?? engine?.current();
-  if (!q) return null;
-  return (pending || checking) ? { ...q, type: 'yesno' } : q;
-}
-
-async function sendAudio(blob) {
-  touchActivity();
-  // Four cheap filters before transcribing. The size check catches a recorder
-  // that produced nothing; the duration check catches a bumped space bar; the
-  // level check catches a turn that captured only room tone, whether it
-  // auto-stopped on a cough or the user pressed and released without saying
-  // anything. All four end the same way — ask again — because the one thing
-  // that must not happen is the form moving on from a question the user never
-  // actually answered.
-  if (!blob || blob.size < 800
-      || audio.lastCaptureDurationMs() < MIN_CAPTURE_MS
-      || !audio.lastCaptureHadSpeech()) {
-    await reask(say.REASK.nothingHeard);
-    return;
-  }
-  busy = true;
-  setStatus('Transcribing…');
-  try {
-    // Shaped as yes/no while a read-back is open, which keeps the digit gate
-    // below from refusing the word "yes" just because the question it belongs
-    // to asks for a Social Security number.
-    const asked = askedQuestion();
-    if (!asked) return;
-
-    const transcript = await localstt.transcribe(blob);
-
-    // A transcriber handed near-silence does not return nothing; it returns a
-    // short plausible phrase. Reject those rather than record them.
-    if (isEmptyTranscript(transcript)) {
-      await reask(say.REASK.nothingHeard);
-      return;
-    }
-
-    // These are the fields where a misread digit does lasting damage. A
-    // transcript that is not cleanly a number of the right shape is asked
-    // again rather than read back — and "the right shape" includes the
-    // length, because a capture that ended after the first group of an SSN
-    // is a clean, parseable "555". reask() adds the question's own hint,
-    // which is where the advice about pausing between groups lives.
-    // Commands and "remove that provider" are let through to be handled.
-    if (needsAccurateDigits(asked) && !localCommand(transcript)
-        && !namesSomethingToDelete(transcript)
-        && !digitsSurviveNormalize(asked, transcript)) {
-      setStatus(onScreen(`You said: ${transcript}`, displayQuestion()));
-      await reask(say.REASK.unsure);
-      return;
-    }
-
-    setStatus(onScreen(`You said: ${transcript}`, displayQuestion()));
-
-    if (needsTranscriptCheck(transcript)) {
-      await askTranscriptCheck(transcript);
-      return;
-    }
-    await handleTranscript(transcript);
-  } catch (err) {
-    // "I heard nothing" is a re-ask, not an error: no earcon, no lecture, and
-    // the question stays open.
-    if (err?.kind === 'empty') { await reask(say.REASK.nothingHeard); return; }
-    await handleSttError(err);
-  } finally {
-    busy = false;
-  }
-}
-
-/** Shorter than this and the space bar was bumped, not spoken into. */
-const MIN_CAPTURE_MS = 350;
-
-// What a transcriber tends to emit when handed silence or room tone. Rejected
-// only when the microphone also stayed near the noise floor for the whole
-// capture, so someone who genuinely says "okay" into a live mic is still heard.
-const FILLER_TRANSCRIPTS = new Set([
-  'you', 'thank you', 'thanks', 'thanks for watching', 'thank you for watching',
-  'bye', 'okay', 'ok', 'uh', 'um', 'hmm', 'mm', 'oh', 'the'
-]);
-const QUIET_PEAK = 0.05;
-
-/** Is this transcript empty, punctuation, or silence-filler from a quiet mic? */
-function isEmptyTranscript(text) {
-  const s = String(text ?? '').trim();
-  if (!s) return true;
-  // Nothing but punctuation, dashes, quotes or ellipses.
-  if (!/[\p{L}\p{N}]/u.test(s)) return true;
-  const bare = s.toLowerCase().replace(/[.!?,\s]+$/, '').trim();
-  return FILLER_TRANSCRIPTS.has(bare) && audio.lastCapturePeak() < QUIET_PEAK;
-}
-
-/**
- * Should this voice answer be read back for a spoken yes/no before it is used?
- *
- * Everything the user dictates, yes. What is excluded is only what is already
- * a confirmation or a command, where a second yes/no would be noise:
- *
- *   - a yes/no answering a read-back that is already open;
- *   - a navigation word, or a request to delete an entry (which confirms
- *     itself, by name, before anything is erased);
- *   - a reply to one of the correction prompts, which re-prompt on their own
- *     when they cannot match what was said;
- *   - a question marked `confirm` — SSN, bank details. Those get the stronger
- *     read-back of the *parsed value*, spoken digit by digit, a few lines
- *     further on. Reading the raw transcript first would ask the same question
- *     twice and bury the version that actually catches a wrong digit.
- */
-function needsTranscriptCheck(transcript) {
-  if (!confirmEachAnswer) return false;
-  if (pending || checking) return false;
-  if (inCorrectionPrompt() || choosing) return false;
-  if (localCommand(transcript)) return false;
-  if (namesSomethingToDelete(transcript)) return false;
-  const q = correcting?.question ?? engine.current();
-  if (!q || q.confirm) return false;
-  return true;
-}
-
-/** Read back what was heard, verbatim, and wait for a yes or a keystroke. */
-async function askTranscriptCheck(transcript) {
-  const q = correcting?.question ?? engine.current();
-  checking = { transcript, question: q };
-
-  ui.question.textContent = onScreen(`I heard: ${transcript}`, q);
-  setInputMask(null);
-  ui.hint.textContent = ACCEPT_HINT;
-  showReadBackControls();
-  announce(`I heard: ${transcript}. ${say.TRANSCRIPT_CHECK}`);
-  // Two segments: the transcript is unique to this answer, the prompt after it
-  // is fixed and comes from the clip index.
-  await speakSegments([`I heard: ${transcript}.`, say.TRANSCRIPT_CHECK]);
-  resumeListening();
-}
-
-/** Yes uses the transcript; no throws it away and reopens the same question. */
-async function handleTranscriptCheck(text) {
-  const s = String(text ?? '').trim();
-  // Tested before the command table, not after: "correct" is both a way to say
-  // yes and the name of the change-an-answer command, and here it plainly
-  // means the first one.
-  const yes = /^(y|yes|yeah|yep|yup|correct|right|that is right|thats right|sure|ok|okay)\b/i.test(s);
-  const no = /^(n|no|nope|nah|wrong|incorrect|not right|that is wrong|thats wrong)\b/i.test(s);
-
-  // Otherwise a command still wins — someone who answers the read-back with
-  // "skip" or "go back" means it, and should not have to say no first.
-  if (!yes && !no) {
-    const cmd = localCommand(text);
-    if (cmd) { checking = null; await runCommand(cmd); return; }
-  }
-
-  if (yes) { await acceptReadBack(); return; }
-  if (no) { await rejectReadBack(); return; }
-
-  await sayAndListen(say.REASK.yesnoTranscript);
-}
-
-// -- accepting and rejecting a read-back -----------------------------------
-//
-// Four ways in — the spoken yes or no, the space bar, the two buttons, and a
-// typed yes or no — and one implementation of each outcome. The keyboard is
-// the one that matters most: user testing asked to stop having to say "yes"
-// out loud after every single answer just to move on.
-
-const ACCEPT_HINT = 'Press the space bar to keep it, or N to answer again. '
-  + 'You can also say yes or no.';
-
-/** Is an answer being read back, waiting to be kept or thrown away? */
-function readBackOpen() {
-  return !!pending || !!checking;
-}
-
-function showReadBackControls() {
-  if (ui.readbackControls) ui.readbackControls.hidden = false;
-}
-
-function hideReadBackControls() {
-  if (ui.readbackControls) ui.readbackControls.hidden = true;
-}
-
-/**
- * Abandon a capture that hands-free opened underneath the read-back.
- *
- * Without this, keeping an answer with the space bar leaves the recorder
- * running, and whatever it picks up arrives on the next question.
- */
-function dropOpenCapture() {
-  if (audio.isRecording()) audio.cancelRecording();
-  resetTalkButton();
-}
-
-/** Keep what was read back. */
-async function acceptReadBack() {
-  if (!readBackOpen()) return;
-  dropOpenCapture();
-  hideReadBackControls();
-
-  if (checking) {
-    const { transcript } = checking;
-    checking = null;
-    setStatus('');
-    await handleTranscript(transcript);
-    return;
-  }
-
-  const value = pending.value;
-  pending = null;
-  commit(value);
-}
-
-/** Throw away what was read back and let the user answer again. */
-async function rejectReadBack() {
-  if (!readBackOpen()) return;
-  dropOpenCapture();
-  hideReadBackControls();
-  setStatus('');
-
-  // A rejected *value* has already been extracted from a transcript that the
-  // user approved, so the question itself is re-asked.
-  if (pending) {
-    pending = null;
-    await askCurrent({ prefix: say.LET_US_TRY_AGAIN });
-    return;
-  }
-
-  checking = null;
-  // A rejected *transcript* deliberately does not re-ask. The user knows what
-  // was asked — they just answered it — and hearing the whole prompt again
-  // before every retry is what makes a misheard answer feel expensive.
-  // Restore the prompt on screen for anyone reading it, and reopen the mic.
-  const q = correcting?.question ?? engine.current();
-  if (q) { ui.question.textContent = q.prompt; ui.hint.textContent = q.hint || ''; }
-  announce(say.ANSWER_AGAIN, true);
-  await speakSegments([say.ANSWER_AGAIN]);
-  // Leave `repeat` pointing at the question rather than at "go ahead" — that
-  // is what someone asking to hear it again at this point actually wants.
-  if (q) { lastSegments = [q.prompt]; lastSpoken = q.prompt; }
-  resumeListening();
-}
-
-/** Types where an unnoticed digit error does lasting damage. */
-const ACCURATE_DIGIT_TYPES = new Set(['ssn', 'routing', 'account', 'phone']);
-const needsAccurateDigits = q => ACCURATE_DIGIT_TYPES.has(q?.type);
-
-/**
- * Would this transcript survive as an answer to this digit field?
- *
- * The local parser deliberately does not check length — parseSensitiveDigits()
- * hands anything numeric straight through so that normalize() stays the single
- * place that decides what is well formed. That is right for parsing and wrong
- * for deciding whether a transcript is worth reading back: "555" is a
- * perfectly good parse of a recording that actually contained nine digits.
- *
- * So ask normalize(), rather than writing the lengths out a second time here
- * and letting the two copies drift. It is pure, and costs nothing.
- */
-function digitsSurviveNormalize(question, transcript) {
-  const local = parseLocal(question, transcript);
-  return !!local && !normalize(local, question).needsClarification;
-}
-
-async function submitTyped() {
-  const text = ui.textAnswer.value.trim();
-  if (!text) return;
+function submitTyped() {
+  const text = ui.textAnswer.value;
+  if (!text.trim()) return;
   ui.textAnswer.value = '';
-  lastInputWasText = true;
-  busy = true;
-  try {
-    // A transcript read-back can be answered by typing yes or no, the same as
-    // by saying it — the two lanes are interchangeable at every prompt.
-    if (checking) { await handleTranscriptCheck(text); return; }
+  turn?.submitTyped(text);
+}
 
-    // While naming a field to correct, the words are a field name, not a
-    // navigation command — "back" there means "never mind", not "previous
-    // question", and it is handled inside handleFieldName().
-    if (inCorrectionPrompt()) { await handleFieldName(text); return; }
+let spaceHeld = false;
 
-    // Typed text is taken as written: no transcript read-back, and no
-    // clean-up of words the user chose to type.
-    await handleTypedDirect(text);
-  } finally {
-    busy = false;
+async function onKeyDown(e) {
+  if (ui.interview?.hidden) return;
+  const typing = e.target === ui.textAnswer;
+  const result = await turn?.onKey(e.code, { typing });
+
+  if (result?.accepted || result?.rejected) {
+    if (e.code === 'Space') spaceHeld = true;
+    e.preventDefault();
+    return;
+  }
+  if (result?.startTalk) {
+    if (spaceHeld || e.repeat) return;
+    spaceHeld = true;
+    e.preventDefault();
+    turn?.onTalkDown();
+    return;
+  }
+  if (result?.leaveTextLane && typing) {
+    e.preventDefault();
+    useTextLane();
+    return;
+  }
+  if (result?.cancelled) {
+    resetTalkButton();
+    return;
+  }
+  if (result?.useTextLane) { useTextLane(); return; }
+  if (typing) return;
+  if (result?.ranCommand) e.preventDefault();
+}
+
+function onKeyUp(e) {
+  if (e.code === 'Space' && spaceHeld) {
+    spaceHeld = false;
+    e.preventDefault();
+    if (audio.isRecording()) onTalkUp(e);
   }
 }
 
-// Navigation commands, matched locally on both the typed and the spoken path.
-//
-// Anchored, so a command word appearing inside a real answer is not mistaken
-// for a command: "I skip meals" is an answer, "skip" is a command. What sits
-// outside the anchors is only politeness and hesitation — the words people
-// actually put around a spoken instruction — never anything that could carry
-// meaning of its own.
-const LOCAL_COMMANDS = [
-  [/^(repeat|repeat that|say (that )?again|again|one more time)$/, 'repeat'],
-  [/^(back|go back|previous|last question|go back a question)$/, 'back'],
-  [/^(skip|skip (this|it|that)|pass|leave (it |this )?blank|next)$/, 'skip'],
-  [/^(where|where am i|progress|how far|how much (is )?(left|to go))$/, 'where'],
-  [/^(read back|read back my answers|read my answers|review)$/, 'readback'],
-  [/^(change|change an answer|correct|correct an answer|fix|fix an answer|edit)$/, 'correct'],
-  [/^(save|save and quit|quit|stop for now)$/, 'save_quit'],
-  [/^(start over|restart|start again)$/, 'restart'],
-  [/^(help|\?|what can i say)$/, 'help'],
-  [/^(finish|done|finish early|that is all|thats all|i am done|im done)$/, 'finish']
-];
-
-/** Politeness and hesitation around a spoken command; carries no meaning. */
-const COMMAND_FILLER = {
-  lead: /^(um|uh|er|ok|okay|well|hey|please|can you|could you|would you|i want to|i would like to|let us|lets)\b[\s,]*/,
-  tail: /[\s,]*\b(please|now|thanks|thank you)\b[\s.!?]*$/
-};
-
-function localCommand(text) {
-  let s = String(text ?? '').toLowerCase().trim().replace(/[.!?]+$/, '');
-  // Strip filler repeatedly: "ok, can you please repeat that" stacks three.
-  for (let i = 0; i < 3; i++) {
-    const before = s;
-    s = s.replace(COMMAND_FILLER.lead, '').replace(COMMAND_FILLER.tail, '').trim();
-    if (s === before) break;
-  }
-  if (!s) return null;
-  for (const [re, cmd] of LOCAL_COMMANDS) if (re.test(s)) return cmd;
-  return null;
-}
-
-/** A typed answer: parsed locally, or taken as written for free text. */
-async function handleTypedDirect(text) {
-  const cmd = localCommand(text);
-  if (cmd) { await runCommand(cmd); return; }
-
-  if (!pending && namesSomethingToDelete(text)) {
-    await deleteMidInterview(text);
-    return;
-  }
-
-  const q = pending?.question ?? engine.current();
-  if (!q) return;
-
-  if (pending) {
-    const yes = /^(y|yes|yeah|correct|right)$/i.test(text);
-    const no = /^(n|no|nope|wrong)$/i.test(text);
-    if (yes) { await acceptReadBack(); return; }
-    if (no) { await rejectReadBack(); return; }
-    await reask(say.REASK.yesno);
-    return;
-  }
-
-  // Through the local parser first, the same way a spoken answer goes. Without
-  // it normalize() sees the raw text and can only accept what is already in
-  // the shape it wants — so a typed "March 14th 1979" was refused on a date
-  // question that had just asked for exactly that. Free text is the
-  // exception: `typed` keeps it exactly as the user wrote it.
-  const local = parseLocal(q, text, { typed: true });
-  const result = normalize(
-    local ?? { command: null, value: text, confidence: 1, needsClarification: false, clarifyPrompt: null },
-    q
-  );
-  if (result.command) { await runCommand(result.command); return; }
-  if (result.needsClarification || result.value == null) {
-    await reask(result.clarifyPrompt || say.REASK.notRight);
-    return;
-  }
-  if (q.confirm) {
-    pending = { question: q, value: result.value };
-    showReadBackControls();
-    const readBack = `I have ${speakableValue(result.value, q.type, q.options)}. Is that correct? Type yes or no.`;
-    ui.question.textContent = onScreen(readBack, q);
-    setInputMask(null);
-    ui.hint.textContent = ACCEPT_HINT;
-    announce(readBack);
-    await speech.speak(readBack);
-    resumeListening();
-    return;
-  }
-  commit(result.value);
-}
-
-/**
- * Close the voice lane for good.
- *
- * Only for voice that cannot work — microphone permission denied, no device,
- * or a speech model that cannot run. Everything else leaves the talk button
- * on screen, because a user who typed one answer has not given up on speaking.
- */
-function disableVoice() {
-  voiceDisabled = true;
-  mode = 'text';
-  lastInputWasText = true;
-  ui.textEntry.hidden = false;
-  ui.talk.hidden = true;
-  ui.textAnswer.focus();
-}
-
-/** Put the cursor in the text box without closing the voice lane. */
 function useTextLane() {
-  lastInputWasText = true;
   ui.textEntry.hidden = false;
   ui.textAnswer.focus();
   announce(say.TYPING_LANE, true);
-}
-
-/** Leave the text box so the space bar talks again. */
-function useVoiceLane() {
-  if (voiceDisabled) { ui.textAnswer.focus(); return; }
-  lastInputWasText = false;
-  focusMain();
-  announce(say.VOICE_LANE, true);
 }
 
 function resetTalkButton() {
@@ -1362,623 +405,8 @@ function resetTalkButton() {
   ui.talk.textContent = 'Hold to talk';
 }
 
-// -- keyboard --------------------------------------------------------------
+// -- importing a saved file ---------------------------------------------------------
 
-let spaceHeld = false;
-
-function onKeyDown(e) {
-  touchActivity();
-  if (ui.interview?.hidden) return;
-  const typing = e.target === ui.textAnswer;
-
-  // While an answer is being read back the space bar keeps it, rather than
-  // starting a recording. This is the whole point of the read-back for a
-  // sighted user: the answer is on screen, and confirming it should cost one
-  // keystroke instead of a spoken "yes" and the round trip to transcribe it.
-  // Speaking still works — the talk button is right there — and it is the way
-  // to correct an answer rather than keep it.
-  if (!typing && readBackOpen()) {
-    if (e.code === 'Space' || e.code === 'Enter') {
-      e.preventDefault();
-      // Marked as held so the keyup handler does not read the release as the
-      // end of a push-to-talk that never started.
-      if (e.code === 'Space') spaceHeld = true;
-      if (!e.repeat) acceptReadBack();
-      return;
-    }
-    if (e.code === 'KeyN' || e.code === 'Escape') {
-      e.preventDefault();
-      rejectReadBack();
-      return;
-    }
-  }
-
-  // Push to talk works in every mode, not only 'voice' — the only thing that
-  // suppresses it is a cursor sitting in a text field, where a space is a
-  // space. Escape leaves that field, which is how someone who typed an answer
-  // gets the space bar back.
-  if (e.code === 'Space' && !typing && !voiceDisabled) {
-    if (spaceHeld || e.repeat) return;
-    spaceHeld = true;
-    e.preventDefault();
-    onTalkDown();
-    return;
-  }
-  if (typing) {
-    if (e.code === 'Escape' && e.target === ui.textAnswer) { e.preventDefault(); useVoiceLane(); }
-    return;
-  }
-
-  const map = { Enter: 'repeat', KeyB: 'back', KeyS: 'skip', KeyW: 'where', KeyR: 'readback', KeyC: 'correct' };
-  if (e.code === 'Escape' && audio.isRecording()) {
-    audio.cancelRecording();
-    resetTalkButton();
-    setStatus('Cancelled.');
-    announce('Cancelled', true);
-    return;
-  }
-  if (e.code === 'KeyT') { useTextLane(); return; }
-  if (e.code === 'KeyH' && !voiceDisabled) {
-    mode = mode === 'handsfree' ? 'voice' : 'handsfree';
-    announce(mode === 'handsfree' ? 'Hands free mode on' : 'Hands free mode off', true);
-    if (mode === 'handsfree') queueListen();
-    return;
-  }
-  if (map[e.code]) { e.preventDefault(); runCommand(map[e.code]); }
-}
-
-function onKeyUp(e) {
-  if (e.code === 'Space' && spaceHeld) {
-    spaceHeld = false;
-    e.preventDefault();
-    // Nothing to send if the press was an accept rather than a recording.
-    if (audio.isRecording()) onTalkUp();
-  }
-}
-
-// -- errors ----------------------------------------------------------------
-
-async function handleSttError(err) {
-  audio.earcon('error');
-  const kind = err?.kind ?? 'unknown';
-  // The model itself is gone — the worker died or never loaded. Retrying the
-  // turn would fail the same way, so the interview carries on by keyboard.
-  if (kind === 'model' || kind === 'unsupported') { speechModelFailed(err); return; }
-  const msg = say.ERRORS[kind] ?? say.ERRORS.unknown;
-  setStatus(msg);
-  announce(msg, true);
-  await speech.speak(msg);
-  if (mode === 'handsfree') queueListen();
-}
-
-// -- finish, review, export ------------------------------------------------
-
-async function finishInterview() {
-  if (await askNextWithheld()) return;
-  saveSession();
-  ui.interview.hidden = true;
-  ui.review.hidden = false;
-  audio.earcon('done');
-
-  const missing = engine.missingRequired();
-  const intro = missing.length
-    ? `Your answers are ready. ${missing.length} required ${missing.length === 1 ? 'answer is' : 'answers are'} still blank: ${missing.map(m => m.prompt).join(' ')} You can change an answer, or download your forms as they are.`
-    : say.ALL_DONE;
-
-  ui.reviewIntro.textContent = intro;
-  renderSummary(ui.summary, engine.answers(), { reveal: revealSensitive });
-  showDownloadButtons();
-  announce(intro, true);
-  // Two utterances: the completion line varies with what is missing, but the
-  // download instructions are fixed and come from the clip index.
-  await speakSegments([intro, say.DOWNLOAD_HINT]);
-  firstDownloadButton()?.focus();
-}
-
-/** One download button per chosen form, plus "both" when there are two. */
-function showDownloadButtons() {
-  const chosen = formsOf(engine.answers());
-  el('download-all').hidden = chosen.size < 2;
-  el('download-ssa').hidden = !chosen.has('ssa');
-  el('download-ds').hidden = !chosen.has('ds');
-}
-
-function firstDownloadButton() {
-  return ['download-all', 'download-ssa', 'download-ds'].map(el).find(b => b && !b.hidden) ?? null;
-}
-
-/**
- * Start a correction. Missing required answers come first, since those block
- * a complete form; otherwise ask which answer to change.
- */
-async function startReview() {
-  const missing = engine.missingRequired();
-  const target = missing[0];
-  if (target) {
-    const landed = engine.jumpTo(target.id, target.loopIndex ?? 0, target.loopId ?? null);
-    if (landed) {
-      ui.review.hidden = true;
-      ui.interview.hidden = false;
-      clearCorrectionState();
-      await askCurrent({ prefix: say.FILL_IN_MISSING });
-      return;
-    }
-  }
-  await askWhichField();
-}
-
-/**
- * Is one of the correction-flow prompts open and waiting for a spoken reply?
- *
- * All of them route to handleFieldName(), which dispatches on which is set.
- * A delete confirmation counts: its "yes" must not fall through to the
- * answer-extraction path and get recorded as a form value.
- */
-function inCorrectionPrompt() {
-  return awaitingFieldName || !!choosingItem || !!confirmingDelete;
-}
-
-/**
- * Drop every in-flight correction and deletion prompt.
- *
- * These are mutually exclusive states, and a stale one left set would route
- * the next answer into the wrong handler — a spoken "yes" landing on an
- * abandoned delete confirmation is the case that matters.
- */
-function clearCorrectionState() {
-  // An abandoned correction puts the walk back where it found it.
-  if (correcting?.restore) engine?.restoreCursor(correcting.restore);
-  correcting = null;
-  adding = null;
-  choosing = null;
-  choosingItem = null;
-  confirmingDelete = null;
-  awaitingFieldName = false;
-  resumeAfterPrompt = false;
-  pending = null;
-  checking = null;
-}
-
-/** Open the "which answer do you want to change?" prompt. */
-async function askWhichField() {
-  clearCorrectionState();
-  awaitingFieldName = true;
-
-  ui.review.hidden = true;
-  ui.interview.hidden = false;
-  ui.sectionLabel.textContent = 'Changing an answer';
-
-  const msg = say.WHICH_FIELD;
-  ui.question.textContent = 'Which answer would you like to change?';
-  ui.hint.textContent = 'Name a field, such as "my date of birth" or "the first job\'s employer". '
-    + 'To put a new entry on a list, say "add another condition". '
-    + 'To delete a whole entry, say "remove the second provider".';
-  lastSpoken = msg;
-  announce(msg);
-  await speech.speak(msg);
-
-  ui.textAnswer.value = '';
-  resumeListening();
-}
-
-/** The user named a field (or answered a disambiguation question). */
-async function handleFieldName(text) {
-  // A delete confirmation is checked before the general cancel words, because
-  // "no" is a valid answer to "remove this?" and means keep it — it must be
-  // handled there rather than read as "never mind, take me back".
-  if (confirmingDelete) {
-    await handleDeleteConfirmation(text);
-    return;
-  }
-
-  if (/^(never ?mind|cancel|nothing|stop|go back|back|done|no)\b/i.test(text.trim())) {
-    await returnToReview('No changes made.');
-    return;
-  }
-
-  // Answering "which one did you want to delete?"
-  if (choosingItem) {
-    const picked = pickItem(text, choosingItem.candidates);
-    if (!picked) {
-      await sayAndListen('I did not catch which one. ' + itemOptions(choosingItem));
-      return;
-    }
-    const { loopId } = choosingItem;
-    choosingItem = null;
-    await confirmDelete(loopId, picked);
-    return;
-  }
-
-  // Answering "did you mean A or B?"
-  if (choosing) {
-    const picked = resolveChoice(text, choosing.candidates);
-    if (!picked) {
-      await sayAndListen('I did not catch which one. '
-        + optionsSentence(choosing.candidates));
-      return;
-    }
-    choosing = null;
-    await beginCorrection(picked);
-    return;
-  }
-
-  // "Remove that last provider" deletes a whole item; "change the provider's
-  // phone" edits one field. Only an explicit removal verb takes this branch.
-  if (isDeletionPhrase(text)) { await beginDeletion(text); return; }
-
-  // "Add another condition" grows the list; "change my condition" edits the
-  // one already there. Before this branch existed both landed on the field
-  // matcher, and asking to add a second condition overwrote the first.
-  //
-  // Guarded the way deletion is: the verb alone is not enough, it has to name
-  // a group that this interview actually asks about.
-  if (isAdditionPhrase(text)) {
-    const add = resolveAddition(text, engine.answers());
-    if (add.reason !== 'none') { await beginAddition(add); return; }
-  }
-
-  const result = resolveTarget(text, engine.answers());
-
-  if (result.ok) { await beginCorrection(result.target); return; }
-
-  if (result.reason === 'ambiguous') {
-    choosing = { candidates: result.candidates };
-    await sayAndListen(`I found more than one answer like that. ${optionsSentence(result.candidates)}`);
-    return;
-  }
-
-  await sayAndListen('I could not find an answer by that name. '
-    + 'You can name it the way I asked it, for example, my date of birth, '
-    + 'or say never mind to go back.');
-}
-
-function optionsSentence(candidates) {
-  const list = candidates
-    .map((c, i) => `${i + 1}. ${describeTarget(c)}`)
-    .join('. ');
-  return `Did you mean: ${list}. Say the number, or the name.`;
-}
-
-// -- adding a loop entry ---------------------------------------------------
-
-/**
- * Open a new item on a loop group and walk its fields.
- *
- * Nothing about this is a correction: no existing answer is read back and
- * none is overwritten. The cursor is moved to the group's entry prompt, which
- * is where a new item is opened from, and `adding` marks the walk as a detour
- * so that finishing the item returns to review rather than resuming the form
- * from the middle.
- */
-async function beginAddition(add) {
-  if (add.reason === 'ambiguous') {
-    const names = add.candidates.map(c => c.itemLabel);
-    await sayAndListen(`I can add to more than one list. Did you mean a `
-      + `${names.join(', or a ')}? Say which one, or say never mind to go back.`);
-    return;
-  }
-  if (add.reason === 'full') {
-    await sayAndListen(`That is as many ${add.itemLabel} entries as I can take. `
-      + 'You can change one of them instead, or say never mind to go back.');
-    return;
-  }
-
-  const { loopId, itemLabel, nextNumber } = add;
-  // jumpTo() on a loop id lands on its entry prompt with the cursor past every
-  // existing item; submitting yes there opens a fresh one and positions on its
-  // first field. Neither step touches an item already recorded.
-  if (!engine.jumpTo(loopId)) {
-    await sayAndListen('I could not open that list. Try naming a different one, or say never mind.');
-    return;
-  }
-  const q = engine.submit(true);
-  if (!q || q.loopId !== loopId || q.loopPhase !== 'field') {
-    await sayAndListen(`I could not start a new ${itemLabel}. `
-      + 'Try naming a different one, or say never mind.');
-    return;
-  }
-
-  awaitingFieldName = false;
-  choosing = null;
-  adding = { loopId, itemLabel, startCount: nextNumber - 1 };
-  saveSession();
-
-  ui.review.hidden = true;
-  ui.interview.hidden = false;
-  // askCurrent() announces "Condition 3." on its own for every item past the
-  // first, from a clip that already exists. Only the first item of an empty
-  // list needs to be told apart from a correction out loud.
-  await askCurrent(q.itemNumber > 1 ? {} : { prefix: `Adding a new ${itemLabel}.` });
-}
-
-/**
- * End an addition and report what it produced.
- *
- * Counting rather than trusting `nextNumber`: the user may have said yes to
- * "another one?" several times, and may equally have skipped straight back
- * out without finishing one.
- */
-async function finishAddition() {
-  const { loopId, itemLabel, startCount } = adding;
-  const added = (engine.answers()[loopId]?.length ?? 0) - startCount;
-  adding = null;
-  saveSession();
-  // Said as a count of entries rather than a plural of the label: "children"
-  // and "household members" do not pluralize the way "conditions" does.
-  await returnToReview(
-    added === 1 ? `I added ${itemLabel} ${startCount + 1}.`
-      : added > 1 ? `I added ${added} entries.`
-        : `No ${itemLabel} was added.`
-  );
-}
-
-// -- deleting a loop entry -------------------------------------------------
-
-/**
- * Does this phrase ask to delete a loop entry that actually exists?
- *
- * Both halves matter. Without the verb check an ordinary answer containing
- * "remove" would hijack the turn; without resolving it, "delete that" while
- * no loop is named would swallow an answer to the open question.
- */
-function namesSomethingToDelete(text) {
-  if (!isDeletionPhrase(text)) return false;
-  return resolveDeletion(text, engine.answers()).reason !== 'none';
-}
-
-/**
- * "Remove that last provider", said in the middle of the interview rather
- * than at the review prompt. Finishing resumes the question that was open.
- *
- * A correction still open is dropped first, putting the walk back where it
- * was. Removing an entry renumbers the ones after it: removeItem() repairs
- * the walk's own cursor, but not the one a correction saved to return to,
- * which would then point past the end of the list and lose the next answer.
- */
-async function deleteMidInterview(text) {
-  if (correcting) clearCorrectionState();
-  resumeAfterPrompt = true;
-  await beginDeletion(text);
-}
-
-/**
- * Resolve a spoken deletion and, when it names one item, ask to confirm.
- *
- * Deleting throws away every answer recorded for that item and cannot be
- * undone from the review screen, so nothing is removed until the user says
- * yes to a prompt that names exactly what is about to go.
- */
-async function beginDeletion(text) {
-  const r = resolveDeletion(text, engine.answers());
-
-  if (r.ok) { await confirmDelete(r.loopId, r); return; }
-
-  if (r.reason === 'empty') {
-    await sayAndListen(`There is no ${r.itemLabel} recorded to remove. `
-      + 'You can name something else, or say never mind to go back.');
-    return;
-  }
-
-  if (r.reason === 'ambiguous') {
-    choosingItem = { loopId: r.loopId, itemLabel: r.itemLabel, candidates: r.candidates };
-    await sayAndListen(`Which ${r.itemLabel} should I remove? ${itemOptions(choosingItem)}`);
-    return;
-  }
-
-  await sayAndListen('I could not tell what to remove. You can say, for example, '
-    + 'remove the second provider, or delete that last job. Say never mind to go back.');
-}
-
-function itemOptions({ candidates }) {
-  const list = candidates.map(c => describeItem(c)).join('. ');
-  return `${list}. Say the number, or the name.`;
-}
-
-/** Match a spoken reply against the offered items. */
-function pickItem(text, candidates) {
-  const picked = resolveChoice(text, candidates.map(c => ({
-    // resolveChoice scores against label/prompt, so give it the item's name.
-    id: `__item_${c.index}`,
-    label: c.title ?? `${c.itemLabel} ${c.number}`,
-    prompt: `${c.itemLabel} ${c.number}`,
-    index: c.index
-  })));
-  if (!picked) return null;
-  return candidates.find(c => c.index === picked.index) ?? null;
-}
-
-/** Ask for an explicit yes before removing anything. */
-async function confirmDelete(loopId, item) {
-  choosingItem = null;
-  confirmingDelete = { loopId, item };
-
-  const what = describeItem(item);
-  const msg = `Remove ${what}? This erases every answer recorded for that `
-    + `${item.itemLabel}, and I cannot bring it back. Say yes to remove it, or no to keep it.`;
-  ui.question.textContent = `Remove ${what}?`;
-  ui.hint.textContent = 'Say yes to remove it, or no to keep it.';
-  await sayAndListen(msg);
-}
-
-/** Yes removes the item; anything else keeps it. */
-async function handleDeleteConfirmation(text) {
-  const s = text.trim();
-  const yes = /^(y|yes|yeah|yep|correct|right|do it|remove it|delete it)\b/i.test(s);
-  const no = /^(n|no|nope|nah|keep it|cancel|never ?mind|stop)\b/i.test(s);
-
-  if (!yes && !no) {
-    await sayAndListen('Please say yes to remove it, or no to keep it.');
-    return;
-  }
-
-  const { loopId, item } = confirmingDelete;
-  confirmingDelete = null;
-
-  if (no) {
-    await returnToReview(`I kept ${describeItem(item)}.`);
-    return;
-  }
-
-  const removed = engine.removeItem(loopId, item.index);
-  saveSession();
-  await returnToReview(removed
-    ? `I removed ${describeItem(item)}.`
-    : 'That entry could not be removed.');
-}
-
-/** Jump to the resolved target and re-ask it. */
-async function beginCorrection(target) {
-  const restore = engine.cursorSnapshot();
-  const q = engine.jumpTo(target.id, target.loopIndex ?? 0, target.loopId ?? null);
-  if (!q) {
-    await sayAndListen('I could not open that answer. Try naming a different one, or say never mind.');
-    return;
-  }
-
-  awaitingFieldName = false;
-  correcting = { target, question: q, restore };
-  pending = null;
-
-  const current = target.value;
-  const heard = current == null || current === ''
-    ? `${describeTarget(target)} is blank right now.`
-    : `Right now ${describeTarget(target)} is ${speakableValue(current, target.type, target.options)}.`;
-
-  await askCurrent({ prefix: `${heard} What should it be instead?` });
-}
-
-/** Finish a correction and go back to the review screen. */
-async function finishCorrection(value) {
-  const { target: t, restore } = correcting;
-  const ok = engine.setAnswer(t.id, value, { loopId: t.loopId ?? null, loopIndex: t.loopIndex ?? 0 });
-  engine.restoreCursor(restore);
-  correcting = null;
-  pending = null;
-
-  // A different choice of forms can add questions that sit behind the cursor,
-  // where the forward walk will never reach them. Go and ask those now rather
-  // than offering a half-filled form for download.
-  if (ok && t.id === 'forms' && !t.loopId) {
-    const next = engine.rewalk();
-    saveSession();
-    if (next) {
-      clearCorrectionState();
-      ui.review.hidden = true;
-      ui.interview.hidden = false;
-      await speech.speak(say.FORMS_CHANGED);
-      await askCurrent({ announceSection: true });
-      return;
-    }
-  }
-
-  saveSession();
-
-  const what = describeTarget(t);
-  await returnToReview(ok
-    ? `${titleCase(what)} is now ${speakableValue(value, t.type, t.options)}.`
-    : 'That answer could not be changed.', { about: t });
-}
-
-/** Show the review screen again, with a spoken note about what just happened. */
-async function returnToReview(note, { about = null } = {}) {
-  // Started mid-interview: report what happened and carry on where we were,
-  // rather than dropping the user on the summary with the form unfinished.
-  if (resumeAfterPrompt) {
-    clearCorrectionState();
-    saveSession();
-    await askCurrent({ prefix: `${note} Back to your question.` });
-    return;
-  }
-  if (await askNextWithheld(note)) return;
-
-  clearCorrectionState();
-
-  ui.interview.hidden = true;
-  ui.review.hidden = false;
-  renderSummary(ui.summary, engine.answers(), { reveal: revealSensitive });
-  showDownloadButtons();
-
-  const missing = engine.missingRequired();
-  const tail = missing.length
-    ? ` ${missing.length} required ${missing.length === 1 ? 'answer is' : 'answers are'} still blank.`
-    : '';
-  const msg = `${note}${tail} You can change another answer, or download your forms.`;
-  ui.reviewIntro.textContent = `${onScreen(note, about)}${tail} You can change another answer, or download your forms.`;
-  announce(msg, true);
-  await speech.speak(msg);
-  el('fix-answer').focus();
-}
-
-/** Speak a recovery prompt and keep listening in the correction flow. */
-async function sayAndListen(msg) {
-  lastSpoken = msg;
-  announce(msg, true);
-  await speech.speak(msg);
-  resumeListening();
-}
-
-/**
- * Fill in the official PDF for each form id and download it.
- *
- * Two forms are two files, because they go to two different agencies. A
- * browser may ask before allowing the second download from one click, which
- * is why the spoken confirmation for both mentions it.
- */
-async function exportForms(ids) {
-  touchActivity();
-  // Numbers this session does not have — not saved last time, or cleared
-  // while the page sat idle — are asked for before a form is filled without
-  // them.
-  if (await askNextWithheld('Before I fill in your forms, I need a number again.')) return;
-  const answers = engine.answers();
-  const saved = [];
-  let fellBack = false;
-  try {
-    for (const id of ids) {
-      setStatus(`Filling in the ${FORM_TITLES[id]}…`);
-      const { filename, fallback } = await downloadForm(id, answers);
-      saved.push(filename);
-      fellBack = fellBack || fallback;
-    }
-    const erase = 'When you have checked your forms, select Erase everything to remove your '
-      + 'answers from this computer. The downloaded forms stay in your downloads folder.';
-    const msg = `Downloaded ${saved.join(' and ')}. ${erase}`;
-    setStatus(msg);
-    announce(msg, true);
-    const spoken = fellBack ? [say.WORKSHEET_FALLBACK] : [];
-    spoken.push(saved.length > 1 ? say.BOTH_DOWNLOADED : say.DOWNLOADED, erase);
-    await speakSegments(spoken);
-  } catch (err) {
-    console.error(err);
-    const msg = 'The PDF could not be created. Your answers are safe — try saving them as a file instead.';
-    setStatus(msg);
-    announce(msg, true);
-  }
-}
-
-function clearEverything() {
-  store.clearState();
-  store.forgetKey();
-  withheld = [];
-  importedSession = null;
-  clearTimeout(idleTimer);
-  engine?.reset();
-  audio.releaseMic();
-  const msg = 'Everything has been erased from this device.';
-  announce(msg, true);
-  speech.speak(msg);
-  setStatus(msg);
-  ui.review.hidden = true;
-  ui.interview.hidden = true;
-  ui.setup.hidden = false;
-  ui.resumeRow.hidden = true;
-  if (ui.importFile) ui.importFile.value = '';
-  setImportStatus('');
-}
-
-// -- importing a saved file -------------------------------------------------
-
-/** Offer the resume row whenever localStorage holds a session. */
 function showSavedSession() {
   const info = importedSession
     ? { savedAt: importedSession.savedAt, imported: true }
@@ -2004,20 +432,12 @@ function setImportStatus(text) {
   if (ui.importStatus) ui.importStatus.textContent = text;
 }
 
-/**
- * Load a file written by "Save my answers as a file" into this device's saved
- * session, then offer it on the resume row. The file is not started straight
- * away: the mode, microphone and speech model still have to be settled first, and
- * those are the same choices the resume button already runs through.
- */
 async function onImportFile(event) {
   const file = event.target.files?.[0];
   if (!file) return;
   setImportStatus('Reading your file\u2026');
   try {
     const { state, savedAt, rebuiltCursor } = await readExportFile(file);
-    // Held in memory for the resume this sets up, not written to storage:
-    // the file holds sensitive answers, and saving is for the PIN to decide.
     importedSession = { savedAt, state, withheld: [] };
     showSavedSession();
     const when = savedAt ? new Date(savedAt).toLocaleString() : null;
@@ -2038,15 +458,11 @@ async function onImportFile(event) {
     setImportStatus(msg);
     announce(msg, true);
   } finally {
-    // Let the same file be chosen again after a failure.
     event.target.value = '';
   }
 }
 
 // -- misc ------------------------------------------------------------------
-
-function setStatus(text) { if (ui.status) ui.status.textContent = text; }
-function titleCase(s) { return String(s ?? '').replace(/^(.)/, (_, c) => c.toUpperCase()); }
 
 window.addEventListener('error', e => {
   announce(store.isPersisting()

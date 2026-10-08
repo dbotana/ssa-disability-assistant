@@ -1,0 +1,2212 @@
+{
+  "hashes": [
+    {
+      "text": "About when were you diagnosed? A month and year is fine.",
+      "hash": "195c2cbda9cfe469"
+    },
+    {
+      "text": "Adding a new child.",
+      "hash": "f32a632dee1ac9af"
+    },
+    {
+      "text": "Adding a new condition.",
+      "hash": "f3a6b580c0707a74"
+    },
+    {
+      "text": "Adding a new confirmed diagnosis.",
+      "hash": "556de4bfb2b24098"
+    },
+    {
+      "text": "Adding a new diagnosis.",
+      "hash": "271392921386efe3"
+    },
+    {
+      "text": "Adding a new household member.",
+      "hash": "b8cc3aaac8d23aa3"
+    },
+    {
+      "text": "Adding a new income source.",
+      "hash": "8fe3f0e3c2f29d29"
+    },
+    {
+      "text": "Adding a new job.",
+      "hash": "fd4bd4c61fcf21c2"
+    },
+    {
+      "text": "Adding a new marriage.",
+      "hash": "04e9ca1758b27808"
+    },
+    {
+      "text": "Adding a new medication.",
+      "hash": "ac615b3b6e73d56b"
+    },
+    {
+      "text": "Adding a new provider.",
+      "hash": "eaee7f984eff1184"
+    },
+    {
+      "text": "Adding a new resource.",
+      "hash": "37018bd10ecb83fc"
+    },
+    {
+      "text": "Adding a new test.",
+      "hash": "4cf0694af7c732d6"
+    },
+    {
+      "text": "Adding a new training program.",
+      "hash": "a48d4f02576795f1"
+    },
+    {
+      "text": "All done. Your forms are ready to download.",
+      "hash": "4ee79e2b29b53d97"
+    },
+    {
+      "text": "Allergies, diet, and developmental diagnosis.",
+      "hash": "7ff48faa3f8fe67c"
+    },
+    {
+      "text": "An approximate month and year is fine. This is the date your condition started making it hard to work, not the date you stopped working.",
+      "hash": "d61f983f6be69427"
+    },
+    {
+      "text": "And how many days a week?",
+      "hash": "4ab5781e15a160ae"
+    },
+    {
+      "text": "Any environmental allergies, such as pollen, dust, or animals? Tell me what they are, or say none.",
+      "hash": "af1207c812000287"
+    },
+    {
+      "text": "Any food allergies? Tell me what they are, or say none.",
+      "hash": "3f6e7a8e528da515"
+    },
+    {
+      "text": "Are you currently taking any medicine, prescribed or over the counter?",
+      "hash": "ab7c4b796d30185c"
+    },
+    {
+      "text": "Are you deaf or hard of hearing?",
+      "hash": "6d0ad213e1db613c"
+    },
+    {
+      "text": "Are you filling out this application for yourself?",
+      "hash": "582050d926d46e00"
+    },
+    {
+      "text": "Are you going to school right now?",
+      "hash": "5c35147e499ba89b"
+    },
+    {
+      "text": "Are you working right now?",
+      "hash": "a350b3927acc7a8c"
+    },
+    {
+      "text": "Avoiding emotional harm. Which fits best?",
+      "hash": "83326333001cd59e"
+    },
+    {
+      "text": "Avoiding physical danger. Which fits best?",
+      "hash": "35a31d2fe62c4d34"
+    },
+    {
+      "text": "Banking and handling money. Which fits best?",
+      "hash": "d9144676f7d72078"
+    },
+    {
+      "text": "Basic information about you.",
+      "hash": "e473e20dad8523a5"
+    },
+    {
+      "text": "Bathing. Which fits best?",
+      "hash": "b43d7cbe811cbc19"
+    },
+    {
+      "text": "Both forms have been downloaded. Check your downloads folder. If your browser asked whether to allow more than one download, choose allow, or download the second form with its own button.",
+      "hash": "ab443e2fedf87a58"
+    },
+    {
+      "text": "Briefly, what help is needed with banking?",
+      "hash": "95bc240f656861cc"
+    },
+    {
+      "text": "Briefly, what help is needed with bathing?",
+      "hash": "4d6a08813d9b2681"
+    },
+    {
+      "text": "Briefly, what help is needed with cooking?",
+      "hash": "9aea5188a9e737ba"
+    },
+    {
+      "text": "Briefly, what help is needed with coworkers?",
+      "hash": "f2844f8bb454b155"
+    },
+    {
+      "text": "Briefly, what help is needed with dressing?",
+      "hash": "03454d0ebe7b1468"
+    },
+    {
+      "text": "Briefly, what help is needed with eating?",
+      "hash": "7730c24bdab8c58a"
+    },
+    {
+      "text": "Briefly, what help is needed with emotional harm?",
+      "hash": "746e94af7bc1c63b"
+    },
+    {
+      "text": "Briefly, what help is needed with expressive communication?",
+      "hash": "c387d95ed693d773"
+    },
+    {
+      "text": "Briefly, what help is needed with family relationships?",
+      "hash": "eeea328fa84abc3a"
+    },
+    {
+      "text": "Briefly, what help is needed with friends?",
+      "hash": "b10d68810344ee1c"
+    },
+    {
+      "text": "Briefly, what help is needed with grooming?",
+      "hash": "e7e675b22bf36334"
+    },
+    {
+      "text": "Briefly, what help is needed with healthy relationships?",
+      "hash": "72a022629d9b0fb1"
+    },
+    {
+      "text": "Briefly, what help is needed with judgment?",
+      "hash": "341427cbd82189bd"
+    },
+    {
+      "text": "Briefly, what help is needed with laundry?",
+      "hash": "4cae48435bed6af2"
+    },
+    {
+      "text": "Briefly, what help is needed with mobility?",
+      "hash": "8fb7913f3c4bb8b3"
+    },
+    {
+      "text": "Briefly, what help is needed with physical danger?",
+      "hash": "e3b69acf75a2ec8b"
+    },
+    {
+      "text": "Briefly, what help is needed with receptive communication?",
+      "hash": "4d6d171cef96bbcf"
+    },
+    {
+      "text": "Briefly, what help is needed with recreation?",
+      "hash": "b38d6ab89ac50f8d"
+    },
+    {
+      "text": "Briefly, what help is needed with shopping?",
+      "hash": "c0dfe177c2ac15e6"
+    },
+    {
+      "text": "Briefly, what help is needed with sign language?",
+      "hash": "20e6e432b8156349"
+    },
+    {
+      "text": "Briefly, what help is needed with support staff?",
+      "hash": "9ec12f93a7960333"
+    },
+    {
+      "text": "Briefly, what help is needed with toileting?",
+      "hash": "4d92de9d43bc82a0"
+    },
+    {
+      "text": "Briefly, what help is needed with transportation?",
+      "hash": "c25e1b8fe212623a"
+    },
+    {
+      "text": "Briefly, what help is needed with visual communication?",
+      "hash": "a36c0bb76aeb4fc2"
+    },
+    {
+      "text": "Can you give me the name of a second such person? This one is optional.",
+      "hash": "602237a2f1a02067"
+    },
+    {
+      "text": "Can you give me the name of one person, other than a medical provider, who knows about your condition?",
+      "hash": "14a7a526b63669f8"
+    },
+    {
+      "text": "Child 10.",
+      "hash": "9597e4aedd740d23"
+    },
+    {
+      "text": "Child 11.",
+      "hash": "da776d947f7bf8b0"
+    },
+    {
+      "text": "Child 12.",
+      "hash": "951f9d2485c6e78e"
+    },
+    {
+      "text": "Child 2.",
+      "hash": "0eac0fc9ab38e5b4"
+    },
+    {
+      "text": "Child 3.",
+      "hash": "2bd2ff0cef1a1604"
+    },
+    {
+      "text": "Child 4.",
+      "hash": "7b47ab55a06da742"
+    },
+    {
+      "text": "Child 5.",
+      "hash": "ebf651e936868ffa"
+    },
+    {
+      "text": "Child 6.",
+      "hash": "811000d558e36ad8"
+    },
+    {
+      "text": "Child 7.",
+      "hash": "7fb32c3b1325c3fd"
+    },
+    {
+      "text": "Child 8.",
+      "hash": "f3ae0ccc4fc1ad51"
+    },
+    {
+      "text": "Child 9.",
+      "hash": "78460c85bcab6166"
+    },
+    {
+      "text": "Choosing your form.",
+      "hash": "4e5e81043249f78a"
+    },
+    {
+      "text": "Communication.",
+      "hash": "48bcfd4cc9566987"
+    },
+    {
+      "text": "Condition 10.",
+      "hash": "359047fe4372c61c"
+    },
+    {
+      "text": "Condition 11.",
+      "hash": "5b8677d1b8eadcc5"
+    },
+    {
+      "text": "Condition 12.",
+      "hash": "da9a07f13c9fade1"
+    },
+    {
+      "text": "Condition 2.",
+      "hash": "ee8a08ac4f2efb4c"
+    },
+    {
+      "text": "Condition 3.",
+      "hash": "7538c77dc7caaa53"
+    },
+    {
+      "text": "Condition 4.",
+      "hash": "1c5ae2ef9b3ffef1"
+    },
+    {
+      "text": "Condition 5.",
+      "hash": "975e70181de04d06"
+    },
+    {
+      "text": "Condition 6.",
+      "hash": "94a3b811925e8083"
+    },
+    {
+      "text": "Condition 7.",
+      "hash": "0b3a77c909bfc9c4"
+    },
+    {
+      "text": "Condition 8.",
+      "hash": "6b44318c877eb371"
+    },
+    {
+      "text": "Condition 9.",
+      "hash": "f0edcae224e4897e"
+    },
+    {
+      "text": "Confirmed diagnosis 10.",
+      "hash": "546414c6c36c2c64"
+    },
+    {
+      "text": "Confirmed diagnosis 11.",
+      "hash": "54c400ec959953f2"
+    },
+    {
+      "text": "Confirmed diagnosis 12.",
+      "hash": "427aa2db1c45d66f"
+    },
+    {
+      "text": "Confirmed diagnosis 2.",
+      "hash": "9fe020cbf31dbe52"
+    },
+    {
+      "text": "Confirmed diagnosis 3.",
+      "hash": "84dd43a1eee4c8a1"
+    },
+    {
+      "text": "Confirmed diagnosis 4.",
+      "hash": "4ad90f7aa0d5f13f"
+    },
+    {
+      "text": "Confirmed diagnosis 5.",
+      "hash": "93eba791f47c7646"
+    },
+    {
+      "text": "Confirmed diagnosis 6.",
+      "hash": "4fa52645edcf73ca"
+    },
+    {
+      "text": "Confirmed diagnosis 7.",
+      "hash": "6bcb732867cc3be8"
+    },
+    {
+      "text": "Confirmed diagnosis 8.",
+      "hash": "5884bcd20817182a"
+    },
+    {
+      "text": "Confirmed diagnosis 9.",
+      "hash": "d853b518c0a3ceb6"
+    },
+    {
+      "text": "Cooking. Which fits best?",
+      "hash": "ef4d06f61498f138"
+    },
+    {
+      "text": "Current and past marriages.",
+      "hash": "a1651326240a454a"
+    },
+    {
+      "text": "Daily living activities.",
+      "hash": "200c6f62db1e83bc"
+    },
+    {
+      "text": "Diagnosis 10.",
+      "hash": "406a4a19a3c7dde6"
+    },
+    {
+      "text": "Diagnosis 11.",
+      "hash": "f0395633505ab4a3"
+    },
+    {
+      "text": "Diagnosis 12.",
+      "hash": "cea46968774bc6e6"
+    },
+    {
+      "text": "Diagnosis 2.",
+      "hash": "bff01dc26329eadb"
+    },
+    {
+      "text": "Diagnosis 3.",
+      "hash": "b76118ef3b8f3183"
+    },
+    {
+      "text": "Diagnosis 4.",
+      "hash": "6f78df2aa9285e71"
+    },
+    {
+      "text": "Diagnosis 5.",
+      "hash": "54ef44736530fc04"
+    },
+    {
+      "text": "Diagnosis 6.",
+      "hash": "c6f0bef10f8d1110"
+    },
+    {
+      "text": "Diagnosis 7.",
+      "hash": "b264b19f081b47b1"
+    },
+    {
+      "text": "Diagnosis 8.",
+      "hash": "ac237637a55acc5e"
+    },
+    {
+      "text": "Diagnosis 9.",
+      "hash": "afc5589f02f564df"
+    },
+    {
+      "text": "Did the evaluation confirm another diagnosis?",
+      "hash": "d453558dd8c52b04"
+    },
+    {
+      "text": "Did this spouse pass away?",
+      "hash": "f4b85d099244265d"
+    },
+    {
+      "text": "Did you receive special education services?",
+      "hash": "acd2c8192b6540b7"
+    },
+    {
+      "text": "Did you work a job in the 5 years before your condition began to limit your work?",
+      "hash": "ad2b5e98b4bed142"
+    },
+    {
+      "text": "Did you work another job in that 5 year period?",
+      "hash": "0b707a5b026356d5"
+    },
+    {
+      "text": "Direct deposit for benefit payments.",
+      "hash": "d6963f3c94aca591"
+    },
+    {
+      "text": "Do you currently receive income from any source? That includes pay, self-employment, unemployment, dividends, stocks, a pension, an insurance payout, alimony, child support, gambling winnings, or a state disability payment.",
+      "hash": "7bb3dd751b7eee09"
+    },
+    {
+      "text": "Do you give permission for Social Security to request your medical records directly from your providers?",
+      "hash": "71f4056f2ad4aeb4"
+    },
+    {
+      "text": "Do you have a child age 17 or younger, a child age 18 to 19 who is in school full time, or a child of any age with a disability that began at or before age 21?",
+      "hash": "3283e96a3d6931bf"
+    },
+    {
+      "text": "Do you have a completed adaptive behavior test?",
+      "hash": "13d2a13a60091133"
+    },
+    {
+      "text": "Do you have a completed intelligence test, sometimes called an IQ test?",
+      "hash": "bd195dee77133050"
+    },
+    {
+      "text": "Do you have a comprehensive evaluation, done by a licensed physician or psychologist?",
+      "hash": "d12be4c3708b6178"
+    },
+    {
+      "text": "Do you have a current diagnosis to list? It can be any physical, mental, or developmental condition.",
+      "hash": "09f982c64045f9df"
+    },
+    {
+      "text": "Do you have a doctor, hospital, or clinic to add?",
+      "hash": "9598a094d2b240bd"
+    },
+    {
+      "text": "Do you have a legal guardian, or someone with power of attorney for you?",
+      "hash": "c8c749d2bc235ad5"
+    },
+    {
+      "text": "Do you have a rental contract on file?",
+      "hash": "520d17413a8efc14"
+    },
+    {
+      "text": "Do you have an admission agreement on file?",
+      "hash": "cf3e85d6ccc383ca"
+    },
+    {
+      "text": "Do you have another child to add?",
+      "hash": "441955513743df81"
+    },
+    {
+      "text": "Do you have another diagnosis to list?",
+      "hash": "b89f89656dc4f048"
+    },
+    {
+      "text": "Do you have another doctor, hospital, or clinic to add?",
+      "hash": "699a86c1dc227d09"
+    },
+    {
+      "text": "Do you have another household member to add?",
+      "hash": "19aa8d67a8050f16"
+    },
+    {
+      "text": "Do you have another income source to add?",
+      "hash": "7daf298d3ac492e3"
+    },
+    {
+      "text": "Do you have another marriage to add?",
+      "hash": "22f1d7a0314fc495"
+    },
+    {
+      "text": "Do you have another medical condition to add?",
+      "hash": "119a85d5f49b8639"
+    },
+    {
+      "text": "Do you have another medical test to add?",
+      "hash": "ccc93bce877cbd98"
+    },
+    {
+      "text": "Do you have another medication to add?",
+      "hash": "2e67b9edd23b5db6"
+    },
+    {
+      "text": "Do you have another resource to add?",
+      "hash": "ef48a5549bb72b09"
+    },
+    {
+      "text": "Do you have another training program to add?",
+      "hash": "e455c9001dd34c5e"
+    },
+    {
+      "text": "Do you have any dietary restrictions? Tell me what they are, or say none.",
+      "hash": "7c67e59313b0299a"
+    },
+    {
+      "text": "Do you have any medication allergies? Tell me what they are, or say none.",
+      "hash": "fe18fc1fe1c10e29"
+    },
+    {
+      "text": "Do you have any other assessments, such as a psychosocial evaluation or an education plan, called an IEP?",
+      "hash": "4dd0747fdd7c4ab2"
+    },
+    {
+      "text": "Do you have any other financial resource? That includes a bank account, a car title or loan, a burial contract, a trust fund, a life insurance policy, or stocks and bonds.",
+      "hash": "0059232f06d55015"
+    },
+    {
+      "text": "Do you have documentation for this income?",
+      "hash": "340eacd19729158e"
+    },
+    {
+      "text": "Do you have the admit or discharge papers on file?",
+      "hash": "707341e765838c6b"
+    },
+    {
+      "text": "Do you receive workers' compensation or another disability benefit?",
+      "hash": "6890f6d6333469f2"
+    },
+    {
+      "text": "Do you rent your home?",
+      "hash": "8d17b4c344132439"
+    },
+    {
+      "text": "Documents to send with the application.",
+      "hash": "ae927a9eb9ef41ae"
+    },
+    {
+      "text": "Does anyone live with you?",
+      "hash": "2e16c64ade5a0635"
+    },
+    {
+      "text": "Dressing. Which fits best?",
+      "hash": "56bc9fed18f7717d"
+    },
+    {
+      "text": "Eating. Which fits best?",
+      "hash": "dd00ca4a13014f85"
+    },
+    {
+      "text": "Emergency contact.",
+      "hash": "79ed2c6cc14ff5c3"
+    },
+    {
+      "text": "Expressing yourself, called expressive communication. Which fits best?",
+      "hash": "4c833def56fd73ea"
+    },
+    {
+      "text": "For each of the next activities, tell me which fits best: A, independent. B, needs supervision. C, needs skills training. D, needs physical assistance. Or E, total care. If it is anything but independent, I will ask you to explain briefly.",
+      "hash": "5d17ca9c9889b44e"
+    },
+    {
+      "text": "For example, cook.",
+      "hash": "41b1a7996353a50a"
+    },
+    {
+      "text": "For example, parent, sister, or professional guardian.",
+      "hash": "330edeb43b81475f"
+    },
+    {
+      "text": "For example, restaurant.",
+      "hash": "58a64dedec6e3fb4"
+    },
+    {
+      "text": "For example, stocking shelves.",
+      "hash": "9c08027e703541d2"
+    },
+    {
+      "text": "For example, twenty dollars. I will ask next whether that was per hour, per week, or some other period.",
+      "hash": "2ab03085540c4044"
+    },
+    {
+      "text": "For example, who helps, and how often. You can say skip.",
+      "hash": "0f2b98d363149126"
+    },
+    {
+      "text": "Getting around the community.",
+      "hash": "f410d7dfb57533bc"
+    },
+    {
+      "text": "Go ahead. Say your answer again, or type it instead.",
+      "hash": "7221a33e138aeb38"
+    },
+    {
+      "text": "Going back.",
+      "hash": "f7a6287c56c38aeb"
+    },
+    {
+      "text": "Grooming, such as brushing teeth and hair. Which fits best?",
+      "hash": "d78c25888d7bfaa3"
+    },
+    {
+      "text": "Guardian or power of attorney.",
+      "hash": "0411ac2cbde17fcf"
+    },
+    {
+      "text": "Hands free mode. I will ask a question, then start listening on my own. Just answer when you hear the tone. When I read an answer back, tap the space bar to keep it, or press N to answer again. You can type an answer instead at any point, and speaking still works afterwards. Say repeat, go back, or skip at any time.",
+      "hash": "539ff4183c02b7aa"
+    },
+    {
+      "text": "Has a psychological evaluation with IQ and adaptive scores confirmed a diagnosis?",
+      "hash": "deddf72769682e2d"
+    },
+    {
+      "text": "Have you been admitted to, or discharged from, a hospital or institution recently?",
+      "hash": "23b3b678cb918cbe"
+    },
+    {
+      "text": "Have you been diagnosed with an intellectual disability, a developmental disability, or autism?",
+      "hash": "18efc5a03b9abcb4"
+    },
+    {
+      "text": "Have you completed any specialized job, trade, or vocational training?",
+      "hash": "a7bf66b38971ccf3"
+    },
+    {
+      "text": "Have you done any volunteer work? If so, tell me about it, or say none.",
+      "hash": "3a0a8023fe741df8"
+    },
+    {
+      "text": "Have you ever been married?",
+      "hash": "d0bc3894e06e8c81"
+    },
+    {
+      "text": "Have you ever had a 504 plan at school?",
+      "hash": "96bd6aa37513a70a"
+    },
+    {
+      "text": "Have you ever had a job? It can be paid, part time, or supported employment.",
+      "hash": "0d311433a1c21890"
+    },
+    {
+      "text": "Have you had a psychoeducational evaluation?",
+      "hash": "24b2a7b08a25be06"
+    },
+    {
+      "text": "Have you had another job?",
+      "hash": "c3a3d5c6e3c2f59b"
+    },
+    {
+      "text": "Have you had, or do you have scheduled, any medical test related to your condition?",
+      "hash": "51405b00b50228f8"
+    },
+    {
+      "text": "Have you reviewed your Social Security earnings record for accuracy?",
+      "hash": "5a731cd161667882"
+    },
+    {
+      "text": "Have you worked with Vocational Rehabilitation? If so, tell me briefly what they helped with. If not, say no.",
+      "hash": "7e805f258e680a29"
+    },
+    {
+      "text": "Household activities.",
+      "hash": "745568a8c612aab7"
+    },
+    {
+      "text": "Household member 10.",
+      "hash": "c20be5b0572466e3"
+    },
+    {
+      "text": "Household member 11.",
+      "hash": "5753de95ff44096e"
+    },
+    {
+      "text": "Household member 12.",
+      "hash": "20dc2f3f9fe33f78"
+    },
+    {
+      "text": "Household member 2.",
+      "hash": "7d17c7d4d3358c88"
+    },
+    {
+      "text": "Household member 3.",
+      "hash": "89f4fd92feb15255"
+    },
+    {
+      "text": "Household member 4.",
+      "hash": "1e29911338cc3035"
+    },
+    {
+      "text": "Household member 5.",
+      "hash": "7c84a896408c1e1d"
+    },
+    {
+      "text": "Household member 6.",
+      "hash": "d0c1fb1aeef4230d"
+    },
+    {
+      "text": "Household member 7.",
+      "hash": "191a1a93a3b7faff"
+    },
+    {
+      "text": "Household member 8.",
+      "hash": "ad9eac909a5fd5cd"
+    },
+    {
+      "text": "Household member 9.",
+      "hash": "6372a7af1b68fd1c"
+    },
+    {
+      "text": "How are they related to you?",
+      "hash": "4c88a55693778457"
+    },
+    {
+      "text": "How much were you paid? Just the amount for now.",
+      "hash": "150ce9534c70b97c"
+    },
+    {
+      "text": "How old were you when you were diagnosed?",
+      "hash": "9e611cf82a575de7"
+    },
+    {
+      "text": "I am not sure I heard that correctly. Could you say it again?",
+      "hash": "92890d9d5712432e"
+    },
+    {
+      "text": "I did not catch that. Could you say it again?",
+      "hash": "874e761a3c05eb23"
+    },
+    {
+      "text": "I did not hear anything. Please try again, or say skip.",
+      "hash": "369e13b240e2c132"
+    },
+    {
+      "text": "If it is outside Maine, include the state too.",
+      "hash": "79a8b81921b3eb8c"
+    },
+    {
+      "text": "If you are not sure, you can say skip.",
+      "hash": "ad50c72ad16a25f1"
+    },
+    {
+      "text": "If you do not know, say skip.",
+      "hash": "5f7fb7bdf17b9a21"
+    },
+    {
+      "text": "If you have cancer, please include the stage and type.",
+      "hash": "2355526a8fe03897"
+    },
+    {
+      "text": "Income source 10.",
+      "hash": "eaea62de1dd30c33"
+    },
+    {
+      "text": "Income source 11.",
+      "hash": "a1a502fa121aca00"
+    },
+    {
+      "text": "Income source 12.",
+      "hash": "ccbec96539aa633c"
+    },
+    {
+      "text": "Income source 2.",
+      "hash": "88d63a4aa4c7702c"
+    },
+    {
+      "text": "Income source 3.",
+      "hash": "2dd80fc0040f0133"
+    },
+    {
+      "text": "Income source 4.",
+      "hash": "22d716dbab4dddb2"
+    },
+    {
+      "text": "Income source 5.",
+      "hash": "d85ff464db567556"
+    },
+    {
+      "text": "Income source 6.",
+      "hash": "88c39bcfd4c5fe8c"
+    },
+    {
+      "text": "Income source 7.",
+      "hash": "eb739432e43c1e0b"
+    },
+    {
+      "text": "Income source 8.",
+      "hash": "9a1880762454824a"
+    },
+    {
+      "text": "Income source 9.",
+      "hash": "40b11c33cf2fb2c4"
+    },
+    {
+      "text": "Is that right? Say yes to keep it, or no to answer again.",
+      "hash": "324a6b88615fad4f"
+    },
+    {
+      "text": "Is there a settlement agreement?",
+      "hash": "61aaf75654235c2b"
+    },
+    {
+      "text": "Is this marriage still active?",
+      "hash": "84e449f52c299706"
+    },
+    {
+      "text": "Is your mailing address different from your street address?",
+      "hash": "524cd053aebf5681"
+    },
+    {
+      "text": "Job 10.",
+      "hash": "ac10d56da4596488"
+    },
+    {
+      "text": "Job 11.",
+      "hash": "98aed699252c2911"
+    },
+    {
+      "text": "Job 12.",
+      "hash": "0d28a156fc51a35c"
+    },
+    {
+      "text": "Job 2.",
+      "hash": "335e974cc632ba4f"
+    },
+    {
+      "text": "Job 3.",
+      "hash": "219c4e986fda20ef"
+    },
+    {
+      "text": "Job 4.",
+      "hash": "668e6e43053db6d4"
+    },
+    {
+      "text": "Job 5.",
+      "hash": "8a9a485d257cf0e9"
+    },
+    {
+      "text": "Job 6.",
+      "hash": "55c90836d00b0ac8"
+    },
+    {
+      "text": "Job 7.",
+      "hash": "559b97f44534a2f2"
+    },
+    {
+      "text": "Job 8.",
+      "hash": "60285148e62ccac3"
+    },
+    {
+      "text": "Job 9.",
+      "hash": "8d0344fc59bc67dc"
+    },
+    {
+      "text": "Job, trade, or vocational training.",
+      "hash": "d106efc3314a9cee"
+    },
+    {
+      "text": "Judgment about personal conduct. Which fits best?",
+      "hash": "d8a6466591c89fc3"
+    },
+    {
+      "text": "Just the number and street. I will ask for the town next.",
+      "hash": "a46df9cf27213ea1"
+    },
+    {
+      "text": "Keeping relationships healthy. Which fits best?",
+      "hash": "8dd215edaec73496"
+    },
+    {
+      "text": "Keeping up relationships.",
+      "hash": "91d8cb383cd58621"
+    },
+    {
+      "text": "Last section. I need your bank routing and account numbers for direct deposit. They are saved only on this device, and they are never sent to Social Security. You can say skip to leave them blank, or type them instead of saying them.",
+      "hash": "b8cc76e8a357786e"
+    },
+    {
+      "text": "Laundry. Which fits best?",
+      "hash": "f332ae9b888aeb98"
+    },
+    {
+      "text": "Let us fill in what is missing.",
+      "hash": "85cd838faa7069a3"
+    },
+    {
+      "text": "Let us try again.",
+      "hash": "bd61152323589cc1"
+    },
+    {
+      "text": "Maine asks for a copy of the guardianship or power of attorney paperwork to be sent with this application.",
+      "hash": "f5b08115ee0d45ad"
+    },
+    {
+      "text": "Maine asks for some evaluations to be sent with this application. I will ask which ones you already have. If you do not have them, the intake coordinator can arrange them.",
+      "hash": "deab3892d66343d8"
+    },
+    {
+      "text": "Marriage 10.",
+      "hash": "420a9d3fb2e2f2a6"
+    },
+    {
+      "text": "Marriage 11.",
+      "hash": "eb1e9793e9bab1d7"
+    },
+    {
+      "text": "Marriage 12.",
+      "hash": "1462e2c537d4d2bc"
+    },
+    {
+      "text": "Marriage 2.",
+      "hash": "6dc9161b7ff6ea44"
+    },
+    {
+      "text": "Marriage 3.",
+      "hash": "509cbd7c65d9689d"
+    },
+    {
+      "text": "Marriage 4.",
+      "hash": "551fe8cdf63a7070"
+    },
+    {
+      "text": "Marriage 5.",
+      "hash": "2ac5a95ab8ae8943"
+    },
+    {
+      "text": "Marriage 6.",
+      "hash": "ec5f3b05885352ed"
+    },
+    {
+      "text": "Marriage 7.",
+      "hash": "eab101d402be4799"
+    },
+    {
+      "text": "Marriage 8.",
+      "hash": "5ff92926cdf26afc"
+    },
+    {
+      "text": "Marriage 9.",
+      "hash": "b9ea7939a2d99ffe"
+    },
+    {
+      "text": "Medical tests.",
+      "hash": "1796648badf428e6"
+    },
+    {
+      "text": "Medication 10.",
+      "hash": "af484281f6295132"
+    },
+    {
+      "text": "Medication 11.",
+      "hash": "56a7f7e49340a55f"
+    },
+    {
+      "text": "Medication 12.",
+      "hash": "8c7c407dbb435fe4"
+    },
+    {
+      "text": "Medication 2.",
+      "hash": "08c7717a7645ab1d"
+    },
+    {
+      "text": "Medication 3.",
+      "hash": "7252a1b227c0584d"
+    },
+    {
+      "text": "Medication 4.",
+      "hash": "e25bcfde7950e1ce"
+    },
+    {
+      "text": "Medication 5.",
+      "hash": "dad6d809a3156c25"
+    },
+    {
+      "text": "Medication 6.",
+      "hash": "4402dd6daa71797d"
+    },
+    {
+      "text": "Medication 7.",
+      "hash": "bad7076d5700d7ca"
+    },
+    {
+      "text": "Medication 8.",
+      "hash": "9b92baa0309a7ec9"
+    },
+    {
+      "text": "Medication 9.",
+      "hash": "4ae31d69a1ef9614"
+    },
+    {
+      "text": "Mobility, meaning getting around. Which fits best?",
+      "hash": "d293376c88f63256"
+    },
+    {
+      "text": "Next I need your Social Security number. It is saved only on this device, and it is never sent to Social Security. You can say skip to leave it blank, or type it instead of saying it.",
+      "hash": "58e1e06769f6d794"
+    },
+    {
+      "text": "On average, how many hours a day did you work at this job?",
+      "hash": "93692cc0e87729c8"
+    },
+    {
+      "text": "Other financial resources.",
+      "hash": "2b603ea6eb4cc6c9"
+    },
+    {
+      "text": "People who know about your condition.",
+      "hash": "3875862a894967dc"
+    },
+    {
+      "text": "People who live with you.",
+      "hash": "deb29d158f5d874b"
+    },
+    {
+      "text": "Permission to request your medical records.",
+      "hash": "501aa4c2a229d649"
+    },
+    {
+      "text": "Please answer yes or no. Is that correct?",
+      "hash": "6fbe4b8aedeadc18"
+    },
+    {
+      "text": "Please say yes to keep that, or no to answer again.",
+      "hash": "f8b0917646333f9a"
+    },
+    {
+      "text": "Press a download button to save your filled form, or press read my answers to hear everything back.",
+      "hash": "2a0f8f49af65be35"
+    },
+    {
+      "text": "Provider 10.",
+      "hash": "d607cc890c570a03"
+    },
+    {
+      "text": "Provider 11.",
+      "hash": "681ea16b4a32df24"
+    },
+    {
+      "text": "Provider 12.",
+      "hash": "c28f7433b502047c"
+    },
+    {
+      "text": "Provider 2.",
+      "hash": "0c28b03f1cc03870"
+    },
+    {
+      "text": "Provider 3.",
+      "hash": "dcdd3e96ce06697f"
+    },
+    {
+      "text": "Provider 4.",
+      "hash": "f8df6b175b946c49"
+    },
+    {
+      "text": "Provider 5.",
+      "hash": "e505b8a2934d7deb"
+    },
+    {
+      "text": "Provider 6.",
+      "hash": "14bc250965c13d37"
+    },
+    {
+      "text": "Provider 7.",
+      "hash": "4a252521cbf56878"
+    },
+    {
+      "text": "Provider 8.",
+      "hash": "2637e7db42018adf"
+    },
+    {
+      "text": "Provider 9.",
+      "hash": "68c0321ba94ca440"
+    },
+    {
+      "text": "Recreation. Which fits best?",
+      "hash": "ed3681ea8cbe0fdb"
+    },
+    {
+      "text": "Relationships with coworkers. Which fits best?",
+      "hash": "3edaa8457e6802fd"
+    },
+    {
+      "text": "Relationships with family. Which fits best?",
+      "hash": "b98d5aa99f0dcd47"
+    },
+    {
+      "text": "Relationships with friends. Which fits best?",
+      "hash": "3a47129b7808e244"
+    },
+    {
+      "text": "Relationships with support staff. Which fits best?",
+      "hash": "2852dc8980a53892"
+    },
+    {
+      "text": "Resource 10.",
+      "hash": "2ade6d976a62514d"
+    },
+    {
+      "text": "Resource 11.",
+      "hash": "423af1594d92eb23"
+    },
+    {
+      "text": "Resource 12.",
+      "hash": "064be3f981457144"
+    },
+    {
+      "text": "Resource 2.",
+      "hash": "728cc6f35a956bef"
+    },
+    {
+      "text": "Resource 3.",
+      "hash": "63f3b9af2f4ee403"
+    },
+    {
+      "text": "Resource 4.",
+      "hash": "bd0276c771a373b8"
+    },
+    {
+      "text": "Resource 5.",
+      "hash": "2f85dbfdb47e6645"
+    },
+    {
+      "text": "Resource 6.",
+      "hash": "ca847f55a602c110"
+    },
+    {
+      "text": "Resource 7.",
+      "hash": "718e61b4134184f0"
+    },
+    {
+      "text": "Resource 8.",
+      "hash": "977a89c0788cb43d"
+    },
+    {
+      "text": "Resource 9.",
+      "hash": "85e09296095d0c51"
+    },
+    {
+      "text": "Safety.",
+      "hash": "6677bf0baee734a5"
+    },
+    {
+      "text": "Saved. You can close this page and come back to finish later.",
+      "hash": "0f57356bd8b09f73"
+    },
+    {
+      "text": "Say independent, needs supervision, needs skills training, needs physical assistance, or total care. Or say the letter, A through E.",
+      "hash": "2783416926fa804a"
+    },
+    {
+      "text": "Say independent, needs supervision, needs skills training, needs physical assistance, or total care. Or say the letter, A through E. If this does not apply, say skip.",
+      "hash": "8d8ae66a02d777d8"
+    },
+    {
+      "text": "Say male or female, or say skip to leave it blank.",
+      "hash": "31a5866e5a8c18ba"
+    },
+    {
+      "text": "Say no if you are a parent, guardian, caseworker, or anyone else helping the person applying.",
+      "hash": "130ff7438f8d21a4"
+    },
+    {
+      "text": "Say the month and then the year. For example, March, nineteen seventy nine.",
+      "hash": "a3411660098c52b8"
+    },
+    {
+      "text": "Say the month, then the day, then the year. For example, March fourteenth, nineteen seventy nine.",
+      "hash": "a0390640939a0ee3"
+    },
+    {
+      "text": "Section 1 of 19.",
+      "hash": "3711d135ad9683e5"
+    },
+    {
+      "text": "Section 1 of 20.",
+      "hash": "ebb230f3c37afc4d"
+    },
+    {
+      "text": "Section 1 of 32.",
+      "hash": "5b7c635bf0dc1fb5"
+    },
+    {
+      "text": "Section 10 of 19.",
+      "hash": "b14ca8ffa8169939"
+    },
+    {
+      "text": "Section 10 of 20.",
+      "hash": "67038bdcf8520692"
+    },
+    {
+      "text": "Section 10 of 32.",
+      "hash": "17769dc97263285a"
+    },
+    {
+      "text": "Section 11 of 19.",
+      "hash": "a9c5589045e311af"
+    },
+    {
+      "text": "Section 11 of 20.",
+      "hash": "7848ee90c91ca8b2"
+    },
+    {
+      "text": "Section 11 of 32.",
+      "hash": "aa75db3693a20dfb"
+    },
+    {
+      "text": "Section 12 of 19.",
+      "hash": "644d722ac2c53d3d"
+    },
+    {
+      "text": "Section 12 of 20.",
+      "hash": "8495719976ea496d"
+    },
+    {
+      "text": "Section 12 of 32.",
+      "hash": "88f5813caaea2c05"
+    },
+    {
+      "text": "Section 13 of 19.",
+      "hash": "b4ebc020cfb38bf2"
+    },
+    {
+      "text": "Section 13 of 20.",
+      "hash": "b608ef857faf9caf"
+    },
+    {
+      "text": "Section 13 of 32.",
+      "hash": "bcf322beb0916fb3"
+    },
+    {
+      "text": "Section 14 of 19.",
+      "hash": "4601222af808bb97"
+    },
+    {
+      "text": "Section 14 of 20.",
+      "hash": "8abe40bd24cedb45"
+    },
+    {
+      "text": "Section 14 of 32.",
+      "hash": "c316324aa000c599"
+    },
+    {
+      "text": "Section 15 of 19.",
+      "hash": "6e10c5afcf5b66ae"
+    },
+    {
+      "text": "Section 15 of 20.",
+      "hash": "90659531b2eb8df4"
+    },
+    {
+      "text": "Section 15 of 32.",
+      "hash": "d5ee148f9f3ec981"
+    },
+    {
+      "text": "Section 16 of 19.",
+      "hash": "f93a1fa9c8ca9788"
+    },
+    {
+      "text": "Section 16 of 20.",
+      "hash": "cc1ec0710fc97a26"
+    },
+    {
+      "text": "Section 16 of 32.",
+      "hash": "81ae3453855801a1"
+    },
+    {
+      "text": "Section 17 of 19.",
+      "hash": "dd1bd8a0a7ea3cd1"
+    },
+    {
+      "text": "Section 17 of 20.",
+      "hash": "7696650b360b8ede"
+    },
+    {
+      "text": "Section 17 of 32.",
+      "hash": "7b078036682be202"
+    },
+    {
+      "text": "Section 18 of 19.",
+      "hash": "7086ee5074f06d0a"
+    },
+    {
+      "text": "Section 18 of 20.",
+      "hash": "66b252f7ad067d53"
+    },
+    {
+      "text": "Section 18 of 32.",
+      "hash": "19adf80cdf3c565b"
+    },
+    {
+      "text": "Section 19 of 19.",
+      "hash": "2cde949b7836dd70"
+    },
+    {
+      "text": "Section 19 of 20.",
+      "hash": "8c5c521d9a8d6870"
+    },
+    {
+      "text": "Section 19 of 32.",
+      "hash": "cc6eda85c2f7084f"
+    },
+    {
+      "text": "Section 2 of 19.",
+      "hash": "8922a5e1ff11e959"
+    },
+    {
+      "text": "Section 2 of 20.",
+      "hash": "b3a01f8b727972c6"
+    },
+    {
+      "text": "Section 2 of 32.",
+      "hash": "81431b1b29bdce7c"
+    },
+    {
+      "text": "Section 20 of 20.",
+      "hash": "c6546c8b2f04db8c"
+    },
+    {
+      "text": "Section 20 of 32.",
+      "hash": "be6944b7e970c7d0"
+    },
+    {
+      "text": "Section 21 of 32.",
+      "hash": "84eb532e383aa6cb"
+    },
+    {
+      "text": "Section 22 of 32.",
+      "hash": "d33394d9dff199d7"
+    },
+    {
+      "text": "Section 23 of 32.",
+      "hash": "fb4c7dbb8358fe35"
+    },
+    {
+      "text": "Section 24 of 32.",
+      "hash": "a0680cb8a98f3ab5"
+    },
+    {
+      "text": "Section 25 of 32.",
+      "hash": "541ac49f085bc677"
+    },
+    {
+      "text": "Section 26 of 32.",
+      "hash": "d0a6a9e29d2f9b28"
+    },
+    {
+      "text": "Section 27 of 32.",
+      "hash": "791e1e21288f2f4a"
+    },
+    {
+      "text": "Section 28 of 32.",
+      "hash": "6edf76fe513040c1"
+    },
+    {
+      "text": "Section 29 of 32.",
+      "hash": "95ad1906130ad6d4"
+    },
+    {
+      "text": "Section 3 of 19.",
+      "hash": "1edbea3cb94fcc95"
+    },
+    {
+      "text": "Section 3 of 20.",
+      "hash": "78b4f1a9939c1edf"
+    },
+    {
+      "text": "Section 3 of 32.",
+      "hash": "9c1c3a9c7217e2fc"
+    },
+    {
+      "text": "Section 30 of 32.",
+      "hash": "543e492a895e4bd3"
+    },
+    {
+      "text": "Section 31 of 32.",
+      "hash": "a64c8eb89de67e76"
+    },
+    {
+      "text": "Section 32 of 32.",
+      "hash": "67e92ad23439107c"
+    },
+    {
+      "text": "Section 4 of 19.",
+      "hash": "bd014f3872461fb2"
+    },
+    {
+      "text": "Section 4 of 20.",
+      "hash": "8d019283dc22508d"
+    },
+    {
+      "text": "Section 4 of 32.",
+      "hash": "c66cdfcf4e7f6c23"
+    },
+    {
+      "text": "Section 5 of 19.",
+      "hash": "140e5ed298f377ea"
+    },
+    {
+      "text": "Section 5 of 20.",
+      "hash": "5a710ebc7176e1e5"
+    },
+    {
+      "text": "Section 5 of 32.",
+      "hash": "c79d26d05baf14cd"
+    },
+    {
+      "text": "Section 6 of 19.",
+      "hash": "03a89cc088fca698"
+    },
+    {
+      "text": "Section 6 of 20.",
+      "hash": "e0a0616791237935"
+    },
+    {
+      "text": "Section 6 of 32.",
+      "hash": "1e942de7d338520a"
+    },
+    {
+      "text": "Section 7 of 19.",
+      "hash": "b81b9312660466f4"
+    },
+    {
+      "text": "Section 7 of 20.",
+      "hash": "8245c1434b3858db"
+    },
+    {
+      "text": "Section 7 of 32.",
+      "hash": "110bba9135229f5e"
+    },
+    {
+      "text": "Section 8 of 19.",
+      "hash": "73144dfdceeb40ca"
+    },
+    {
+      "text": "Section 8 of 20.",
+      "hash": "52b25593eea00675"
+    },
+    {
+      "text": "Section 8 of 32.",
+      "hash": "07c4db9b105d74fd"
+    },
+    {
+      "text": "Section 9 of 19.",
+      "hash": "2aba9c1901b14b8c"
+    },
+    {
+      "text": "Section 9 of 20.",
+      "hash": "cb87404bdf2248e0"
+    },
+    {
+      "text": "Section 9 of 32.",
+      "hash": "aecf8aae894bc20b"
+    },
+    {
+      "text": "Shopping. Which fits best?",
+      "hash": "149df5c6499b26bc"
+    },
+    {
+      "text": "Should your guardian also be listed as your emergency contact?",
+      "hash": "27b37109784d060a"
+    },
+    {
+      "text": "Sign language. Which fits best?",
+      "hash": "8670e427127da798"
+    },
+    {
+      "text": "Something went wrong. Please try that answer again.",
+      "hash": "79eda7afbbea4997"
+    },
+    {
+      "text": "Starting over.",
+      "hash": "4946381f19728282"
+    },
+    {
+      "text": "Street, city, and state is enough. You can say skip if you do not have it.",
+      "hash": "ca2532556ec8bb25"
+    },
+    {
+      "text": "Test 10.",
+      "hash": "afeb13b96a457a20"
+    },
+    {
+      "text": "Test 11.",
+      "hash": "98e85575986659f4"
+    },
+    {
+      "text": "Test 12.",
+      "hash": "44b8dca3619ae9e7"
+    },
+    {
+      "text": "Test 2.",
+      "hash": "a2d7c83ba91b46ec"
+    },
+    {
+      "text": "Test 3.",
+      "hash": "c29c7d0fca2bc410"
+    },
+    {
+      "text": "Test 4.",
+      "hash": "86525cf85c950fcf"
+    },
+    {
+      "text": "Test 5.",
+      "hash": "68339e93a685f993"
+    },
+    {
+      "text": "Test 6.",
+      "hash": "14f411d598db0b03"
+    },
+    {
+      "text": "Test 7.",
+      "hash": "cd2c42600c8f9ef6"
+    },
+    {
+      "text": "Test 8.",
+      "hash": "ea87658a935340bd"
+    },
+    {
+      "text": "Test 9.",
+      "hash": "787b14ac15f477ca"
+    },
+    {
+      "text": "Thank you for helping. From here on, every question is about the person applying, even when I say you. First, a few details about you.",
+      "hash": "225844910b6b2c32"
+    },
+    {
+      "text": "That answer was left unchanged.",
+      "hash": "5aee0568ff07b9d0"
+    },
+    {
+      "text": "That does not look right. Could you try again?",
+      "hash": "83f10b3631e949ce"
+    },
+    {
+      "text": "That is an evaluation of learning and thinking skills, often done through school.",
+      "hash": "995fc2f6446bb5ea"
+    },
+    {
+      "text": "The Starter Kit helps you get ready to apply for Social Security disability benefits. The Developmental Services application is how adults with an intellectual disability or autism apply to Maine for services. Say starter kit, developmental services, or both.",
+      "hash": "0ff4eacc1b5d4cfb"
+    },
+    {
+      "text": "The form asks for gender, and it only offers male or female. Which should I put?",
+      "hash": "bde909d369e3017d"
+    },
+    {
+      "text": "The official form could not be loaded, so I saved a plain worksheet with your answers instead.",
+      "hash": "846d30b1a850a4ea"
+    },
+    {
+      "text": "Training program 10.",
+      "hash": "6c52965e2ef21150"
+    },
+    {
+      "text": "Training program 11.",
+      "hash": "52c32b91f6f99ee9"
+    },
+    {
+      "text": "Training program 12.",
+      "hash": "10395c72e11408a7"
+    },
+    {
+      "text": "Training program 2.",
+      "hash": "7186e74095ffdb83"
+    },
+    {
+      "text": "Training program 3.",
+      "hash": "6917a1fbd7c1550b"
+    },
+    {
+      "text": "Training program 4.",
+      "hash": "e95fd261effb6693"
+    },
+    {
+      "text": "Training program 5.",
+      "hash": "f28532a99fdf5df3"
+    },
+    {
+      "text": "Training program 6.",
+      "hash": "f02b86da7e6e4e12"
+    },
+    {
+      "text": "Training program 7.",
+      "hash": "9950fafbf36c7a4b"
+    },
+    {
+      "text": "Training program 8.",
+      "hash": "a83747fd6112a778"
+    },
+    {
+      "text": "Training program 9.",
+      "hash": "7389f675c6e9c887"
+    },
+    {
+      "text": "Transportation. Which fits best?",
+      "hash": "0275ebfeaeceafe0"
+    },
+    {
+      "text": "Typing mode. I will ask a question, you type the answer and press Enter. The hold to talk button is still there whenever you would rather speak. You can type skip, back, or repeat at any time.",
+      "hash": "54f6f44683c5ffd7"
+    },
+    {
+      "text": "Typing. Press Escape when you want the space bar to talk again.",
+      "hash": "aebf96fc5ab50f76"
+    },
+    {
+      "text": "Understanding others, called receptive communication. Which fits best?",
+      "hash": "e694b8838a8aa726"
+    },
+    {
+      "text": "Using the toilet. Which fits best?",
+      "hash": "b8c3057978938990"
+    },
+    {
+      "text": "Usually a guardian or your closest family member. Say skip to leave this blank.",
+      "hash": "c6e695bea5237aa1"
+    },
+    {
+      "text": "Visual or gestural communication, such as pointing or pictures. Which fits best?",
+      "hash": "ddd4de70dfaaca07"
+    },
+    {
+      "text": "Voice mode. Hold the space bar while you answer, and let go when you are done. When I read an answer back, tap the space bar to keep it, or press N to answer again. You can type an answer instead at any point, and speaking still works afterwards. Say repeat, go back, or skip at any time.",
+      "hash": "9e96ecc618a11892"
+    },
+    {
+      "text": "Voice. Hold the space bar to talk, or press T to type.",
+      "hash": "877863d4b86c2320"
+    },
+    {
+      "text": "Was that per hour, per day, per week, every two weeks, twice a month, per month, or per year?",
+      "hash": "021f7b1b7122144b"
+    },
+    {
+      "text": "What city did you get married in?",
+      "hash": "02dfffe8e250a428"
+    },
+    {
+      "text": "What city were you born in?",
+      "hash": "92b52972313b96cb"
+    },
+    {
+      "text": "What country did you get married in?",
+      "hash": "5fa8dbcc160bafc1"
+    },
+    {
+      "text": "What country were you born in?",
+      "hash": "d2665718bbdc0ed8"
+    },
+    {
+      "text": "What county is that in?",
+      "hash": "934311c015f87b87"
+    },
+    {
+      "text": "What date did this spouse pass away?",
+      "hash": "5f53c4e51ffddb65"
+    },
+    {
+      "text": "What date did you complete it?",
+      "hash": "bdad9cce7625ea80"
+    },
+    {
+      "text": "What date did you first see this provider? If this was a hospital stay, give me the admission date.",
+      "hash": "9c49e47569e63079"
+    },
+    {
+      "text": "What date did you get divorced?",
+      "hash": "bb5af0060205cfb2"
+    },
+    {
+      "text": "What date did you get married?",
+      "hash": "974c100c88de3276"
+    },
+    {
+      "text": "What date did you last see this provider? If this was a hospital stay, give me the discharge date. You can say still seeing them.",
+      "hash": "61e3dcabd21496d0"
+    },
+    {
+      "text": "What date was, or will, this test be performed?",
+      "hash": "c7298a16c62a9532"
+    },
+    {
+      "text": "What is that person's phone number?",
+      "hash": "005dd07c6b2f8918"
+    },
+    {
+      "text": "What is the address for this provider or facility?",
+      "hash": "dff339e9a83930f7"
+    },
+    {
+      "text": "What is the approximate monthly amount?",
+      "hash": "a746387be8ed06bf"
+    },
+    {
+      "text": "What is the approximate value?",
+      "hash": "73d235f924fe490e"
+    },
+    {
+      "text": "What is the claim number?",
+      "hash": "a335729d4b0c16e0"
+    },
+    {
+      "text": "What is the confirmed diagnosis?",
+      "hash": "e20ba82fb86844a8"
+    },
+    {
+      "text": "What is the date of injury?",
+      "hash": "756a2372c28bb618"
+    },
+    {
+      "text": "What is the diagnosis?",
+      "hash": "99b8029219db439a"
+    },
+    {
+      "text": "What is the highest level of education you completed?",
+      "hash": "3304321e6c91b6bc"
+    },
+    {
+      "text": "What is the medical condition that limits your ability to work? If you have more than one, we will take them one at a time.",
+      "hash": "ddd8d2fcb7885675"
+    },
+    {
+      "text": "What is the name of this condition?",
+      "hash": "13f37aa1da0004f2"
+    },
+    {
+      "text": "What is the name of this medication?",
+      "hash": "5bf69e0cc6f4847a"
+    },
+    {
+      "text": "What is the name of this provider or facility?",
+      "hash": "1e111c0e24bb0606"
+    },
+    {
+      "text": "What is the name of this test?",
+      "hash": "9c56407006f47616"
+    },
+    {
+      "text": "What is the payment amount?",
+      "hash": "4476752bd68f17f7"
+    },
+    {
+      "text": "What is the phone number for this provider or facility?",
+      "hash": "408d70f9ec86d22a"
+    },
+    {
+      "text": "What is the source of the payment?",
+      "hash": "1e116f05097034b6"
+    },
+    {
+      "text": "What is the zip code?",
+      "hash": "5c141023fb027ce2"
+    },
+    {
+      "text": "What is their email address? Say skip if you do not know it.",
+      "hash": "1d2150f8f80f56a3"
+    },
+    {
+      "text": "What is their full name?",
+      "hash": "dd5582533c8f620f"
+    },
+    {
+      "text": "What is their mailing address? Just the street or post office box for now.",
+      "hash": "f9cf33961f1271dc"
+    },
+    {
+      "text": "What is their phone number?",
+      "hash": "4de67bb1da7cd1eb"
+    },
+    {
+      "text": "What is their street address?",
+      "hash": "c89614b7e9f07d31"
+    },
+    {
+      "text": "What is this child's first name?",
+      "hash": "f68d8607339b7420"
+    },
+    {
+      "text": "What is this child's last name?",
+      "hash": "d53d09e2701a2798"
+    },
+    {
+      "text": "What is this person's date of birth?",
+      "hash": "2f522e65301dc1fb"
+    },
+    {
+      "text": "What is this person's name?",
+      "hash": "8b7db43406dbf6d2"
+    },
+    {
+      "text": "What is your MaineCare number? Say skip if you do not have one.",
+      "hash": "e3b40e0a9452ba80"
+    },
+    {
+      "text": "What is your Social Security number?",
+      "hash": "fdbe60892d678a66"
+    },
+    {
+      "text": "What is your bank account number?",
+      "hash": "bf37c807f7f00e8c"
+    },
+    {
+      "text": "What is your bank's 9-digit routing number?",
+      "hash": "c89c4f191200632f"
+    },
+    {
+      "text": "What is your current living arrangement? For example, living with family, in your own apartment, or in a group home.",
+      "hash": "eacf743a22c332d3"
+    },
+    {
+      "text": "What is your date of birth? Say the month, the day, and then the year.",
+      "hash": "b5d41c476292ddf0"
+    },
+    {
+      "text": "What is your email address?",
+      "hash": "a69afd17dbaece3c"
+    },
+    {
+      "text": "What is your email address? Say skip if you do not have one.",
+      "hash": "a12944c485387f19"
+    },
+    {
+      "text": "What is your fax number? Say skip if you do not have one.",
+      "hash": "a441108f83bb1045"
+    },
+    {
+      "text": "What is your full mailing address, including the town, state, and zip code?",
+      "hash": "81c1321be85a6ae6"
+    },
+    {
+      "text": "What is your landlord's name?",
+      "hash": "2a15c054b181704c"
+    },
+    {
+      "text": "What is your landlord's phone number?",
+      "hash": "a8c394aad56acf94"
+    },
+    {
+      "text": "What is your legal first name?",
+      "hash": "f9990705a1f1fd59"
+    },
+    {
+      "text": "What is your legal last name?",
+      "hash": "618e4f313ac78ee9"
+    },
+    {
+      "text": "What is your mailing address? Just the street or post office box for now.",
+      "hash": "8f4266c32601db01"
+    },
+    {
+      "text": "What is your marital status: never married, married, separated, divorced, or widowed?",
+      "hash": "f26e4974439a04cf"
+    },
+    {
+      "text": "What is your name, or the name of your agency?",
+      "hash": "04e31a353387178b"
+    },
+    {
+      "text": "What is your phone number?",
+      "hash": "ba940eb0d6cdf58f"
+    },
+    {
+      "text": "What is your primary language?",
+      "hash": "b1bf5905ac817972"
+    },
+    {
+      "text": "What is your spouse's or former spouse's Social Security number?",
+      "hash": "7d1a3ddbdf1da5e3"
+    },
+    {
+      "text": "What is your spouse's or former spouse's date of birth?",
+      "hash": "bec5c9387eb4ef31"
+    },
+    {
+      "text": "What is your spouse's or former spouse's full name?",
+      "hash": "dbd5e2ee6ca13114"
+    },
+    {
+      "text": "What is your street address?",
+      "hash": "fcefb2b95f78ff09"
+    },
+    {
+      "text": "What is your zip code?",
+      "hash": "2922ad01b7ba5007"
+    },
+    {
+      "text": "What month and year did it end? You can say still working.",
+      "hash": "392d93a197726751"
+    },
+    {
+      "text": "What month and year did this job end? You can say still working.",
+      "hash": "274123c0e70bdab0"
+    },
+    {
+      "text": "What month and year did you start this job?",
+      "hash": "be3f3d620a6958b3"
+    },
+    {
+      "text": "What month and year did you start?",
+      "hash": "00a04ab827eea223"
+    },
+    {
+      "text": "What month and year did your condition begin to limit your ability to work?",
+      "hash": "30b9227fdb42b48b"
+    },
+    {
+      "text": "What school or institution did you complete it at?",
+      "hash": "753b97f8733c53e7"
+    },
+    {
+      "text": "What state did you get married in?",
+      "hash": "635f6331bf000ce0"
+    },
+    {
+      "text": "What state do you live in?",
+      "hash": "454ec3622de8dc0c"
+    },
+    {
+      "text": "What state or province were you born in?",
+      "hash": "e31efa22cae036c9"
+    },
+    {
+      "text": "What town or city do you live in?",
+      "hash": "5197756d21d5f3fe"
+    },
+    {
+      "text": "What town or city is that in?",
+      "hash": "8ad4c5f4d1f00dd7"
+    },
+    {
+      "text": "What type of business was this?",
+      "hash": "8fdfdce04518a43e"
+    },
+    {
+      "text": "What type of income is this?",
+      "hash": "a4174de16241ab08"
+    },
+    {
+      "text": "What type of resource is this?",
+      "hash": "41ee01c15371f78f"
+    },
+    {
+      "text": "What was the employer's name?",
+      "hash": "f086812c99b5981f"
+    },
+    {
+      "text": "What was the name of this training program?",
+      "hash": "3b64b61b481e9229"
+    },
+    {
+      "text": "What was your job there?",
+      "hash": "89cfc12f0e78c946"
+    },
+    {
+      "text": "What was your job title?",
+      "hash": "35a8ff99cd5e67d1"
+    },
+    {
+      "text": "What year did you complete it?",
+      "hash": "e9e0b10939a745d7"
+    },
+    {
+      "text": "What year did you complete special education services?",
+      "hash": "37db100fb36687d7"
+    },
+    {
+      "text": "When do you expect to graduate? A month and year is fine.",
+      "hash": "f0d2740d39bfba28"
+    },
+    {
+      "text": "Where did you receive special education services?",
+      "hash": "b870e9c228a16515"
+    },
+    {
+      "text": "Where did you work?",
+      "hash": "789bd77f52e3c005"
+    },
+    {
+      "text": "Which answer would you like to change? You can name the field, for example, my phone number, or the second provider's address. You can add a new entry, by saying something like add another condition, or remove a whole entry, by saying remove that last provider. Say never mind to go back.",
+      "hash": "d66999c3f482062f"
+    },
+    {
+      "text": "Which form are we filling out today: Social Security's Adult Disability Starter Kit, Maine's Developmental Services Intake Application, or both?",
+      "hash": "1ec5d9ff682334b0"
+    },
+    {
+      "text": "Which provider prescribed it?",
+      "hash": "6bc9cdafa2f6ee65"
+    },
+    {
+      "text": "Who is filling out this application.",
+      "hash": "23424a717aa3c9d3"
+    },
+    {
+      "text": "Who ordered this test?",
+      "hash": "a4c1ed6cae5bce07"
+    },
+    {
+      "text": "Who should be contacted in an emergency? Tell me their full name.",
+      "hash": "5dabb84c978521c2"
+    },
+    {
+      "text": "Why do you take it?",
+      "hash": "866f7d749912eea2"
+    },
+    {
+      "text": "Workers' compensation.",
+      "hash": "dd539a6bb64253c4"
+    },
+    {
+      "text": "You can say it like john dot smith at gmail dot com, or say skip.",
+      "hash": "79c486c96dc0d74d"
+    },
+    {
+      "text": "You can say it like john dot smith at gmail dot com.",
+      "hash": "35dc700270cd7725"
+    },
+    {
+      "text": "You can say the digits one at a time, and it is fine to pause between groups.",
+      "hash": "d278f3823c345649"
+    },
+    {
+      "text": "You can say the nine digits one at a time, and it is fine to pause between groups.",
+      "hash": "74590418ef8632e3"
+    },
+    {
+      "text": "You can say the ten digits one at a time, and it is fine to pause between groups.",
+      "hash": "26dde0b141faa986"
+    },
+    {
+      "text": "You can say: repeat that, go back, skip this, where am I, read back my answers, change an answer, remove an entry, save and quit, or start over.",
+      "hash": "bb279d78c4d96573"
+    },
+    {
+      "text": "Your address and background.",
+      "hash": "cfa52899a57f54dd"
+    },
+    {
+      "text": "Your children.",
+      "hash": "e492d13b6fdf9107"
+    },
+    {
+      "text": "Your choice of forms changed, so there are new questions to answer. Let us do those now.",
+      "hash": "dbbd81d94ee2384e"
+    },
+    {
+      "text": "Your current income.",
+      "hash": "440d385174baf35a"
+    },
+    {
+      "text": "Your doctors, hospitals, and clinics.",
+      "hash": "61112db1d7646122"
+    },
+    {
+      "text": "Your earnings record.",
+      "hash": "d0c82e0f9abd24a0"
+    },
+    {
+      "text": "Your education.",
+      "hash": "d204fb00cddd749d"
+    },
+    {
+      "text": "Your form has been downloaded. Check your downloads folder.",
+      "hash": "915609d3b23f3496"
+    },
+    {
+      "text": "Your home.",
+      "hash": "b2eccc0e23b0d775"
+    },
+    {
+      "text": "Your medical conditions.",
+      "hash": "1fe510084ab5f63d"
+    },
+    {
+      "text": "Your medications.",
+      "hash": "2af0d90635983fee"
+    },
+    {
+      "text": "Your work history.",
+      "hash": "7f54fda6c1774845"
+    },
+    {
+      "text": "about 10 minutes left.",
+      "hash": "22b70b0f043f6960"
+    },
+    {
+      "text": "about 15 minutes left.",
+      "hash": "2952bb33fae6431a"
+    },
+    {
+      "text": "about 2 and a half hours left.",
+      "hash": "6ae6bfd5d9a8f923"
+    },
+    {
+      "text": "about 2 hours left.",
+      "hash": "7d93db32be8691f4"
+    },
+    {
+      "text": "about 20 minutes left.",
+      "hash": "40bf8c2a9c35469a"
+    },
+    {
+      "text": "about 25 minutes left.",
+      "hash": "7865f6b4782e5195"
+    },
+    {
+      "text": "about 3 and a half hours left.",
+      "hash": "09ec1446200a0da0"
+    },
+    {
+      "text": "about 3 hours left.",
+      "hash": "19f37d5597b4ba4d"
+    },
+    {
+      "text": "about 30 minutes left.",
+      "hash": "7ea5a234f97a96ff"
+    },
+    {
+      "text": "about 35 minutes left.",
+      "hash": "bfc73f31b2f6d0af"
+    },
+    {
+      "text": "about 4 and a half hours left.",
+      "hash": "5a5b681519cfb173"
+    },
+    {
+      "text": "about 4 hours left.",
+      "hash": "b94d28b19041f94f"
+    },
+    {
+      "text": "about 40 minutes left.",
+      "hash": "9cc6fdd884b9966d"
+    },
+    {
+      "text": "about 45 minutes left.",
+      "hash": "cb12b91e6d9c12a8"
+    },
+    {
+      "text": "about 5 hours left.",
+      "hash": "c63860bef8d13a28"
+    },
+    {
+      "text": "about 5 minutes left.",
+      "hash": "70446c665fd04630"
+    },
+    {
+      "text": "about 50 minutes left.",
+      "hash": "d0876152c0576128"
+    },
+    {
+      "text": "about 55 minutes left.",
+      "hash": "a3737708baaf4114"
+    },
+    {
+      "text": "about 60 minutes left.",
+      "hash": "bbb434252a63cc4e"
+    },
+    {
+      "text": "about an hour and a half left.",
+      "hash": "b40194f5cdea81db"
+    },
+    {
+      "text": "about an hour left.",
+      "hash": "21d0703194cd9c2c"
+    },
+    {
+      "text": "about two minutes left.",
+      "hash": "0d9c2c0992e2b52d"
+    },
+    {
+      "text": "less than a minute left.",
+      "hash": "da377140ce232b57"
+    }
+  ]
+}

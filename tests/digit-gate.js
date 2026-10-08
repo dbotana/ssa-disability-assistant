@@ -32,16 +32,21 @@ const survives = (question, transcript) => {
   // What Whisper actually returns for a grouped SSN.
   check('a hyphenated SSN is trusted', survives(ssn, '987-65-4321'));
   check('an SSN split oddly by the transcriber is trusted', survives(ssn, '987 6 5 4329'));
+  // Whisper inserts commas between spoken digit groups; those are separators.
+  check('a comma-separated SSN is trusted', survives(ssn, '9, 8, 7, 6, 5, 4, 3, 2, 1'));
+  check('a punctuated SSN with periods is trusted', survives(ssn, '987.65.4321'));
 
   const phone = { id: 'p', type: 'phone' };
   check('a truncated phone number is not trusted', !survives(phone, 'five five five'));
   check('a full phone number is trusted', survives(phone, '5551112222'));
   check('a phone number with a country code is trusted', survives(phone, '1 5 5 5 1 1 1 2 2 2 2'));
   check('a hyphenated phone number is trusted', survives(phone, '207-555-0142'));
+  check('a comma-grouped phone number is trusted', survives(phone, '207, 555, 0142'));
 
   const routing = { id: 'r', type: 'routing' };
   check('a truncated routing number is not trusted', !survives(routing, 'one two three'));
   check('a full routing number is trusted', survives(routing, '123456789'));
+  check('a comma-grouped routing number is trusted', survives(routing, '1, 2, 3, 4, 5, 6, 7, 8, 9'));
 }
 
 console.log(failures === 0 ? 'digit-gate: all checks passed' : `digit-gate: ${failures} failure(s)`);

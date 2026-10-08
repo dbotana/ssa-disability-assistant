@@ -13,6 +13,8 @@
 import { parseLocal } from '../src/parse.js';
 import { normalize } from '../src/validate.js';
 import { SECTIONS, findQuestion } from '../src/schema.js';
+import { createEngine } from '../src/engine.js';
+import { VALUE_CASES, DEFER_CASES } from '../tools/golden/parse-corpus.mjs';
 
 let failures = 0;
 const check = (name, cond, detail = '') => {
@@ -38,268 +40,65 @@ function defer(type, input, extra = {}) {
     r ? `got ${JSON.stringify(r.value)} at confidence ${r.confidence}` : '');
 }
 
-// -- yes / no --------------------------------------------------------------
-
-for (const s of ['yes', 'Yes', 'yeah', 'yep', 'yup', 'sure', 'correct', 'right',
-  'true', 'affirmative', 'ok', 'okay', "that's right", 'uh huh', 'Yes.', 'yes!']) {
-  val('yesno', s, true);
-}
-for (const s of ['no', 'No', 'nope', 'nah', 'negative', 'false', 'incorrect',
-  'wrong', "that's wrong", 'uh uh', 'No.']) {
-  val('yesno', s, false);
-}
-val('yesno', 'um, yes', true);          // lead filler stripped
-val('yesno', 'well no', false);
-
-// Anything beyond a bare yes/no is someone saying something else.
-defer('yesno', 'yes but actually no');
-defer('yesno', 'no wait, yes');
-defer('yesno', 'yes I worked there until 2019');
-defer('yesno', 'go back');
-defer('yesno', 'I think so');
-defer('yesno', 'maybe');
-defer('yesno', 'can you repeat that');
-
-// -- sensitive digits ------------------------------------------------------
-
-val('ssn', '123456789', '123456789');
-val('ssn', '123 45 6789', '123456789');
-val('ssn', '123-45-6789', '123456789');
-val('ssn', 'one two three four five six seven eight nine', '123456789');
-val('ssn', 'one two three dash four five dash six seven eight nine', '123456789');
-// Eight digits: parsed as a digit string, then rejected by normalize() —
-// the parser's job is to read digits, not to enforce length.
-val('ssn', 'five five five oh one two three four', '55501234');
-val('routing', 'nine eight seven six five four three two one', '987654321');
-val('account', '4321', '4321');
-
-// Ambiguous shorthand has two readings. Never guess these.
-defer('ssn', 'double seven three four five six seven eight nine');
-defer('ssn', 'triple oh one two three four five six');
-defer('ssn', 'seventeen twenty three forty five sixty seven');
-// Any real word means this is not a bare digit string.
-defer('ssn', 'my social is 123 45 6789');
-defer('ssn', 'I do not remember');
-defer('ssn', 'it starts with 123');
-defer('account', 'the one ending in 4321');
-
-// Wrong-length digits still reach normalize(), which asks for a correction.
-// The parser's job is only to say "this is a digit string".
-{
-  const r = parseLocal(q('ssn'), '1234');
-  check('short ssn is parsed, then rejected by normalize',
-    r !== null && normalize(r, q('ssn')).needsClarification === true,
-    r === null ? 'parser deferred' : 'normalize accepted a 4-digit SSN');
-}
-
-// -- phone -----------------------------------------------------------------
-
-val('phone', '5551234567', '5551234567');
-val('phone', '555 123 4567', '5551234567');
-val('phone', '(555) 123-4567', '5551234567');
-val('phone', 'five five five one two three four five six seven', '5551234567');
-defer('phone', 'you can reach me at 555 123 4567');
-
-// -- dates -----------------------------------------------------------------
-
-val('date', '1979-03-14', '1979-03-14');
-val('date', '3/14/79', '1979-03-14');
-val('date', '03-14-1979', '1979-03-14');
-val('date', 'March 14th 1979', '1979-03-14');
-val('date', 'march 14 1979', '1979-03-14');
-val('date', 'the 14th of March 1979', '1979-03-14');
-val('date', 'March 14th, 1979', '1979-03-14');
-val('date', 'Mar 14 1979', '1979-03-14');
-val('date', 'um, March 14th 1979', '1979-03-14');
-
-// Two-digit years resolve to the past, never the future.
-val('date', 'March 14th 79', '1979-03-14');
-val('date', 'January 1st 05', '2005-01-01');
-
-// Month, day, year — the order every date question now asks for out loud.
-// These are the shapes a user who followed that instruction actually says.
-// Spoken out, the prompt's own example is words, not digits, and this parser
-// is the only thing that reads them.
-val('date', 'March fourteenth nineteen seventy nine', '1979-03-14');
-val('date', 'march fourteenth, nineteen seventy-nine', '1979-03-14');
-val('date', 'the fourteenth of March nineteen seventy nine', '1979-03-14');
-val('date', 'March 14 1979', '1979-03-14');
-
-// The other ways a year gets said out loud.
-val('date', 'June second nineteen oh five', '1905-06-02');
-val('date', 'July fourth nineteen seventy six', '1976-07-04');
-val('date', 'May fifth twenty twelve', '2012-05-05');
-val('date', 'August eighth twenty twenty four', '2024-08-08');
-val('date', 'January first two thousand', '2000-01-01');
-val('date', 'October tenth two thousand eighteen', '2018-10-10');
-val('date', 'March twenty first two thousand and five', '2005-03-21');
-val('date', 'December thirty first nineteen ninety nine', '1999-12-31');
-val('date', 'February twenty ninth two thousand twenty', '2020-02-29');
-val('monthyear', 'March nineteen seventy nine', '1979-03');
-val('monthyear', 'August two thousand fifteen', '2015-08');
-
-// Spelling the numbers out does not make a bad date good.
-defer('date', 'February thirtieth nineteen ninety');
-defer('date', 'March fourteenth two thousand ninety nine');
-defer('date', 'sometime in the eighties');
-val('date', 'March the 14th, 1979', '1979-03-14');
-val('date', 'it is March 14th 1979', '1979-03-14');
-
-// Year-first still parses. The prompt asks for month first, but someone who
-// says it the other way round has still been unambiguous, and the year is
-// identified by being four digits rather than by where it sits.
-val('date', '1979 March 14', '1979-03-14');
-val('date', '1979, March 14th', '1979-03-14');
-
-// A slashed date is read US-style, month first. "14/3/1979" has no 14th
-// month, so it is a misread to hand to the model rather than a date to
-// silently reinterpret as the 3rd of the 14th.
-val('date', '12/11/1979', '1979-12-11');
-defer('date', '14/3/1979');
-
-// Impossible and future dates are a misread, not an answer.
-defer('date', 'February 30 1990');
-defer('date', 'February 30th, 1990');
-defer('date', 'March 32nd 1979');
-defer('date', 'March 14th 2099');
-defer('date', 'next Tuesday');
-defer('date', 'sometime in the eighties');
-defer('date', 'I do not remember exactly');
-defer('date', 'March 1979');            // no day for a full date
-
-// -- month / year ----------------------------------------------------------
-
-val('monthyear', '1979-03', '1979-03');
-val('monthyear', 'March 1979', '1979-03');
-val('monthyear', 'march of 79', '1979-03');
-val('monthyear', '3/79', '1979-03');
-val('monthyear', 'August 2015', '2015-08');
-
-// The schema literally prompts "you can say still seeing them".
-val('monthyear', 'still working', 'present');
-val('monthyear', 'still seeing them', 'present');
-val('monthyear', 'ongoing', 'present');
-val('monthyear', 'I still go there', 'present');
-val('monthyear', 'currently', 'present');
-
-defer('monthyear', 'a few years ago');
-defer('monthyear', 'March 2099');
-// "still, it was March 2015" names a real date — not the present sentinel.
-val('monthyear', 'still March 2015', '2015-03');
-
-// -- money and numbers -----------------------------------------------------
-
-val('money', '1200', 1200);
-val('money', '$1,200', 1200);
-val('money', '1200 dollars', 1200);
-val('money', 'about $1,200 a month', 1200);
-val('number', '3', 3);
-val('number', '12', 12);
-
-// A range is a question for the user, not a number to pick from.
-defer('money', 'eight hundred to a thousand');
-defer('money', 'between 800 and 1000');
-defer('money', '800 or 900');
-defer('money', 'twelve hundred');       // number words: asked again
-defer('number', 'a few');
-
-// -- free text is the words, with the wrapping removed ----------------------
+// -- the canonical corpus --------------------------------------------------
 //
-// There is no model to hand free text to, so the parser keeps what was said.
-// It removes only what a transcriber wraps around an answer: hesitation at
-// the front, and the full stop at the end.
-
-for (const s of ['John', 'Springfield', 'Dr. Smith at City Clinic']) {
-  val('text', s, s);
-}
-val('text', 'diabetes', 'Diabetes');
-val('text', 'Maine Medical Center in Portland.', 'Maine Medical Center in Portland');
-val('text', 'um, the Maine Medical Center.', 'The Maine Medical Center');
-val('text', 'uh, uh John Smith', 'John Smith');
-val('text', 'My answer is: retired teacher.', 'Retired teacher');
-// Words that are filler in a date are answers in free text.
-val('text', 'Well Street', 'Well Street');
-val('text', 'So-Young Kim', 'So-Young Kim');
-val('text', 'Okay Corral Road', 'Okay Corral Road');
-// Filler on its own is kept rather than erased; the read-back catches it.
-val('text', 'um', 'Um');
-defer('text', '...');
-defer('text', ' . ');
-
-// Typed free text is not a transcript, and is left exactly as written: null
-// here, and main.js keeps the text itself. The clean-up above would rewrite
-// a name's own capitals and full stops on the form.
-for (const s of ['de la Cruz', 'iPhone repair shop', 'Smith Jr.', 'Acme Tools, Inc.']) {
-  const r = parseLocal(q('text'), s, { typed: true });
-  check(`typed text ${JSON.stringify(s)} is left as written`, r === null,
-    r ? `got ${JSON.stringify(r.value)}` : '');
-}
-// Typed answers of every other type still go through their parser.
-{
-  const r = parseLocal(q('date'), 'March 14th 1979', { typed: true });
-  check('a typed date is still parsed', r?.value === '1979-03-14', JSON.stringify(r?.value));
-}
-
-// -- choice ------------------------------------------------------------------
+// The val/defer cases live in tools/golden/parse-corpus.mjs, shared with the
+// `parse` golden that pins the Kotlin port. Options are resolved through the
+// schema by name, so a case always runs against the real option lists.
 
 const opts = id => findQuestion(id).options;
-const FORMS = { options: opts('forms') };
-const RATING = { options: opts('eating_level') };
-const PAY = { options: opts('pay_frequency') };
-const MARITAL = { options: opts('marital_status') };
 
-val('choice', 'the starter kit', 'ssa', FORMS);
-val('choice', 'Starter Kit.', 'ssa', FORMS);
-val('choice', 'developmental services', 'ds', FORMS);
-val('choice', "um, it's the Maine application", 'ds', FORMS);
-val('choice', 'both', 'both', FORMS);
-val('choice', 'both of them please', 'both', FORMS);
-// Naming each form is choosing both.
-val('choice', 'the starter kit and developmental services', 'both', FORMS);
-defer('choice', 'not the starter kit', FORMS);            // a negation is never an answer
-defer('choice', 'I am not sure', FORMS);
-defer('choice', 'the blue one', FORMS);
+/** The question a corpus case runs against: a real one, or a bare one of its type. */
+function caseQuestion({ type, optionsKey, questionKey }) {
+  if (questionKey) {
+    const real = findQuestion(questionKey);
+    if (!real || real.type !== type) throw new Error(`corpus: ${questionKey} is not a ${type} question`);
+    return real;
+  }
+  return q(type, optionsKey ? { options: opts(optionsKey) } : {});
+}
 
-val('choice', 'independent', 'A', RATING);
-val('choice', 'B', 'B', RATING);
-val('choice', 'letter c', 'C', RATING);
-val('choice', 'dee', 'D', RATING);
-val('choice', 'needs supervision', 'B', RATING);
-val('choice', 'they need physical assistance', 'D', RATING);
-// "total assistance" is not also "assistance": the longer phrase wins.
-val('choice', 'total assistance', 'E', RATING);
-val('choice', 'needs skills training', 'C', RATING);
-defer('choice', 'a little help sometimes', RATING);      // "a" inside a sentence is not option A
-defer('choice', 'supervision or training', RATING);      // two options named
-defer('choice', "doesn't need supervision", RATING);
+for (const c of VALUE_CASES) {
+  const r = parseLocal(caseQuestion(c), c.input);
+  check(`${c.questionKey ?? c.type} ${JSON.stringify(c.input)} -> ${JSON.stringify(c.value)}`,
+    r !== null && JSON.stringify(r.value) === JSON.stringify(c.value),
+    r === null ? 'got null (would be asked again)' : `got ${JSON.stringify(r.value)}`);
+}
 
-val('choice', 'every two weeks', 'biweekly', PAY);
-val('choice', 'hourly', 'hour', PAY);
-val('choice', 'twice a month', 'twice_month', PAY);
-val('choice', 'per year', 'year', PAY);
-val('choice', 'never married', 'never_married', MARITAL);
-val('choice', 'widowed', 'widowed', MARITAL);
+for (const c of DEFER_CASES) {
+  const r = parseLocal(caseQuestion(c), c.input);
+  check(`${c.questionKey ?? c.type} ${JSON.stringify(c.input)} defers`, r === null,
+    r ? `got ${JSON.stringify(r.value)} at confidence ${r.confidence}` : '');
+}
 
 // normalize() maps a label or paraphrase back to the value, and refuses others.
 {
+  const RATING = { options: opts('eating_level') };
   const n = (value, extra) => normalize({ value, confidence: 1 }, q('choice', extra));
   check('normalize accepts a value', n('B', RATING).value === 'B');
   check('normalize maps a label', n('Needs supervision', RATING).value === 'B');
   check('normalize refuses an unknown answer', n('sometimes', RATING).needsClarification === true);
 }
 
-// -- zip and email -------------------------------------------------------------
+// Typed free text is not a transcript, and is left exactly as written: null
+// here, and main.js keeps the text itself.
+for (const s of ['de la Cruz', 'iPhone repair shop', 'Smith Jr.', 'Acme Tools, Inc.']) {
+  const r = parseLocal(q('text'), s, { typed: true });
+  check(`typed text ${JSON.stringify(s)} is left as written`, r === null,
+    r ? `got ${JSON.stringify(r.value)}` : '');
+}
+{
+  const r = parseLocal(q('date'), 'March 14th 1979', { typed: true });
+  check('a typed date is still parsed', r?.value === '1979-03-14', JSON.stringify(r?.value));
+}
 
-val('zip', '04101', '04101');
-val('zip', 'oh four one oh one', '04101');
-val('zip', '04101-1234', '041011234');
-defer('zip', '4101');
-defer('zip', 'Portland');
-
-val('email', 'Jane.Doe@Example.com', 'jane.doe@example.com');
-val('email', 'jane dot doe at example dot com', 'jane.doe@example.com');
-defer('email', 'jane at the office');
-defer('email', 'I do not have one');
+// Wrong-length digits still reach normalize(), which asks for a correction.
+{
+  const r = parseLocal(q('ssn'), '1234');
+  check('short ssn is parsed, then rejected by normalize',
+    r !== null && normalize(r, q('ssn')).needsClarification === true,
+    r === null ? 'parser deferred' : 'normalize accepted a 4-digit SSN');
+}
 
 // -- dates that may lie ahead ----------------------------------------------------
 
@@ -311,6 +110,25 @@ defer('email', 'I do not have one');
   const r = parseLocal(q('monthyear', { allowFuture: true }), `June ${yy}`);
   check('a two-digit year near the future stays in this century when allowed',
     r?.value === `${next}-06`, JSON.stringify(r));
+}
+
+// -- the live question carries what the parser reads ------------------------
+//
+// The app parses against engine.current(), not the schema node, so `per` and
+// `kind` have to survive buildCurrent(). Without them "$20 an hour" defers on
+// the one question that is meant to accept it.
+{
+  const engine = createEngine(SECTIONS, {
+    answers: { forms: 'ssa', jobs: [{ employer: 'Acme' }], education_level: 'High school' }
+  });
+  const pay = engine.jumpTo('pay_amount', 0, 'jobs');
+  check('current() carries per', pay?.per === 'any', JSON.stringify(pay?.per));
+  check('a job\'s pay with its period parses through current()',
+    parseLocal(pay, '$20 an hour')?.value === 20, JSON.stringify(parseLocal(pay, '$20 an hour')));
+  const year = engine.jumpTo('education_year');
+  check('current() carries kind', year?.kind === 'year', JSON.stringify(year?.kind));
+  check('a spoken year parses through current()',
+    parseLocal(year, 'nineteen ninety eight')?.value === 1998);
 }
 
 // -- properties over the real schema --------------------------------------

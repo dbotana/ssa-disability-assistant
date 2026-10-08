@@ -1,0 +1,40 @@
+# Fifteen minutes without activity clears the sensitive numbers from memory.
+# Each is put back on the re-ask list and asked again before the forms are
+# ready, with the reason given as the idle page, not a save.
+scenario: the idle lock clears the numbers and asks for them again
+steps:
+  - start:
+      mode: text
+      confirm: false
+  - type: starter kit
+  - type: Ada
+  - type: Lovelace
+  - type: March 14th 1979
+  - type: yes
+  - type: Bangor
+  - type: Maine
+  - type: United States
+  - type: 987-65-4321
+  - expect:
+      readback: open
+  - type: yes
+  - expect:
+      answers:
+        ssn: "987654321"
+
+  # Fourteen minutes is not idle.
+  - advance: 14
+  - expect:
+      answers:
+        ssn: "987654321"
+
+  - advance: 2
+  - expect:
+      answers:
+        ssn: null
+      withheld: [ssn]
+
+  - finish
+  - expect:
+      spoken: "I cleared this while the page was not in use"
+      question: "Social Security number"

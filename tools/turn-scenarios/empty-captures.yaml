@@ -1,0 +1,32 @@
+# A capture with nothing in it must never become an answer: silence, a bumped
+# button, and the filler a transcriber invents for room tone all re-ask.
+scenario: empty captures
+steps:
+  - start:
+      mode: voice
+      confirm: true
+  - expect:
+      question: "Which form"
+
+  # Room tone with a filler transcript, mic at the noise floor.
+  - say-quiet: thank you
+  - expect:
+      spoken: "I did not hear anything"
+      question: "Which form"
+      answers:
+        forms: null
+
+  # A capture too short to be an answer (a bumped button).
+  - quiet: true
+  - say: short
+  - expect:
+      spoken: "I did not hear anything"
+      answers:
+        forms: null
+
+  # A real answer through a live mic is still heard.
+  - quiet: false
+  - say: starter kit
+  - expect:
+      readback: open
+      question: "I heard adult disability starter kit"

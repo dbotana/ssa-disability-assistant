@@ -6,33 +6,11 @@
 // that phrase commits and the form advances past a question the user never
 // answered. There is no way back except noticing it on the review screen.
 //
-// main.js drives the DOM at import time, so isEmptyTranscript is lifted out of
-// the source the same way tests/local-command.js lifts localCommand. Brittle
-// by nature; the extraction failing is itself a test failure.
 
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+// isEmptyTranscript moved to src/turn.js with the turn controller; the peak
+// is now a parameter, so each case says how loud the capture actually was.
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const src = readFileSync(join(ROOT, 'src', 'main.js'), 'utf8');
-
-const start = src.indexOf('// What a transcriber tends to emit');
-const endMarker = '\n}\n';
-const end = src.indexOf(endMarker, src.indexOf('function isEmptyTranscript'));
-
-if (start === -1 || end === -1) {
-  console.error('FAIL could not extract isEmptyTranscript from src/main.js');
-  process.exit(1);
-}
-
-// The real one reads the microphone through the audio module; the stub lets
-// each case say how loud the capture actually was.
-let peak = 0;
-const isEmptyTranscript = new Function(
-  'audio',
-  `${src.slice(start, end + endMarker.length)}\nreturn isEmptyTranscript;`
-)({ lastCapturePeak: () => peak });
+import { isEmptyTranscript } from '../src/turn.js';
 
 let failures = 0;
 const check = (name, cond, detail = '') => {
@@ -42,14 +20,12 @@ const check = (name, cond, detail = '') => {
 };
 
 const empty = (text, level = 0.004) => {
-  peak = level;
   check(`${JSON.stringify(text)} at peak ${level} is empty`,
-    isEmptyTranscript(text) === true);
+    isEmptyTranscript(text, level) === true);
 };
 const kept = (text, level = 0.004) => {
-  peak = level;
   check(`${JSON.stringify(text)} at peak ${level} is kept`,
-    isEmptyTranscript(text) === false);
+    isEmptyTranscript(text, level) === false);
 };
 
 // -- nothing at all, at any level -----------------------------------------

@@ -2,34 +2,15 @@
 //
 // This runs on the voice path now, not just the typed one, so it sees whatever
 // the transcriber produced — with hesitation, politeness, and punctuation. Two
-// directions matter equally: a missed command costs an API call and lands the
-// word in the form as an answer; a false match discards an answer the user
-// actually gave.
+// directions matter equally: a missed command lands the word in the form as an
+// answer; a false match discards an answer the user actually gave.
 //
 // Makes no API calls.
 
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+// main.js used to host localCommand; it lives in src/commands.js now, next to
+// the turn controller that calls it on both the typed and the spoken path.
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-
-// main.js drives the DOM at import time, so localCommand is lifted out of the
-// source rather than imported. Brittle by nature; the marker comments keep it
-// honest, and the extraction failing is itself a test failure.
-const src = readFileSync(join(ROOT, 'src', 'main.js'), 'utf8');
-const start = src.indexOf('const LOCAL_COMMANDS');
-const endMarker = '\n}\n';
-const end = src.indexOf(endMarker, src.indexOf('function localCommand'));
-
-if (start === -1 || end === -1) {
-  console.error('FAIL could not extract localCommand from src/main.js');
-  process.exit(1);
-}
-
-const localCommand = new Function(
-  `${src.slice(start, end + endMarker.length)}\nreturn localCommand;`
-)();
+import { localCommand } from '../src/commands.js';
 
 let failures = 0;
 const check = (name, cond, detail = '') => {

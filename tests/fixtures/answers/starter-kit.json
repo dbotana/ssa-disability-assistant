@@ -1,0 +1,118 @@
+{
+  "forms": "ssa",
+  "first_name": "Grace",
+  "last_name": "Hopper",
+  "date_of_birth": "1906-12-09",
+  "birth_city": "New York",
+  "birth_state": "New York",
+  "birth_country": "United States",
+  "ssn": "987654321",
+  "conditions": [
+    {
+      "name": "Fibromyalgia"
+    },
+    {
+      "name": "Migraine"
+    }
+  ],
+  "onset_date": "2019-11",
+  "providers": [
+    {
+      "name": "City Clinic",
+      "address": "1 Main St",
+      "phone": "2075550001",
+      "first_seen": "2019-12",
+      "last_seen": "present"
+    }
+  ],
+  "medications": [
+    {
+      "name": "Gabapentin",
+      "reason": "Nerve pain"
+    }
+  ],
+  "tests": [
+    {
+      "name": "MRI",
+      "date": "2020-02-02",
+      "ordered_by": "Dr. Chen"
+    }
+  ],
+  "records_permission": true,
+  "wc_receives": true,
+  "wc_injury_date": "2018-09-03",
+  "wc_claim_number": "WC-123",
+  "wc_settlement": false,
+  "wc_source": "Insurer",
+  "wc_amount": 24000,
+  "ref1_name": "Katherine Johnson",
+  "ref1_phone": "2075550187",
+  "jobs": [
+    {
+      "employer": "US Navy",
+      "job_title": "Mathematician",
+      "business_type": "Government",
+      "start": "1943-01",
+      "end": "1986-08",
+      "hours_per_day": 8,
+      "days_per_week": 5,
+      "pay_amount": 90000,
+      "pay_frequency": "year"
+    }
+  ],
+  "marriages": [
+    {
+      "spouse_name": "Vincent Hopper",
+      "spouse_dob": "1902-01-01",
+      "marriage_city": "New York",
+      "marriage_state": "NY",
+      "marriage_country": "United States",
+      "marriage_date": "1930-06-15",
+      "still_active": false,
+      "spouse_died": true,
+      "spouse_death_date": "1985-01-01"
+    }
+  ],
+  "children": [
+    {
+      "first_name": "Mark",
+      "last_name": "Hopper"
+    }
+  ],
+  "training": [
+    {
+      "name": "Naval Reserve Officer Training",
+      "completed": "1944-06"
+    }
+  ],
+  "household": [
+    {
+      "name": "Grace Hopper",
+      "dob": "1906-12-09"
+    }
+  ],
+  "rents": true,
+  "landlord_name": "Harbor Properties",
+  "landlord_phone": "2075550111",
+  "has_rental_contract": true,
+  "has_admission_agreement": false,
+  "recent_admission": false,
+  "income_sources": [
+    {
+      "kind": "Pension",
+      "monthly_amount": 1800,
+      "has_documentation": true
+    }
+  ],
+  "resources": [
+    {
+      "kind": "Bank account",
+      "value": 5000
+    }
+  ],
+  "education_level": "Ph.D.",
+  "education_year": 1934,
+  "education_school": "Yale University",
+  "special_ed": false,
+  "earnings_reviewed": true
+}

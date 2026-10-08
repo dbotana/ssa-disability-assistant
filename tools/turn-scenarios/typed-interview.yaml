@@ -1,0 +1,61 @@
+# A typed interview, start to review: the form choice, a confirm field read
+# back (accepted with the space bar), a correction, and the review screen.
+scenario: typed interview
+steps:
+  - start:
+      mode: text
+      confirm: true
+  - expect:
+      question: "Which form"
+      panel: interview
+
+  - type: starter kit
+  - expect:
+      question: "legal first name"
+      answers:
+        forms: ssa
+
+  - type: Ada
+  - expect:
+      question: "legal last name"
+
+  - type: Lovelace
+  - expect:
+      question: "date of birth"
+
+  # The confirm field opens a value read-back; the space bar keeps it.
+  - type: March 14th 1979
+  - expect:
+      readback: open
+      question: "Is that correct"
+      hint: "space bar"
+  - press: Space
+  - expect:
+      readback: closed
+      question: "city were you born"
+      answers:
+        forms: ssa
+        first_name: Ada
+        last_name: Lovelace
+        date_of_birth: 1979-03-14
+
+  # A correction writes in place and returns to the review screen.
+  - command: correct
+  - expect:
+      question: "Which answer"
+  - type: my first name
+  - expect:
+      question: "legal first name"
+  - type: Augusta
+  - expect:
+      panel: review
+      spoken: "first name is now Augusta.*still blank"
+      answers:
+        first_name: Augusta
+
+  # The fix button goes to the first required answer still blank.
+  - start-review
+  - expect:
+      panel: interview
+      question: "city were you born"
+      spoken: "fill in what is missing"

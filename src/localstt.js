@@ -117,8 +117,10 @@ export async function toPcm16k(blob) {
 }
 
 // Whisper's way of transcribing something that is not speech: [BLANK_AUDIO],
-// (silence), [Music], (coughs). None of it is ever part of an answer.
-const NON_SPEECH = /\[[^\]]*\]|\([^)]*\)/g;
+// (silence), [Music], (coughs). None of it is ever part of an answer. A
+// parenthetical that holds digits — "(207)" — is a spoken number the
+// transcriber grouped, not an annotation, and must survive.
+const NON_SPEECH = /\[[^\]]*\]|\([^0-9)]*\)/g;
 
 /** Strip non-speech annotations and collapse whitespace. */
 export function cleanTranscript(text) {

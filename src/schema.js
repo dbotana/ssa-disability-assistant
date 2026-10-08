@@ -21,10 +21,34 @@
 //   options     choice only: [{ value, label, letter?, aliases?, impliedBy? }]
 //   required    blocks completion if unanswered (soft — the review pass re-offers)
 //   forms       the forms this question belongs to; defaults to its section's
-//   askIf       (scope) => boolean; scope is the answer set, or the loop item for
-//               loop fields. On a loop node it is checked against the answer set
-//               and skips the whole loop.
+//   askIf       a rule object deciding whether this question is asked. Its
+//               scope is the answer set for a top-level question (and for a
+//               loop node, where it skips the whole loop), and the loop item
+//               for a loop field. The rule language is small and
+//               serializable, so the whole schema is data that can be
+//               exported and re-implemented:
+//                 { eq: [key, value] }     scope[key] === value
+//                 { ne: [key, value] }     scope[key] !== value
+//                 { present: key }         key is set and not ''
+//                 { truthy: key }          !!scope[key]
+//                 { notIn: [key, [..]] }   scope[key] not among the values
+//                 { form: 'ssa'|'ds'|'dsOnly' }
+//                 { and: [rule, ...] }     every rule holds
+//                 { or: [rule, ...] }      at least one holds
+//                 { not: rule }            the rule does not hold
+//               Any rule may add `scope: 'answers'` to read the answer set
+//               from inside a loop field; it applies to the rules nested in
+//               it too. A scope never falls back to the other one, so a
+//               field id that happens to match a top-level id cannot be read
+//               by mistake. A question with no askIf is always asked.
 //   allowFuture a date that may lie ahead (a scheduled test, a graduation)
+//   per         money and number only: the period the answer is in. A period
+//               said with the amount must match it, or the answer defers.
+//               'any' where the next question asks for the period itself.
+//               Absent means the question has no period, so any said
+//               with the amount defers.
+//   kind        number only: 'year' for a question asking for a year, so
+//               "nineteen ninety eight" reads as 1998
 //   confirm     read the value back before committing (high-stakes fields)
 //   warn        spoken before the question is asked
 //   hint        spoken after a clarification miss
@@ -226,7 +250,7 @@ function ratingSection(group) {
       id: `${act.key}_explain`,
       prompt: `Briefly, what help is needed with ${act.short}?`,
       type: 'text',
-      askIf: a => a[level] != null && a[level] !== '' && a[level] !== 'A',
+      askIf: { and: [{ present: level }, { ne: [level, 'A'] }] },
       hint: 'For example, who helps, and how often. You can say skip.'
     });
   });
@@ -257,6 +281,18 @@ const DIGITS_HINT = 'You can say the digits one at a time, '
   + 'and it is fine to pause between groups.';
 const PHONE_HINT = 'You can say the ten digits one at a time, '
   + 'and it is fine to pause between groups.';
+
+// "Ask the emergency-contact questions" and "there is already a contact to
+// ask about", as data. Written out here rather than as functions so the schema
+// exports as pure JSON; `ssa` and `dsOnly` above collapse to `form` rules the
+// same way.
+const NEEDS_EMERGENCY_CONTACT = {
+  not: { and: [{ eq: ['has_guardian', true] }, { eq: ['ec_same_as_guardian', true] }] }
+};
+
+const HAS_EMERGENCY_CONTACT = {
+  and: [NEEDS_EMERGENCY_CONTACT, { truthy: 'ec_name' }]
+};
 
 // -- the interview -------------------------------------------------------------
 
@@ -289,16 +325,16 @@ export const SECTIONS = [
         id: 'helper_name',
         prompt: 'What is your name, or the name of your agency?',
         type: 'text',
-        askIf: a => a.for_self === false,
+        askIf: { eq: ['for_self', false] },
         warn: 'Thank you for helping. From here on, every question is about the person applying, even when I say you. First, a few details about you.'
       },
-      { id: 'helper_address', prompt: 'What is your mailing address? Just the street or post office box for now.', type: 'text', askIf: a => a.for_self === false },
-      { id: 'helper_city', prompt: 'What town or city is that in?', type: 'text', askIf: a => a.for_self === false, hint: 'If it is outside Maine, include the state too.' },
-      { id: 'helper_county', prompt: 'What county is that in?', type: 'text', askIf: a => a.for_self === false },
-      { id: 'helper_zip', prompt: 'What is the zip code?', type: 'zip', askIf: a => a.for_self === false },
-      { id: 'helper_phone', prompt: 'What is your phone number?', type: 'phone', askIf: a => a.for_self === false },
-      { id: 'helper_fax', prompt: 'What is your fax number? Say skip if you do not have one.', type: 'phone', askIf: a => a.for_self === false },
-      { id: 'helper_email', prompt: 'What is your email address?', type: 'email', askIf: a => a.for_self === false,
+      { id: 'helper_address', prompt: 'What is your mailing address? Just the street or post office box for now.', type: 'text', askIf: { eq: ['for_self', false] } },
+      { id: 'helper_city', prompt: 'What town or city is that in?', type: 'text', askIf: { eq: ['for_self', false] }, hint: 'If it is outside Maine, include the state too.' },
+      { id: 'helper_county', prompt: 'What county is that in?', type: 'text', askIf: { eq: ['for_self', false] } },
+      { id: 'helper_zip', prompt: 'What is the zip code?', type: 'zip', askIf: { eq: ['for_self', false] } },
+      { id: 'helper_phone', prompt: 'What is your phone number?', type: 'phone', askIf: { eq: ['for_self', false] } },
+      { id: 'helper_fax', prompt: 'What is your fax number? Say skip if you do not have one.', type: 'phone', askIf: { eq: ['for_self', false] } },
+      { id: 'helper_email', prompt: 'What is your email address?', type: 'email', askIf: { eq: ['for_self', false] },
         hint: 'You can say it like john dot smith at gmail dot com, or say skip.' }
     ]
   },
@@ -345,7 +381,7 @@ export const SECTIONS = [
       { id: 'home_state', prompt: 'What state do you live in?', type: 'text' },
       { id: 'home_zip', prompt: 'What is your zip code?', type: 'zip' },
       { id: 'mailing_different', prompt: 'Is your mailing address different from your street address?', type: 'yesno' },
-      { id: 'mailing_address', prompt: 'What is your full mailing address, including the town, state, and zip code?', type: 'text', askIf: a => a.mailing_different === true },
+      { id: 'mailing_address', prompt: 'What is your full mailing address, including the town, state, and zip code?', type: 'text', askIf: { eq: ['mailing_different', true] } },
       { id: 'applicant_phone', prompt: 'What is your phone number?', type: 'phone' },
       { id: 'applicant_email', prompt: 'What is your email address? Say skip if you do not have one.', type: 'email',
         hint: 'You can say it like john dot smith at gmail dot com.' },
@@ -365,7 +401,7 @@ export const SECTIONS = [
         type: 'choice',
         options: MARITAL_OPTIONS,
         // With the Starter Kit, the marriage history answers this.
-        askIf: dsOnly
+        askIf: { form: 'dsOnly' }
       }
     ]
   },
@@ -380,17 +416,17 @@ export const SECTIONS = [
         id: 'guardian_name',
         prompt: 'What is their full name?',
         type: 'text',
-        askIf: a => a.has_guardian === true,
+        askIf: { eq: ['has_guardian', true] },
         warn: 'Maine asks for a copy of the guardianship or power of attorney paperwork to be sent with this application.'
       },
-      { id: 'guardian_relationship', prompt: 'How are they related to you?', type: 'text', askIf: a => a.has_guardian === true,
+      { id: 'guardian_relationship', prompt: 'How are they related to you?', type: 'text', askIf: { eq: ['has_guardian', true] },
         hint: 'For example, parent, sister, or professional guardian.' },
-      { id: 'guardian_address', prompt: 'What is their mailing address? Just the street or post office box for now.', type: 'text', askIf: a => a.has_guardian === true },
-      { id: 'guardian_city', prompt: 'What town or city is that in?', type: 'text', askIf: a => a.has_guardian === true, hint: 'If it is outside Maine, include the state too.' },
-      { id: 'guardian_county', prompt: 'What county is that in?', type: 'text', askIf: a => a.has_guardian === true },
-      { id: 'guardian_zip', prompt: 'What is the zip code?', type: 'zip', askIf: a => a.has_guardian === true },
-      { id: 'guardian_phone', prompt: 'What is their phone number?', type: 'phone', askIf: a => a.has_guardian === true },
-      { id: 'guardian_email', prompt: 'What is their email address? Say skip if you do not know it.', type: 'email', askIf: a => a.has_guardian === true }
+      { id: 'guardian_address', prompt: 'What is their mailing address? Just the street or post office box for now.', type: 'text', askIf: { eq: ['has_guardian', true] } },
+      { id: 'guardian_city', prompt: 'What town or city is that in?', type: 'text', askIf: { eq: ['has_guardian', true] }, hint: 'If it is outside Maine, include the state too.' },
+      { id: 'guardian_county', prompt: 'What county is that in?', type: 'text', askIf: { eq: ['has_guardian', true] } },
+      { id: 'guardian_zip', prompt: 'What is the zip code?', type: 'zip', askIf: { eq: ['has_guardian', true] } },
+      { id: 'guardian_phone', prompt: 'What is their phone number?', type: 'phone', askIf: { eq: ['has_guardian', true] } },
+      { id: 'guardian_email', prompt: 'What is their email address? Say skip if you do not know it.', type: 'email', askIf: { eq: ['has_guardian', true] } }
     ]
   },
 
@@ -399,21 +435,21 @@ export const SECTIONS = [
     title: 'Emergency contact',
     forms: ['ds'],
     questions: [
-      { id: 'ec_same_as_guardian', prompt: 'Should your guardian also be listed as your emergency contact?', type: 'yesno', askIf: a => a.has_guardian === true },
+      { id: 'ec_same_as_guardian', prompt: 'Should your guardian also be listed as your emergency contact?', type: 'yesno', askIf: { eq: ['has_guardian', true] } },
       {
         id: 'ec_name',
         prompt: 'Who should be contacted in an emergency? Tell me their full name.',
         type: 'text',
-        askIf: needsEmergencyContact,
+        askIf: NEEDS_EMERGENCY_CONTACT,
         hint: 'Usually a guardian or your closest family member. Say skip to leave this blank.'
       },
-      { id: 'ec_relationship', prompt: 'How are they related to you?', type: 'text', askIf: hasEmergencyContact },
-      { id: 'ec_address', prompt: 'What is their street address?', type: 'text', askIf: hasEmergencyContact },
-      { id: 'ec_city', prompt: 'What town or city is that in?', type: 'text', askIf: hasEmergencyContact, hint: 'If it is outside Maine, include the state too.' },
-      { id: 'ec_county', prompt: 'What county is that in?', type: 'text', askIf: hasEmergencyContact },
-      { id: 'ec_zip', prompt: 'What is the zip code?', type: 'zip', askIf: hasEmergencyContact },
-      { id: 'ec_phone', prompt: 'What is their phone number?', type: 'phone', askIf: hasEmergencyContact },
-      { id: 'ec_email', prompt: 'What is their email address? Say skip if you do not know it.', type: 'email', askIf: hasEmergencyContact }
+      { id: 'ec_relationship', prompt: 'How are they related to you?', type: 'text', askIf: HAS_EMERGENCY_CONTACT },
+      { id: 'ec_address', prompt: 'What is their street address?', type: 'text', askIf: HAS_EMERGENCY_CONTACT },
+      { id: 'ec_city', prompt: 'What town or city is that in?', type: 'text', askIf: HAS_EMERGENCY_CONTACT, hint: 'If it is outside Maine, include the state too.' },
+      { id: 'ec_county', prompt: 'What county is that in?', type: 'text', askIf: HAS_EMERGENCY_CONTACT },
+      { id: 'ec_zip', prompt: 'What is the zip code?', type: 'zip', askIf: HAS_EMERGENCY_CONTACT },
+      { id: 'ec_phone', prompt: 'What is their phone number?', type: 'phone', askIf: HAS_EMERGENCY_CONTACT },
+      { id: 'ec_email', prompt: 'What is their email address? Say skip if you do not know it.', type: 'email', askIf: HAS_EMERGENCY_CONTACT }
     ]
   },
 
@@ -425,7 +461,7 @@ export const SECTIONS = [
       {
         id: 'conditions',
         type: 'loop',
-        askIf: ssa,
+        askIf: { form: 'ssa' },
         entryPrompt: 'What is the medical condition that limits your ability to work? If you have more than one, we will take them one at a time.',
         repeatPrompt: 'Do you have another medical condition to add?',
         itemLabel: 'condition',
@@ -439,7 +475,7 @@ export const SECTIONS = [
         // the DS form wants every current diagnosis.
         id: 'diagnoses',
         type: 'loop',
-        askIf: dsOnly,
+        askIf: { form: 'dsOnly' },
         entryPrompt: 'Do you have a current diagnosis to list? It can be any physical, mental, or developmental condition.',
         repeatPrompt: 'Do you have another diagnosis to list?',
         itemLabel: 'diagnosis',
@@ -468,13 +504,13 @@ export const SECTIONS = [
       { id: 'environmental_allergies', prompt: 'Any environmental allergies, such as pollen, dust, or animals? Tell me what they are, or say none.', type: 'text' },
       { id: 'dietary_restrictions', prompt: 'Do you have any dietary restrictions? Tell me what they are, or say none.', type: 'text' },
       { id: 'has_idd_dx', prompt: 'Have you been diagnosed with an intellectual disability, a developmental disability, or autism?', type: 'yesno' },
-      { id: 'idd_dx_date', prompt: 'About when were you diagnosed? A month and year is fine.', type: 'monthyear', askIf: a => a.has_idd_dx === true,
+      { id: 'idd_dx_date', prompt: 'About when were you diagnosed? A month and year is fine.', type: 'monthyear', askIf: { eq: ['has_idd_dx', true] },
         hint: 'If you do not know, say skip.' },
-      { id: 'idd_age_at_dx', prompt: 'How old were you when you were diagnosed?', type: 'number', askIf: a => a.has_idd_dx === true },
+      { id: 'idd_age_at_dx', prompt: 'How old were you when you were diagnosed?', type: 'number', askIf: { eq: ['has_idd_dx', true] } },
       {
         id: 'idd_diagnoses',
         type: 'loop',
-        askIf: a => a.has_idd_dx === true,
+        askIf: { eq: ['has_idd_dx', true] },
         entryPrompt: 'Has a psychological evaluation with IQ and adaptive scores confirmed a diagnosis?',
         repeatPrompt: 'Did the evaluation confirm another diagnosis?',
         itemLabel: 'confirmed diagnosis',
@@ -553,11 +589,11 @@ export const SECTIONS = [
     forms: ['ssa'],
     questions: [
       { id: 'wc_receives', prompt: "Do you receive workers' compensation or another disability benefit?", type: 'yesno', required: true },
-      { id: 'wc_injury_date', prompt: 'What is the date of injury?', type: 'date', askIf: a => a.wc_receives === true },
-      { id: 'wc_claim_number', prompt: 'What is the claim number?', type: 'text', askIf: a => a.wc_receives === true },
-      { id: 'wc_settlement', prompt: 'Is there a settlement agreement?', type: 'yesno', askIf: a => a.wc_receives === true },
-      { id: 'wc_source', prompt: 'What is the source of the payment?', type: 'text', askIf: a => a.wc_receives === true },
-      { id: 'wc_amount', prompt: 'What is the payment amount?', type: 'money', askIf: a => a.wc_receives === true }
+      { id: 'wc_injury_date', prompt: 'What is the date of injury?', type: 'date', askIf: { eq: ['wc_receives', true] } },
+      { id: 'wc_claim_number', prompt: 'What is the claim number?', type: 'text', askIf: { eq: ['wc_receives', true] } },
+      { id: 'wc_settlement', prompt: 'Is there a settlement agreement?', type: 'yesno', askIf: { eq: ['wc_receives', true] } },
+      { id: 'wc_source', prompt: 'What is the source of the payment?', type: 'text', askIf: { eq: ['wc_receives', true] } },
+      { id: 'wc_amount', prompt: 'What is the payment amount?', type: 'money', askIf: { eq: ['wc_receives', true] } }
     ]
   },
 
@@ -581,9 +617,9 @@ export const SECTIONS = [
     forms: ['ssa'],
     questions: [
       { id: 'ref1_name', prompt: 'Can you give me the name of one person, other than a medical provider, who knows about your condition?', type: 'text' },
-      { id: 'ref1_phone', prompt: "What is that person's phone number?", type: 'phone', askIf: a => !!a.ref1_name },
-      { id: 'ref2_name', prompt: 'Can you give me the name of a second such person? This one is optional.', type: 'text', askIf: a => !!a.ref1_name },
-      { id: 'ref2_phone', prompt: "What is that person's phone number?", type: 'phone', askIf: a => !!a.ref2_name }
+      { id: 'ref1_phone', prompt: "What is that person's phone number?", type: 'phone', askIf: { truthy: 'ref1_name' } },
+      { id: 'ref2_name', prompt: 'Can you give me the name of a second such person? This one is optional.', type: 'text', askIf: { truthy: 'ref1_name' } },
+      { id: 'ref2_phone', prompt: "What is that person's phone number?", type: 'phone', askIf: { truthy: 'ref2_name' } }
     ]
   },
 
@@ -604,7 +640,7 @@ export const SECTIONS = [
       {
         id: 'jobs',
         type: 'loop',
-        askIf: ssa,
+        askIf: { form: 'ssa' },
         entryPrompt: 'Did you work a job in the 5 years before your condition began to limit your work?',
         repeatPrompt: 'Did you work another job in that 5 year period?',
         itemLabel: 'job',
@@ -614,12 +650,13 @@ export const SECTIONS = [
           { id: 'business_type', prompt: 'What type of business was this?', type: 'text', hint: 'For example, restaurant.' },
           { id: 'start', prompt: 'What month and year did you start this job?', type: 'monthyear' },
           { id: 'end', prompt: 'What month and year did this job end? You can say still working.', type: 'monthyear' },
-          { id: 'hours_per_day', prompt: 'On average, how many hours a day did you work at this job?', type: 'number' },
-          { id: 'days_per_week', prompt: 'And how many days a week?', type: 'number' },
+          { id: 'hours_per_day', prompt: 'On average, how many hours a day did you work at this job?', type: 'number', per: 'day' },
+          { id: 'days_per_week', prompt: 'And how many days a week?', type: 'number', per: 'week' },
           {
             id: 'pay_amount',
             prompt: 'How much were you paid? Just the amount for now.',
             type: 'money',
+            per: 'any',
             hint: 'For example, twenty dollars. I will ask next whether that was per hour, per week, or some other period.'
           },
           {
@@ -627,7 +664,7 @@ export const SECTIONS = [
             prompt: 'Was that per hour, per day, per week, every two weeks, twice a month, per month, or per year?',
             type: 'choice',
             options: PAY_FREQUENCY_OPTIONS,
-            askIf: item => item.pay_amount != null && item.pay_amount !== ''
+            askIf: { present: 'pay_amount' }
           }
         ]
       },
@@ -637,7 +674,7 @@ export const SECTIONS = [
         // Starter Kit's five-year window. Asked only when the Kit is not.
         id: 'ds_jobs',
         type: 'loop',
-        askIf: dsOnly,
+        askIf: { form: 'dsOnly' },
         entryPrompt: 'Have you ever had a job? It can be paid, part time, or supported employment.',
         repeatPrompt: 'Have you had another job?',
         itemLabel: 'job',
@@ -660,13 +697,13 @@ export const SECTIONS = [
     questions: [
       { id: 'in_school', prompt: 'Are you going to school right now?', type: 'yesno', forms: ['ds'] },
       { id: 'graduation_date', prompt: 'When do you expect to graduate? A month and year is fine.', type: 'monthyear', allowFuture: true,
-        forms: ['ds'], askIf: a => a.in_school === true },
+        forms: ['ds'], askIf: { eq: ['in_school', true] } },
       { id: 'education_level', prompt: 'What is the highest level of education you completed?', type: 'text' },
-      { id: 'education_year', prompt: 'What year did you complete it?', type: 'number', forms: ['ssa'] },
+      { id: 'education_year', prompt: 'What year did you complete it?', type: 'number', kind: 'year', forms: ['ssa'] },
       { id: 'education_school', prompt: 'What school or institution did you complete it at?', type: 'text' },
       { id: 'special_ed', prompt: 'Did you receive special education services?', type: 'yesno' },
-      { id: 'special_ed_where', prompt: 'Where did you receive special education services?', type: 'text', forms: ['ssa'], askIf: a => a.special_ed === true },
-      { id: 'special_ed_year', prompt: 'What year did you complete special education services?', type: 'number', forms: ['ssa'], askIf: a => a.special_ed === true },
+      { id: 'special_ed_where', prompt: 'Where did you receive special education services?', type: 'text', forms: ['ssa'], askIf: { eq: ['special_ed', true] } },
+      { id: 'special_ed_year', prompt: 'What year did you complete special education services?', type: 'number', kind: 'year', forms: ['ssa'], askIf: { eq: ['special_ed', true] } },
       { id: 'has_504_plan', prompt: 'Have you ever had a 504 plan at school?', type: 'yesno', forms: ['ds'] },
       { id: 'psychoed_eval', prompt: 'Have you had a psychoeducational evaluation?', type: 'yesno', forms: ['ds'],
         hint: 'That is an evaluation of learning and thinking skills, often done through school.' }
@@ -712,9 +749,9 @@ export const SECTIONS = [
           { id: 'marriage_country', prompt: 'What country did you get married in?', type: 'text' },
           { id: 'marriage_date', prompt: 'What date did you get married?', type: 'date', confirm: true },
           { id: 'still_active', prompt: 'Is this marriage still active?', type: 'yesno', required: true },
-          { id: 'divorce_date', prompt: 'What date did you get divorced?', type: 'date', askIf: item => item.still_active === false },
-          { id: 'spouse_died', prompt: 'Did this spouse pass away?', type: 'yesno', askIf: item => item.still_active === false },
-          { id: 'spouse_death_date', prompt: 'What date did this spouse pass away?', type: 'date', askIf: item => item.spouse_died === true }
+          { id: 'divorce_date', prompt: 'What date did you get divorced?', type: 'date', askIf: { eq: ['still_active', false] } },
+          { id: 'spouse_died', prompt: 'Did this spouse pass away?', type: 'yesno', askIf: { eq: ['still_active', false] } },
+          { id: 'spouse_death_date', prompt: 'What date did this spouse pass away?', type: 'date', askIf: { eq: ['spouse_died', true] } }
         ]
       }
     ]
@@ -770,12 +807,12 @@ export const SECTIONS = [
     forms: ['ssa'],
     questions: [
       { id: 'rents', prompt: 'Do you rent your home?', type: 'yesno' },
-      { id: 'landlord_name', prompt: "What is your landlord's name?", type: 'text', askIf: a => a.rents === true },
-      { id: 'landlord_phone', prompt: "What is your landlord's phone number?", type: 'phone', askIf: a => a.rents === true },
-      { id: 'has_rental_contract', prompt: 'Do you have a rental contract on file?', type: 'yesno', askIf: a => a.rents === true },
+      { id: 'landlord_name', prompt: "What is your landlord's name?", type: 'text', askIf: { eq: ['rents', true] } },
+      { id: 'landlord_phone', prompt: "What is your landlord's phone number?", type: 'phone', askIf: { eq: ['rents', true] } },
+      { id: 'has_rental_contract', prompt: 'Do you have a rental contract on file?', type: 'yesno', askIf: { eq: ['rents', true] } },
       { id: 'has_admission_agreement', prompt: 'Do you have an admission agreement on file?', type: 'yesno' },
       { id: 'recent_admission', prompt: 'Have you been admitted to, or discharged from, a hospital or institution recently?', type: 'yesno' },
-      { id: 'has_admit_papers', prompt: 'Do you have the admit or discharge papers on file?', type: 'yesno', askIf: a => a.recent_admission === true }
+      { id: 'has_admit_papers', prompt: 'Do you have the admit or discharge papers on file?', type: 'yesno', askIf: { eq: ['recent_admission', true] } }
     ]
   },
 
@@ -792,7 +829,7 @@ export const SECTIONS = [
         itemLabel: 'income source',
         fields: [
           { id: 'kind', prompt: 'What type of income is this?', type: 'text', required: true },
-          { id: 'monthly_amount', prompt: 'What is the approximate monthly amount?', type: 'money' },
+          { id: 'monthly_amount', prompt: 'What is the approximate monthly amount?', type: 'money', per: 'month' },
           { id: 'has_documentation', prompt: 'Do you have documentation for this income?', type: 'yesno' }
         ]
       }
@@ -881,12 +918,53 @@ for (const section of SECTIONS) {
   }
 }
 
-function needsEmergencyContact(a) {
-  return !(a.has_guardian === true && a.ec_same_as_guardian === true);
-}
+// ---------------------------------------------------------------------------
 
-function hasEmergencyContact(a) {
-  return needsEmergencyContact(a) && !!a.ec_name;
+/** The operators evalRule() understands. tests/schema-data.js lints the schema against these. */
+export const RULE_OPERATORS = ['and', 'or', 'not', 'eq', 'ne', 'present', 'truthy', 'notIn', 'form'];
+
+/**
+ * Evaluate an askIf rule against a scope.
+ *
+ * @param {object|null} rule   an askIf rule object, or null for "always ask"
+ * @param {{answers: object, item?: object, scope?: 'answers'|'item'}} ctx
+ *        `answers` is the answer set; `item` the loop item, present only when
+ *        the rule belongs to a loop field. Key rules read from exactly one of
+ *        the two: the item for a loop field, the answer set otherwise, unless
+ *        the rule (or one enclosing it) says `scope: 'answers'`. There is no
+ *        fallback from one to the other — a field id that matched a top-level
+ *        id would otherwise read whichever answer happened to be set.
+ */
+export function evalRule(rule, ctx) {
+  if (rule == null) return true;
+  const answers = ctx?.answers ?? {};
+  const item = ctx?.item ?? null;
+  const scope = rule.scope ?? ctx?.scope ?? (item != null ? 'item' : 'answers');
+  const inner = { answers, item, scope };
+  const source = scope === 'item' ? (item ?? {}) : answers;
+
+  const get = key => source[key];
+
+  if (rule.and) return rule.and.every(r => evalRule(r, inner));
+  if (rule.or) return rule.or.some(r => evalRule(r, inner));
+  if (rule.not) return !evalRule(rule.not, inner);
+  if (rule.eq) return get(rule.eq[0]) === rule.eq[1];
+  if (rule.ne) return get(rule.ne[0]) !== rule.ne[1];
+  if (rule.present) {
+    const v = get(rule.present);
+    return v != null && v !== '';
+  }
+  if (rule.truthy) return !!get(rule.truthy);
+  if (rule.notIn) return !(rule.notIn[1] ?? []).includes(get(rule.notIn[0]));
+  if (rule.form) {
+    switch (rule.form) {
+      case 'ssa': return hasForm(answers, 'ssa');
+      case 'ds': return hasForm(answers, 'ds');
+      case 'dsOnly': return hasForm(answers, 'ds') && !hasForm(answers, 'ssa');
+      default: return false;
+    }
+  }
+  return true;   // an unrecognized rule must never strand the interview
 }
 
 // ---------------------------------------------------------------------------
@@ -928,15 +1006,15 @@ export function flatten(sections = SECTIONS) {
  * Is this top-level node part of the interview for these answers?
  *
  * It must belong to a chosen form, and its askIf (checked against the answer
- * set — for a loop node too) must hold. A throwing askIf counts as true: a bad
- * predicate must never strand the interview.
+ * set — for a loop node too) must hold. A rule that cannot be evaluated
+ * counts as true: a bad predicate must never strand the interview.
  */
 export function nodeActive(node, answers) {
   if (!node) return false;
   if (!formsMatch(node.forms, answers)) return false;
-  if (typeof node.askIf !== 'function') return true;
+  if (node.askIf == null) return true;
   try {
-    return !!node.askIf(answers ?? {});
+    return !!evalRule(node.askIf, { answers: answers ?? {} });
   } catch {
     return true;
   }

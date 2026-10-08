@@ -1,0 +1,6395 @@
+{
+  "fixtures": {
+    "both": {
+      "forms": "both",
+      "for_self": false,
+      "helper_name": "Casco Bay Case Management",
+      "helper_address": "10 Front St",
+      "helper_city": "Portland",
+      "helper_county": "Cumberland",
+      "helper_zip": "04101",
+      "helper_phone": "2075550100",
+      "helper_fax": "2075550101",
+      "helper_email": "intake@example.org",
+      "first_name": "Ada",
+      "last_name": "Lovelace",
+      "date_of_birth": "1995-12-10",
+      "birth_city": "Bangor",
+      "birth_state": "Maine",
+      "birth_country": "United States",
+      "ssn": "123456789",
+      "home_street": "5 Elm St",
+      "home_town": "Portland",
+      "home_state": "ME",
+      "home_zip": "041011234",
+      "mailing_different": true,
+      "mailing_address": "PO Box 9, Portland, ME 04101",
+      "applicant_phone": "2075550199",
+      "applicant_email": "ada@example.com",
+      "primary_language": "English",
+      "deaf_hoh": false,
+      "gender": "F",
+      "mainecare_number": "ME1234567",
+      "has_guardian": true,
+      "guardian_name": "Anne Byron",
+      "guardian_relationship": "Mother",
+      "guardian_address": "12 Oak St",
+      "guardian_city": "Augusta",
+      "guardian_county": "Kennebec",
+      "guardian_zip": "04330",
+      "guardian_phone": "2075550122",
+      "guardian_email": "anne@example.com",
+      "ec_same_as_guardian": false,
+      "ec_name": "Mary Somerville",
+      "ec_relationship": "Aunt",
+      "ec_address": "3 Pine St",
+      "ec_city": "Bath",
+      "ec_county": "Sagadahoc",
+      "ec_zip": "04530",
+      "ec_phone": "2075550133",
+      "ec_email": "mary@example.com",
+      "conditions": [
+        {
+          "name": "Condition number 1"
+        },
+        {
+          "name": "Condition number 2"
+        },
+        {
+          "name": "Condition number 3"
+        },
+        {
+          "name": "Condition number 4"
+        },
+        {
+          "name": "Condition number 5"
+        },
+        {
+          "name": "Condition number 6"
+        }
+      ],
+      "onset_date": "2021-03",
+      "medication_allergies": "Penicillin",
+      "food_allergies": "Peanuts",
+      "environmental_allergies": "Pollen",
+      "dietary_restrictions": "Gluten free",
+      "has_idd_dx": true,
+      "idd_dx_date": "2001-04",
+      "idd_age_at_dx": 5,
+      "idd_diagnoses": [
+        {
+          "name": "Autism spectrum disorder"
+        },
+        {
+          "name": "Mild intellectual disability"
+        },
+        {
+          "name": "ADHD"
+        }
+      ],
+      "providers": [
+        {
+          "name": "Dr. 1",
+          "address": "1 Main St",
+          "phone": "2075550010",
+          "first_seen": "2020-01",
+          "last_seen": "2023-06"
+        },
+        {
+          "name": "Dr. 2",
+          "address": "2 Main St",
+          "phone": "2075550020",
+          "first_seen": "2020-01",
+          "last_seen": "2023-06"
+        },
+        {
+          "name": "Dr. 3",
+          "address": "3 Main St",
+          "phone": "2075550030",
+          "first_seen": "2020-01",
+          "last_seen": "2023-06"
+        },
+        {
+          "name": "Dr. 4",
+          "address": "4 Main St",
+          "phone": "2075550040",
+          "first_seen": "2020-01",
+          "last_seen": "2023-06"
+        },
+        {
+          "name": "Dr. 5",
+          "address": "5 Main St",
+          "phone": "2075550050",
+          "first_seen": "2020-01",
+          "last_seen": "present"
+        }
+      ],
+      "tests": [
+        {
+          "name": "Test 1",
+          "date": "2023-02-14",
+          "ordered_by": "Dr. 1"
+        },
+        {
+          "name": "Test 2",
+          "date": "2023-02-14",
+          "ordered_by": "Dr. 2"
+        },
+        {
+          "name": "Test 3",
+          "date": "2023-02-14",
+          "ordered_by": "Dr. 3"
+        },
+        {
+          "name": "Test 4",
+          "date": "2023-02-14",
+          "ordered_by": "Dr. 4"
+        },
+        {
+          "name": "Test 5",
+          "date": "2023-02-14",
+          "ordered_by": "Dr. 5"
+        }
+      ],
+      "medications": [
+        {
+          "name": "Med 1",
+          "reason": "Reason 1",
+          "prescribed_by": "Dr. 1"
+        },
+        {
+          "name": "Med 2",
+          "reason": "Reason 2",
+          "prescribed_by": "Dr. 2"
+        },
+        {
+          "name": "Med 3",
+          "reason": "Reason 3",
+          "prescribed_by": "Dr. 3"
+        },
+        {
+          "name": "Med 4",
+          "reason": "Reason 4",
+          "prescribed_by": "Dr. 4"
+        },
+        {
+          "name": "Med 5",
+          "reason": "Reason 5",
+          "prescribed_by": "Dr. 5"
+        },
+        {
+          "name": "Med 6",
+          "reason": "Reason 6",
+          "prescribed_by": "Dr. 6"
+        }
+      ],
+      "wc_receives": false,
+      "records_permission": true,
+      "ref1_name": "Charles Babbage",
+      "ref1_phone": "2075550144",
+      "jobs": [
+        {
+          "employer": "Employer 1",
+          "job_title": "Title 1",
+          "business_type": "Restaurant",
+          "start": "2018-01",
+          "end": "present",
+          "hours_per_day": 8,
+          "days_per_week": 5,
+          "pay_amount": 15,
+          "pay_frequency": "hour"
+        },
+        {
+          "employer": "Employer 2",
+          "job_title": "Title 2",
+          "business_type": "Restaurant",
+          "start": "2018-01",
+          "end": "2019-06",
+          "hours_per_day": 8,
+          "days_per_week": 5,
+          "pay_amount": 15,
+          "pay_frequency": "hour"
+        },
+        {
+          "employer": "Employer 3",
+          "job_title": "Title 3",
+          "business_type": "Restaurant",
+          "start": "2018-01",
+          "end": "2019-06",
+          "hours_per_day": 8,
+          "days_per_week": 5,
+          "pay_amount": 15,
+          "pay_frequency": "hour"
+        },
+        {
+          "employer": "Employer 4",
+          "job_title": "Title 4",
+          "business_type": "Restaurant",
+          "start": "2018-01",
+          "end": "2019-06",
+          "hours_per_day": 8,
+          "days_per_week": 5,
+          "pay_amount": 15,
+          "pay_frequency": "hour"
+        },
+        {
+          "employer": "Employer 5",
+          "job_title": "Title 5",
+          "business_type": "Restaurant",
+          "start": "2018-01",
+          "end": "2019-06",
+          "hours_per_day": 8,
+          "days_per_week": 5,
+          "pay_amount": 15,
+          "pay_frequency": "hour"
+        }
+      ],
+      "currently_employed": true,
+      "vr_involvement": "Job coaching",
+      "volunteer_experience": "Food bank",
+      "in_school": true,
+      "graduation_date": "2027-06",
+      "education_level": "12th grade",
+      "education_school": "Deering High",
+      "special_ed": true,
+      "has_504_plan": false,
+      "psychoed_eval": true,
+      "training": [],
+      "marriages": [],
+      "children": [],
+      "living_arrangement": "Lives with family",
+      "household": [
+        {
+          "name": "Anne Byron"
+        },
+        {
+          "name": "Tom Byron"
+        }
+      ],
+      "has_comprehensive_eval": true,
+      "has_adaptive_test": false,
+      "has_iq_test": true,
+      "has_other_assessments": true,
+      "routing_number": "021000021",
+      "account_number": "5544332211",
+      "eating_level": "A",
+      "eating_explain": "Needs practice with eating",
+      "dressing_level": "C",
+      "dressing_explain": "Needs practice with dressing",
+      "toileting_level": "C",
+      "toileting_explain": "Needs practice with toileting",
+      "bathing_level": "C",
+      "bathing_explain": "Needs practice with bathing",
+      "grooming_level": "C",
+      "grooming_explain": "Needs practice with grooming",
+      "mobility_level": "C",
+      "mobility_explain": "Needs practice with mobility",
+      "physical_danger_level": "C",
+      "physical_danger_explain": "Needs practice with physical_danger",
+      "emotional_jeopardy_level": "C",
+      "emotional_jeopardy_explain": "Needs practice with emotional_jeopardy",
+      "healthy_relationships_level": "C",
+      "healthy_relationships_explain": "Needs practice with healthy_relationships",
+      "judgment_level": "C",
+      "judgment_explain": "Needs practice with judgment",
+      "cooking_level": "C",
+      "cooking_explain": "Needs practice with cooking",
+      "laundry_level": "C",
+      "laundry_explain": "Needs practice with laundry",
+      "shopping_level": "B",
+      "shopping_explain": "Needs practice with shopping",
+      "transportation_level": "C",
+      "transportation_explain": "Needs practice with transportation",
+      "banking_level": "C",
+      "banking_explain": "Needs practice with banking",
+      "recreation_level": "C",
+      "recreation_explain": "Needs practice with recreation",
+      "rel_family_level": "D",
+      "rel_family_explain": "Needs practice with rel_family",
+      "rel_friends_level": "C",
+      "rel_friends_explain": "Needs practice with rel_friends",
+      "rel_coworkers_level": "C",
+      "rel_coworkers_explain": "Needs practice with rel_coworkers",
+      "rel_support_staff_level": "C",
+      "rel_support_staff_explain": "Needs practice with rel_support_staff",
+      "expressive_level": "C",
+      "expressive_explain": "Needs practice with expressive",
+      "receptive_level": "C",
+      "receptive_explain": "Needs practice with receptive",
+      "sign_language_level": "C",
+      "sign_language_explain": "Needs practice with sign_language",
+      "visual_gestural_level": "C",
+      "visual_gestural_explain": "Needs practice with visual_gestural"
+    },
+    "ssa": {
+      "forms": "ssa",
+      "first_name": "Grace",
+      "last_name": "Hopper",
+      "date_of_birth": "1906-12-09",
+      "birth_city": "New York",
+      "birth_state": "New York",
+      "birth_country": "United States",
+      "ssn": "987654321",
+      "conditions": [
+        {
+          "name": "Fibromyalgia"
+        },
+        {
+          "name": "Migraine"
+        }
+      ],
+      "onset_date": "2019-11",
+      "providers": [
+        {
+          "name": "City Clinic",
+          "address": "1 Main St",
+          "phone": "2075550001",
+          "first_seen": "2019-12",
+          "last_seen": "present"
+        }
+      ],
+      "medications": [
+        {
+          "name": "Gabapentin",
+          "reason": "Nerve pain"
+        }
+      ],
+      "tests": [
+        {
+          "name": "MRI",
+          "date": "2020-02-02",
+          "ordered_by": "Dr. Chen"
+        }
+      ],
+      "records_permission": true,
+      "wc_receives": true,
+      "wc_injury_date": "2018-09-03",
+      "wc_claim_number": "WC-123",
+      "wc_settlement": false,
+      "wc_source": "Insurer",
+      "wc_amount": 24000,
+      "ref1_name": "Katherine Johnson",
+      "ref1_phone": "2075550187",
+      "jobs": [
+        {
+          "employer": "US Navy",
+          "job_title": "Mathematician",
+          "business_type": "Government",
+          "start": "1943-01",
+          "end": "1986-08",
+          "hours_per_day": 8,
+          "days_per_week": 5,
+          "pay_amount": 90000,
+          "pay_frequency": "year"
+        }
+      ],
+      "marriages": [
+        {
+          "spouse_name": "Vincent Hopper",
+          "spouse_dob": "1902-01-01",
+          "marriage_city": "New York",
+          "marriage_state": "NY",
+          "marriage_country": "United States",
+          "marriage_date": "1930-06-15",
+          "still_active": false,
+          "spouse_died": true,
+          "spouse_death_date": "1985-01-01"
+        }
+      ],
+      "children": [
+        {
+          "first_name": "Mark",
+          "last_name": "Hopper"
+        }
+      ],
+      "training": [
+        {
+          "name": "Naval Reserve Officer Training",
+          "completed": "1944-06"
+        }
+      ],
+      "household": [
+        {
+          "name": "Grace Hopper",
+          "dob": "1906-12-09"
+        }
+      ],
+      "rents": true,
+      "landlord_name": "Harbor Properties",
+      "landlord_phone": "2075550111",
+      "has_rental_contract": true,
+      "has_admission_agreement": false,
+      "recent_admission": false,
+      "income_sources": [
+        {
+          "kind": "Pension",
+          "monthly_amount": 1800,
+          "has_documentation": true
+        }
+      ],
+      "resources": [
+        {
+          "kind": "Bank account",
+          "value": 5000
+        }
+      ],
+      "education_level": "Ph.D.",
+      "education_year": 1934,
+      "education_school": "Yale University",
+      "special_ed": false,
+      "earnings_reviewed": true
+    }
+  },
+  "choices": [
+    {
+      "id": "forms",
+      "input": "ssa",
+      "value": "ssa"
+    },
+    {
+      "id": "forms",
+      "input": "Adult Disability Starter Kit",
+      "value": "ssa"
+    },
+    {
+      "id": "forms",
+      "input": "starter kit",
+      "value": "ssa"
+    },
+    {
+      "id": "forms",
+      "input": "the starter kit",
+      "value": "ssa"
+    },
+    {
+      "id": "forms",
+      "input": "disability starter kit",
+      "value": "ssa"
+    },
+    {
+      "id": "forms",
+      "input": "the kit",
+      "value": "ssa"
+    },
+    {
+      "id": "forms",
+      "input": "kit",
+      "value": "ssa"
+    },
+    {
+      "id": "forms",
+      "input": "social security",
+      "value": "ssa"
+    },
+    {
+      "id": "forms",
+      "input": "social security form",
+      "value": "ssa"
+    },
+    {
+      "id": "forms",
+      "input": "ds",
+      "value": "ds"
+    },
+    {
+      "id": "forms",
+      "input": "Developmental Services Intake Application",
+      "value": "ds"
+    },
+    {
+      "id": "forms",
+      "input": "developmental services",
+      "value": "ds"
+    },
+    {
+      "id": "forms",
+      "input": "developmental services application",
+      "value": "ds"
+    },
+    {
+      "id": "forms",
+      "input": "developmental services intake",
+      "value": "ds"
+    },
+    {
+      "id": "forms",
+      "input": "developmental",
+      "value": "ds"
+    },
+    {
+      "id": "forms",
+      "input": "ds intake",
+      "value": "ds"
+    },
+    {
+      "id": "forms",
+      "input": "intake application",
+      "value": "ds"
+    },
+    {
+      "id": "forms",
+      "input": "the maine application",
+      "value": "ds"
+    },
+    {
+      "id": "forms",
+      "input": "maine application",
+      "value": "ds"
+    },
+    {
+      "id": "forms",
+      "input": "maine form",
+      "value": "ds"
+    },
+    {
+      "id": "forms",
+      "input": "maine",
+      "value": "ds"
+    },
+    {
+      "id": "forms",
+      "input": "dhhs",
+      "value": "ds"
+    },
+    {
+      "id": "forms",
+      "input": "oads",
+      "value": "ds"
+    },
+    {
+      "id": "forms",
+      "input": "both",
+      "value": "both"
+    },
+    {
+      "id": "forms",
+      "input": "Both forms",
+      "value": "both"
+    },
+    {
+      "id": "forms",
+      "input": "both of them",
+      "value": "both"
+    },
+    {
+      "id": "forms",
+      "input": "both forms",
+      "value": "both"
+    },
+    {
+      "id": "forms",
+      "input": "all of them",
+      "value": "both"
+    },
+    {
+      "id": "forms",
+      "input": "the two of them",
+      "value": "both"
+    },
+    {
+      "id": "forms",
+      "input": "not Adult Disability Starter Kit",
+      "value": null
+    },
+    {
+      "id": "forms",
+      "input": "",
+      "value": null
+    },
+    {
+      "id": "forms",
+      "input": "a little help sometimes",
+      "value": null
+    },
+    {
+      "id": "gender",
+      "input": "M",
+      "value": "M"
+    },
+    {
+      "id": "gender",
+      "input": "Male",
+      "value": "M"
+    },
+    {
+      "id": "gender",
+      "input": "male",
+      "value": "M"
+    },
+    {
+      "id": "gender",
+      "input": "man",
+      "value": "M"
+    },
+    {
+      "id": "gender",
+      "input": "boy",
+      "value": "M"
+    },
+    {
+      "id": "gender",
+      "input": "F",
+      "value": "F"
+    },
+    {
+      "id": "gender",
+      "input": "Female",
+      "value": "F"
+    },
+    {
+      "id": "gender",
+      "input": "female",
+      "value": "F"
+    },
+    {
+      "id": "gender",
+      "input": "woman",
+      "value": "F"
+    },
+    {
+      "id": "gender",
+      "input": "girl",
+      "value": "F"
+    },
+    {
+      "id": "gender",
+      "input": "not Male",
+      "value": null
+    },
+    {
+      "id": "gender",
+      "input": "",
+      "value": null
+    },
+    {
+      "id": "gender",
+      "input": "a little help sometimes",
+      "value": null
+    },
+    {
+      "id": "marital_status",
+      "input": "never_married",
+      "value": "never_married"
+    },
+    {
+      "id": "marital_status",
+      "input": "Never married",
+      "value": "never_married"
+    },
+    {
+      "id": "marital_status",
+      "input": "never married",
+      "value": "never_married"
+    },
+    {
+      "id": "marital_status",
+      "input": "never been married",
+      "value": "never_married"
+    },
+    {
+      "id": "marital_status",
+      "input": "single",
+      "value": "never_married"
+    },
+    {
+      "id": "marital_status",
+      "input": "married",
+      "value": "married"
+    },
+    {
+      "id": "marital_status",
+      "input": "Married",
+      "value": "married"
+    },
+    {
+      "id": "marital_status",
+      "input": "separated",
+      "value": "separated"
+    },
+    {
+      "id": "marital_status",
+      "input": "Separated",
+      "value": "separated"
+    },
+    {
+      "id": "marital_status",
+      "input": "divorced",
+      "value": "divorced"
+    },
+    {
+      "id": "marital_status",
+      "input": "Divorced",
+      "value": "divorced"
+    },
+    {
+      "id": "marital_status",
+      "input": "widowed",
+      "value": "widowed"
+    },
+    {
+      "id": "marital_status",
+      "input": "Widowed",
+      "value": "widowed"
+    },
+    {
+      "id": "marital_status",
+      "input": "widow",
+      "value": "widowed"
+    },
+    {
+      "id": "marital_status",
+      "input": "widower",
+      "value": "widowed"
+    },
+    {
+      "id": "marital_status",
+      "input": "not Never married",
+      "value": null
+    },
+    {
+      "id": "marital_status",
+      "input": "",
+      "value": null
+    },
+    {
+      "id": "marital_status",
+      "input": "a little help sometimes",
+      "value": null
+    },
+    {
+      "id": "eating_level",
+      "input": "A",
+      "value": "A"
+    },
+    {
+      "id": "eating_level",
+      "input": "Independent",
+      "value": "A"
+    },
+    {
+      "id": "eating_level",
+      "input": "independent",
+      "value": "A"
+    },
+    {
+      "id": "eating_level",
+      "input": "independently",
+      "value": "A"
+    },
+    {
+      "id": "eating_level",
+      "input": "on my own",
+      "value": "A"
+    },
+    {
+      "id": "eating_level",
+      "input": "on their own",
+      "value": "A"
+    },
+    {
+      "id": "eating_level",
+      "input": "by myself",
+      "value": "A"
+    },
+    {
+      "id": "eating_level",
+      "input": "by themselves",
+      "value": "A"
+    },
+    {
+      "id": "eating_level",
+      "input": "alone",
+      "value": "A"
+    },
+    {
+      "id": "eating_level",
+      "input": "B",
+      "value": "B"
+    },
+    {
+      "id": "eating_level",
+      "input": "Needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "eating_level",
+      "input": "needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "eating_level",
+      "input": "supervision",
+      "value": "B"
+    },
+    {
+      "id": "eating_level",
+      "input": "supervised",
+      "value": "B"
+    },
+    {
+      "id": "eating_level",
+      "input": "someone watching",
+      "value": "B"
+    },
+    {
+      "id": "eating_level",
+      "input": "reminders",
+      "value": "B"
+    },
+    {
+      "id": "eating_level",
+      "input": "prompting",
+      "value": "B"
+    },
+    {
+      "id": "eating_level",
+      "input": "C",
+      "value": "C"
+    },
+    {
+      "id": "eating_level",
+      "input": "Needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "eating_level",
+      "input": "needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "eating_level",
+      "input": "skills training",
+      "value": "C"
+    },
+    {
+      "id": "eating_level",
+      "input": "skill training",
+      "value": "C"
+    },
+    {
+      "id": "eating_level",
+      "input": "training",
+      "value": "C"
+    },
+    {
+      "id": "eating_level",
+      "input": "still learning",
+      "value": "C"
+    },
+    {
+      "id": "eating_level",
+      "input": "needs to learn",
+      "value": "C"
+    },
+    {
+      "id": "eating_level",
+      "input": "D",
+      "value": "D"
+    },
+    {
+      "id": "eating_level",
+      "input": "Needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "eating_level",
+      "input": "needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "eating_level",
+      "input": "physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "eating_level",
+      "input": "physical help",
+      "value": "D"
+    },
+    {
+      "id": "eating_level",
+      "input": "hands on help",
+      "value": "D"
+    },
+    {
+      "id": "eating_level",
+      "input": "assistance",
+      "value": "D"
+    },
+    {
+      "id": "eating_level",
+      "input": "E",
+      "value": "E"
+    },
+    {
+      "id": "eating_level",
+      "input": "Total care",
+      "value": "E"
+    },
+    {
+      "id": "eating_level",
+      "input": "total care",
+      "value": "E"
+    },
+    {
+      "id": "eating_level",
+      "input": "full care",
+      "value": "E"
+    },
+    {
+      "id": "eating_level",
+      "input": "complete care",
+      "value": "E"
+    },
+    {
+      "id": "eating_level",
+      "input": "total assistance",
+      "value": "E"
+    },
+    {
+      "id": "eating_level",
+      "input": "does it for me",
+      "value": "E"
+    },
+    {
+      "id": "eating_level",
+      "input": "does it for them",
+      "value": "E"
+    },
+    {
+      "id": "eating_level",
+      "input": "not Independent",
+      "value": null
+    },
+    {
+      "id": "eating_level",
+      "input": "",
+      "value": null
+    },
+    {
+      "id": "eating_level",
+      "input": "a little help sometimes",
+      "value": null
+    },
+    {
+      "id": "dressing_level",
+      "input": "A",
+      "value": "A"
+    },
+    {
+      "id": "dressing_level",
+      "input": "Independent",
+      "value": "A"
+    },
+    {
+      "id": "dressing_level",
+      "input": "independent",
+      "value": "A"
+    },
+    {
+      "id": "dressing_level",
+      "input": "independently",
+      "value": "A"
+    },
+    {
+      "id": "dressing_level",
+      "input": "on my own",
+      "value": "A"
+    },
+    {
+      "id": "dressing_level",
+      "input": "on their own",
+      "value": "A"
+    },
+    {
+      "id": "dressing_level",
+      "input": "by myself",
+      "value": "A"
+    },
+    {
+      "id": "dressing_level",
+      "input": "by themselves",
+      "value": "A"
+    },
+    {
+      "id": "dressing_level",
+      "input": "alone",
+      "value": "A"
+    },
+    {
+      "id": "dressing_level",
+      "input": "B",
+      "value": "B"
+    },
+    {
+      "id": "dressing_level",
+      "input": "Needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "dressing_level",
+      "input": "needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "dressing_level",
+      "input": "supervision",
+      "value": "B"
+    },
+    {
+      "id": "dressing_level",
+      "input": "supervised",
+      "value": "B"
+    },
+    {
+      "id": "dressing_level",
+      "input": "someone watching",
+      "value": "B"
+    },
+    {
+      "id": "dressing_level",
+      "input": "reminders",
+      "value": "B"
+    },
+    {
+      "id": "dressing_level",
+      "input": "prompting",
+      "value": "B"
+    },
+    {
+      "id": "dressing_level",
+      "input": "C",
+      "value": "C"
+    },
+    {
+      "id": "dressing_level",
+      "input": "Needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "dressing_level",
+      "input": "needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "dressing_level",
+      "input": "skills training",
+      "value": "C"
+    },
+    {
+      "id": "dressing_level",
+      "input": "skill training",
+      "value": "C"
+    },
+    {
+      "id": "dressing_level",
+      "input": "training",
+      "value": "C"
+    },
+    {
+      "id": "dressing_level",
+      "input": "still learning",
+      "value": "C"
+    },
+    {
+      "id": "dressing_level",
+      "input": "needs to learn",
+      "value": "C"
+    },
+    {
+      "id": "dressing_level",
+      "input": "D",
+      "value": "D"
+    },
+    {
+      "id": "dressing_level",
+      "input": "Needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "dressing_level",
+      "input": "needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "dressing_level",
+      "input": "physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "dressing_level",
+      "input": "physical help",
+      "value": "D"
+    },
+    {
+      "id": "dressing_level",
+      "input": "hands on help",
+      "value": "D"
+    },
+    {
+      "id": "dressing_level",
+      "input": "assistance",
+      "value": "D"
+    },
+    {
+      "id": "dressing_level",
+      "input": "E",
+      "value": "E"
+    },
+    {
+      "id": "dressing_level",
+      "input": "Total care",
+      "value": "E"
+    },
+    {
+      "id": "dressing_level",
+      "input": "total care",
+      "value": "E"
+    },
+    {
+      "id": "dressing_level",
+      "input": "full care",
+      "value": "E"
+    },
+    {
+      "id": "dressing_level",
+      "input": "complete care",
+      "value": "E"
+    },
+    {
+      "id": "dressing_level",
+      "input": "total assistance",
+      "value": "E"
+    },
+    {
+      "id": "dressing_level",
+      "input": "does it for me",
+      "value": "E"
+    },
+    {
+      "id": "dressing_level",
+      "input": "does it for them",
+      "value": "E"
+    },
+    {
+      "id": "dressing_level",
+      "input": "not Independent",
+      "value": null
+    },
+    {
+      "id": "dressing_level",
+      "input": "",
+      "value": null
+    },
+    {
+      "id": "dressing_level",
+      "input": "a little help sometimes",
+      "value": null
+    },
+    {
+      "id": "toileting_level",
+      "input": "A",
+      "value": "A"
+    },
+    {
+      "id": "toileting_level",
+      "input": "Independent",
+      "value": "A"
+    },
+    {
+      "id": "toileting_level",
+      "input": "independent",
+      "value": "A"
+    },
+    {
+      "id": "toileting_level",
+      "input": "independently",
+      "value": "A"
+    },
+    {
+      "id": "toileting_level",
+      "input": "on my own",
+      "value": "A"
+    },
+    {
+      "id": "toileting_level",
+      "input": "on their own",
+      "value": "A"
+    },
+    {
+      "id": "toileting_level",
+      "input": "by myself",
+      "value": "A"
+    },
+    {
+      "id": "toileting_level",
+      "input": "by themselves",
+      "value": "A"
+    },
+    {
+      "id": "toileting_level",
+      "input": "alone",
+      "value": "A"
+    },
+    {
+      "id": "toileting_level",
+      "input": "B",
+      "value": "B"
+    },
+    {
+      "id": "toileting_level",
+      "input": "Needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "toileting_level",
+      "input": "needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "toileting_level",
+      "input": "supervision",
+      "value": "B"
+    },
+    {
+      "id": "toileting_level",
+      "input": "supervised",
+      "value": "B"
+    },
+    {
+      "id": "toileting_level",
+      "input": "someone watching",
+      "value": "B"
+    },
+    {
+      "id": "toileting_level",
+      "input": "reminders",
+      "value": "B"
+    },
+    {
+      "id": "toileting_level",
+      "input": "prompting",
+      "value": "B"
+    },
+    {
+      "id": "toileting_level",
+      "input": "C",
+      "value": "C"
+    },
+    {
+      "id": "toileting_level",
+      "input": "Needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "toileting_level",
+      "input": "needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "toileting_level",
+      "input": "skills training",
+      "value": "C"
+    },
+    {
+      "id": "toileting_level",
+      "input": "skill training",
+      "value": "C"
+    },
+    {
+      "id": "toileting_level",
+      "input": "training",
+      "value": "C"
+    },
+    {
+      "id": "toileting_level",
+      "input": "still learning",
+      "value": "C"
+    },
+    {
+      "id": "toileting_level",
+      "input": "needs to learn",
+      "value": "C"
+    },
+    {
+      "id": "toileting_level",
+      "input": "D",
+      "value": "D"
+    },
+    {
+      "id": "toileting_level",
+      "input": "Needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "toileting_level",
+      "input": "needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "toileting_level",
+      "input": "physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "toileting_level",
+      "input": "physical help",
+      "value": "D"
+    },
+    {
+      "id": "toileting_level",
+      "input": "hands on help",
+      "value": "D"
+    },
+    {
+      "id": "toileting_level",
+      "input": "assistance",
+      "value": "D"
+    },
+    {
+      "id": "toileting_level",
+      "input": "E",
+      "value": "E"
+    },
+    {
+      "id": "toileting_level",
+      "input": "Total care",
+      "value": "E"
+    },
+    {
+      "id": "toileting_level",
+      "input": "total care",
+      "value": "E"
+    },
+    {
+      "id": "toileting_level",
+      "input": "full care",
+      "value": "E"
+    },
+    {
+      "id": "toileting_level",
+      "input": "complete care",
+      "value": "E"
+    },
+    {
+      "id": "toileting_level",
+      "input": "total assistance",
+      "value": "E"
+    },
+    {
+      "id": "toileting_level",
+      "input": "does it for me",
+      "value": "E"
+    },
+    {
+      "id": "toileting_level",
+      "input": "does it for them",
+      "value": "E"
+    },
+    {
+      "id": "toileting_level",
+      "input": "not Independent",
+      "value": null
+    },
+    {
+      "id": "toileting_level",
+      "input": "",
+      "value": null
+    },
+    {
+      "id": "toileting_level",
+      "input": "a little help sometimes",
+      "value": null
+    },
+    {
+      "id": "bathing_level",
+      "input": "A",
+      "value": "A"
+    },
+    {
+      "id": "bathing_level",
+      "input": "Independent",
+      "value": "A"
+    },
+    {
+      "id": "bathing_level",
+      "input": "independent",
+      "value": "A"
+    },
+    {
+      "id": "bathing_level",
+      "input": "independently",
+      "value": "A"
+    },
+    {
+      "id": "bathing_level",
+      "input": "on my own",
+      "value": "A"
+    },
+    {
+      "id": "bathing_level",
+      "input": "on their own",
+      "value": "A"
+    },
+    {
+      "id": "bathing_level",
+      "input": "by myself",
+      "value": "A"
+    },
+    {
+      "id": "bathing_level",
+      "input": "by themselves",
+      "value": "A"
+    },
+    {
+      "id": "bathing_level",
+      "input": "alone",
+      "value": "A"
+    },
+    {
+      "id": "bathing_level",
+      "input": "B",
+      "value": "B"
+    },
+    {
+      "id": "bathing_level",
+      "input": "Needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "bathing_level",
+      "input": "needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "bathing_level",
+      "input": "supervision",
+      "value": "B"
+    },
+    {
+      "id": "bathing_level",
+      "input": "supervised",
+      "value": "B"
+    },
+    {
+      "id": "bathing_level",
+      "input": "someone watching",
+      "value": "B"
+    },
+    {
+      "id": "bathing_level",
+      "input": "reminders",
+      "value": "B"
+    },
+    {
+      "id": "bathing_level",
+      "input": "prompting",
+      "value": "B"
+    },
+    {
+      "id": "bathing_level",
+      "input": "C",
+      "value": "C"
+    },
+    {
+      "id": "bathing_level",
+      "input": "Needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "bathing_level",
+      "input": "needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "bathing_level",
+      "input": "skills training",
+      "value": "C"
+    },
+    {
+      "id": "bathing_level",
+      "input": "skill training",
+      "value": "C"
+    },
+    {
+      "id": "bathing_level",
+      "input": "training",
+      "value": "C"
+    },
+    {
+      "id": "bathing_level",
+      "input": "still learning",
+      "value": "C"
+    },
+    {
+      "id": "bathing_level",
+      "input": "needs to learn",
+      "value": "C"
+    },
+    {
+      "id": "bathing_level",
+      "input": "D",
+      "value": "D"
+    },
+    {
+      "id": "bathing_level",
+      "input": "Needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "bathing_level",
+      "input": "needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "bathing_level",
+      "input": "physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "bathing_level",
+      "input": "physical help",
+      "value": "D"
+    },
+    {
+      "id": "bathing_level",
+      "input": "hands on help",
+      "value": "D"
+    },
+    {
+      "id": "bathing_level",
+      "input": "assistance",
+      "value": "D"
+    },
+    {
+      "id": "bathing_level",
+      "input": "E",
+      "value": "E"
+    },
+    {
+      "id": "bathing_level",
+      "input": "Total care",
+      "value": "E"
+    },
+    {
+      "id": "bathing_level",
+      "input": "total care",
+      "value": "E"
+    },
+    {
+      "id": "bathing_level",
+      "input": "full care",
+      "value": "E"
+    },
+    {
+      "id": "bathing_level",
+      "input": "complete care",
+      "value": "E"
+    },
+    {
+      "id": "bathing_level",
+      "input": "total assistance",
+      "value": "E"
+    },
+    {
+      "id": "bathing_level",
+      "input": "does it for me",
+      "value": "E"
+    },
+    {
+      "id": "bathing_level",
+      "input": "does it for them",
+      "value": "E"
+    },
+    {
+      "id": "bathing_level",
+      "input": "not Independent",
+      "value": null
+    },
+    {
+      "id": "bathing_level",
+      "input": "",
+      "value": null
+    },
+    {
+      "id": "bathing_level",
+      "input": "a little help sometimes",
+      "value": null
+    },
+    {
+      "id": "grooming_level",
+      "input": "A",
+      "value": "A"
+    },
+    {
+      "id": "grooming_level",
+      "input": "Independent",
+      "value": "A"
+    },
+    {
+      "id": "grooming_level",
+      "input": "independent",
+      "value": "A"
+    },
+    {
+      "id": "grooming_level",
+      "input": "independently",
+      "value": "A"
+    },
+    {
+      "id": "grooming_level",
+      "input": "on my own",
+      "value": "A"
+    },
+    {
+      "id": "grooming_level",
+      "input": "on their own",
+      "value": "A"
+    },
+    {
+      "id": "grooming_level",
+      "input": "by myself",
+      "value": "A"
+    },
+    {
+      "id": "grooming_level",
+      "input": "by themselves",
+      "value": "A"
+    },
+    {
+      "id": "grooming_level",
+      "input": "alone",
+      "value": "A"
+    },
+    {
+      "id": "grooming_level",
+      "input": "B",
+      "value": "B"
+    },
+    {
+      "id": "grooming_level",
+      "input": "Needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "grooming_level",
+      "input": "needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "grooming_level",
+      "input": "supervision",
+      "value": "B"
+    },
+    {
+      "id": "grooming_level",
+      "input": "supervised",
+      "value": "B"
+    },
+    {
+      "id": "grooming_level",
+      "input": "someone watching",
+      "value": "B"
+    },
+    {
+      "id": "grooming_level",
+      "input": "reminders",
+      "value": "B"
+    },
+    {
+      "id": "grooming_level",
+      "input": "prompting",
+      "value": "B"
+    },
+    {
+      "id": "grooming_level",
+      "input": "C",
+      "value": "C"
+    },
+    {
+      "id": "grooming_level",
+      "input": "Needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "grooming_level",
+      "input": "needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "grooming_level",
+      "input": "skills training",
+      "value": "C"
+    },
+    {
+      "id": "grooming_level",
+      "input": "skill training",
+      "value": "C"
+    },
+    {
+      "id": "grooming_level",
+      "input": "training",
+      "value": "C"
+    },
+    {
+      "id": "grooming_level",
+      "input": "still learning",
+      "value": "C"
+    },
+    {
+      "id": "grooming_level",
+      "input": "needs to learn",
+      "value": "C"
+    },
+    {
+      "id": "grooming_level",
+      "input": "D",
+      "value": "D"
+    },
+    {
+      "id": "grooming_level",
+      "input": "Needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "grooming_level",
+      "input": "needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "grooming_level",
+      "input": "physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "grooming_level",
+      "input": "physical help",
+      "value": "D"
+    },
+    {
+      "id": "grooming_level",
+      "input": "hands on help",
+      "value": "D"
+    },
+    {
+      "id": "grooming_level",
+      "input": "assistance",
+      "value": "D"
+    },
+    {
+      "id": "grooming_level",
+      "input": "E",
+      "value": "E"
+    },
+    {
+      "id": "grooming_level",
+      "input": "Total care",
+      "value": "E"
+    },
+    {
+      "id": "grooming_level",
+      "input": "total care",
+      "value": "E"
+    },
+    {
+      "id": "grooming_level",
+      "input": "full care",
+      "value": "E"
+    },
+    {
+      "id": "grooming_level",
+      "input": "complete care",
+      "value": "E"
+    },
+    {
+      "id": "grooming_level",
+      "input": "total assistance",
+      "value": "E"
+    },
+    {
+      "id": "grooming_level",
+      "input": "does it for me",
+      "value": "E"
+    },
+    {
+      "id": "grooming_level",
+      "input": "does it for them",
+      "value": "E"
+    },
+    {
+      "id": "grooming_level",
+      "input": "not Independent",
+      "value": null
+    },
+    {
+      "id": "grooming_level",
+      "input": "",
+      "value": null
+    },
+    {
+      "id": "grooming_level",
+      "input": "a little help sometimes",
+      "value": null
+    },
+    {
+      "id": "mobility_level",
+      "input": "A",
+      "value": "A"
+    },
+    {
+      "id": "mobility_level",
+      "input": "Independent",
+      "value": "A"
+    },
+    {
+      "id": "mobility_level",
+      "input": "independent",
+      "value": "A"
+    },
+    {
+      "id": "mobility_level",
+      "input": "independently",
+      "value": "A"
+    },
+    {
+      "id": "mobility_level",
+      "input": "on my own",
+      "value": "A"
+    },
+    {
+      "id": "mobility_level",
+      "input": "on their own",
+      "value": "A"
+    },
+    {
+      "id": "mobility_level",
+      "input": "by myself",
+      "value": "A"
+    },
+    {
+      "id": "mobility_level",
+      "input": "by themselves",
+      "value": "A"
+    },
+    {
+      "id": "mobility_level",
+      "input": "alone",
+      "value": "A"
+    },
+    {
+      "id": "mobility_level",
+      "input": "B",
+      "value": "B"
+    },
+    {
+      "id": "mobility_level",
+      "input": "Needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "mobility_level",
+      "input": "needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "mobility_level",
+      "input": "supervision",
+      "value": "B"
+    },
+    {
+      "id": "mobility_level",
+      "input": "supervised",
+      "value": "B"
+    },
+    {
+      "id": "mobility_level",
+      "input": "someone watching",
+      "value": "B"
+    },
+    {
+      "id": "mobility_level",
+      "input": "reminders",
+      "value": "B"
+    },
+    {
+      "id": "mobility_level",
+      "input": "prompting",
+      "value": "B"
+    },
+    {
+      "id": "mobility_level",
+      "input": "C",
+      "value": "C"
+    },
+    {
+      "id": "mobility_level",
+      "input": "Needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "mobility_level",
+      "input": "needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "mobility_level",
+      "input": "skills training",
+      "value": "C"
+    },
+    {
+      "id": "mobility_level",
+      "input": "skill training",
+      "value": "C"
+    },
+    {
+      "id": "mobility_level",
+      "input": "training",
+      "value": "C"
+    },
+    {
+      "id": "mobility_level",
+      "input": "still learning",
+      "value": "C"
+    },
+    {
+      "id": "mobility_level",
+      "input": "needs to learn",
+      "value": "C"
+    },
+    {
+      "id": "mobility_level",
+      "input": "D",
+      "value": "D"
+    },
+    {
+      "id": "mobility_level",
+      "input": "Needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "mobility_level",
+      "input": "needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "mobility_level",
+      "input": "physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "mobility_level",
+      "input": "physical help",
+      "value": "D"
+    },
+    {
+      "id": "mobility_level",
+      "input": "hands on help",
+      "value": "D"
+    },
+    {
+      "id": "mobility_level",
+      "input": "assistance",
+      "value": "D"
+    },
+    {
+      "id": "mobility_level",
+      "input": "E",
+      "value": "E"
+    },
+    {
+      "id": "mobility_level",
+      "input": "Total care",
+      "value": "E"
+    },
+    {
+      "id": "mobility_level",
+      "input": "total care",
+      "value": "E"
+    },
+    {
+      "id": "mobility_level",
+      "input": "full care",
+      "value": "E"
+    },
+    {
+      "id": "mobility_level",
+      "input": "complete care",
+      "value": "E"
+    },
+    {
+      "id": "mobility_level",
+      "input": "total assistance",
+      "value": "E"
+    },
+    {
+      "id": "mobility_level",
+      "input": "does it for me",
+      "value": "E"
+    },
+    {
+      "id": "mobility_level",
+      "input": "does it for them",
+      "value": "E"
+    },
+    {
+      "id": "mobility_level",
+      "input": "not Independent",
+      "value": null
+    },
+    {
+      "id": "mobility_level",
+      "input": "",
+      "value": null
+    },
+    {
+      "id": "mobility_level",
+      "input": "a little help sometimes",
+      "value": null
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "A",
+      "value": "A"
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "Independent",
+      "value": "A"
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "independent",
+      "value": "A"
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "independently",
+      "value": "A"
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "on my own",
+      "value": "A"
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "on their own",
+      "value": "A"
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "by myself",
+      "value": "A"
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "by themselves",
+      "value": "A"
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "alone",
+      "value": "A"
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "B",
+      "value": "B"
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "Needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "supervision",
+      "value": "B"
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "supervised",
+      "value": "B"
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "someone watching",
+      "value": "B"
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "reminders",
+      "value": "B"
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "prompting",
+      "value": "B"
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "C",
+      "value": "C"
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "Needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "skills training",
+      "value": "C"
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "skill training",
+      "value": "C"
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "training",
+      "value": "C"
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "still learning",
+      "value": "C"
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "needs to learn",
+      "value": "C"
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "D",
+      "value": "D"
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "Needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "physical help",
+      "value": "D"
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "hands on help",
+      "value": "D"
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "assistance",
+      "value": "D"
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "E",
+      "value": "E"
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "Total care",
+      "value": "E"
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "total care",
+      "value": "E"
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "full care",
+      "value": "E"
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "complete care",
+      "value": "E"
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "total assistance",
+      "value": "E"
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "does it for me",
+      "value": "E"
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "does it for them",
+      "value": "E"
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "not Independent",
+      "value": null
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "",
+      "value": null
+    },
+    {
+      "id": "physical_danger_level",
+      "input": "a little help sometimes",
+      "value": null
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "A",
+      "value": "A"
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "Independent",
+      "value": "A"
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "independent",
+      "value": "A"
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "independently",
+      "value": "A"
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "on my own",
+      "value": "A"
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "on their own",
+      "value": "A"
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "by myself",
+      "value": "A"
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "by themselves",
+      "value": "A"
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "alone",
+      "value": "A"
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "B",
+      "value": "B"
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "Needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "supervision",
+      "value": "B"
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "supervised",
+      "value": "B"
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "someone watching",
+      "value": "B"
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "reminders",
+      "value": "B"
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "prompting",
+      "value": "B"
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "C",
+      "value": "C"
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "Needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "skills training",
+      "value": "C"
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "skill training",
+      "value": "C"
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "training",
+      "value": "C"
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "still learning",
+      "value": "C"
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "needs to learn",
+      "value": "C"
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "D",
+      "value": "D"
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "Needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "physical help",
+      "value": "D"
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "hands on help",
+      "value": "D"
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "assistance",
+      "value": "D"
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "E",
+      "value": "E"
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "Total care",
+      "value": "E"
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "total care",
+      "value": "E"
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "full care",
+      "value": "E"
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "complete care",
+      "value": "E"
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "total assistance",
+      "value": "E"
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "does it for me",
+      "value": "E"
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "does it for them",
+      "value": "E"
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "not Independent",
+      "value": null
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "",
+      "value": null
+    },
+    {
+      "id": "emotional_jeopardy_level",
+      "input": "a little help sometimes",
+      "value": null
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "A",
+      "value": "A"
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "Independent",
+      "value": "A"
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "independent",
+      "value": "A"
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "independently",
+      "value": "A"
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "on my own",
+      "value": "A"
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "on their own",
+      "value": "A"
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "by myself",
+      "value": "A"
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "by themselves",
+      "value": "A"
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "alone",
+      "value": "A"
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "B",
+      "value": "B"
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "Needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "supervision",
+      "value": "B"
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "supervised",
+      "value": "B"
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "someone watching",
+      "value": "B"
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "reminders",
+      "value": "B"
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "prompting",
+      "value": "B"
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "C",
+      "value": "C"
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "Needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "skills training",
+      "value": "C"
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "skill training",
+      "value": "C"
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "training",
+      "value": "C"
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "still learning",
+      "value": "C"
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "needs to learn",
+      "value": "C"
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "D",
+      "value": "D"
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "Needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "physical help",
+      "value": "D"
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "hands on help",
+      "value": "D"
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "assistance",
+      "value": "D"
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "E",
+      "value": "E"
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "Total care",
+      "value": "E"
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "total care",
+      "value": "E"
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "full care",
+      "value": "E"
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "complete care",
+      "value": "E"
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "total assistance",
+      "value": "E"
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "does it for me",
+      "value": "E"
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "does it for them",
+      "value": "E"
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "not Independent",
+      "value": null
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "",
+      "value": null
+    },
+    {
+      "id": "healthy_relationships_level",
+      "input": "a little help sometimes",
+      "value": null
+    },
+    {
+      "id": "judgment_level",
+      "input": "A",
+      "value": "A"
+    },
+    {
+      "id": "judgment_level",
+      "input": "Independent",
+      "value": "A"
+    },
+    {
+      "id": "judgment_level",
+      "input": "independent",
+      "value": "A"
+    },
+    {
+      "id": "judgment_level",
+      "input": "independently",
+      "value": "A"
+    },
+    {
+      "id": "judgment_level",
+      "input": "on my own",
+      "value": "A"
+    },
+    {
+      "id": "judgment_level",
+      "input": "on their own",
+      "value": "A"
+    },
+    {
+      "id": "judgment_level",
+      "input": "by myself",
+      "value": "A"
+    },
+    {
+      "id": "judgment_level",
+      "input": "by themselves",
+      "value": "A"
+    },
+    {
+      "id": "judgment_level",
+      "input": "alone",
+      "value": "A"
+    },
+    {
+      "id": "judgment_level",
+      "input": "B",
+      "value": "B"
+    },
+    {
+      "id": "judgment_level",
+      "input": "Needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "judgment_level",
+      "input": "needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "judgment_level",
+      "input": "supervision",
+      "value": "B"
+    },
+    {
+      "id": "judgment_level",
+      "input": "supervised",
+      "value": "B"
+    },
+    {
+      "id": "judgment_level",
+      "input": "someone watching",
+      "value": "B"
+    },
+    {
+      "id": "judgment_level",
+      "input": "reminders",
+      "value": "B"
+    },
+    {
+      "id": "judgment_level",
+      "input": "prompting",
+      "value": "B"
+    },
+    {
+      "id": "judgment_level",
+      "input": "C",
+      "value": "C"
+    },
+    {
+      "id": "judgment_level",
+      "input": "Needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "judgment_level",
+      "input": "needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "judgment_level",
+      "input": "skills training",
+      "value": "C"
+    },
+    {
+      "id": "judgment_level",
+      "input": "skill training",
+      "value": "C"
+    },
+    {
+      "id": "judgment_level",
+      "input": "training",
+      "value": "C"
+    },
+    {
+      "id": "judgment_level",
+      "input": "still learning",
+      "value": "C"
+    },
+    {
+      "id": "judgment_level",
+      "input": "needs to learn",
+      "value": "C"
+    },
+    {
+      "id": "judgment_level",
+      "input": "D",
+      "value": "D"
+    },
+    {
+      "id": "judgment_level",
+      "input": "Needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "judgment_level",
+      "input": "needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "judgment_level",
+      "input": "physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "judgment_level",
+      "input": "physical help",
+      "value": "D"
+    },
+    {
+      "id": "judgment_level",
+      "input": "hands on help",
+      "value": "D"
+    },
+    {
+      "id": "judgment_level",
+      "input": "assistance",
+      "value": "D"
+    },
+    {
+      "id": "judgment_level",
+      "input": "E",
+      "value": "E"
+    },
+    {
+      "id": "judgment_level",
+      "input": "Total care",
+      "value": "E"
+    },
+    {
+      "id": "judgment_level",
+      "input": "total care",
+      "value": "E"
+    },
+    {
+      "id": "judgment_level",
+      "input": "full care",
+      "value": "E"
+    },
+    {
+      "id": "judgment_level",
+      "input": "complete care",
+      "value": "E"
+    },
+    {
+      "id": "judgment_level",
+      "input": "total assistance",
+      "value": "E"
+    },
+    {
+      "id": "judgment_level",
+      "input": "does it for me",
+      "value": "E"
+    },
+    {
+      "id": "judgment_level",
+      "input": "does it for them",
+      "value": "E"
+    },
+    {
+      "id": "judgment_level",
+      "input": "not Independent",
+      "value": null
+    },
+    {
+      "id": "judgment_level",
+      "input": "",
+      "value": null
+    },
+    {
+      "id": "judgment_level",
+      "input": "a little help sometimes",
+      "value": null
+    },
+    {
+      "id": "cooking_level",
+      "input": "A",
+      "value": "A"
+    },
+    {
+      "id": "cooking_level",
+      "input": "Independent",
+      "value": "A"
+    },
+    {
+      "id": "cooking_level",
+      "input": "independent",
+      "value": "A"
+    },
+    {
+      "id": "cooking_level",
+      "input": "independently",
+      "value": "A"
+    },
+    {
+      "id": "cooking_level",
+      "input": "on my own",
+      "value": "A"
+    },
+    {
+      "id": "cooking_level",
+      "input": "on their own",
+      "value": "A"
+    },
+    {
+      "id": "cooking_level",
+      "input": "by myself",
+      "value": "A"
+    },
+    {
+      "id": "cooking_level",
+      "input": "by themselves",
+      "value": "A"
+    },
+    {
+      "id": "cooking_level",
+      "input": "alone",
+      "value": "A"
+    },
+    {
+      "id": "cooking_level",
+      "input": "B",
+      "value": "B"
+    },
+    {
+      "id": "cooking_level",
+      "input": "Needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "cooking_level",
+      "input": "needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "cooking_level",
+      "input": "supervision",
+      "value": "B"
+    },
+    {
+      "id": "cooking_level",
+      "input": "supervised",
+      "value": "B"
+    },
+    {
+      "id": "cooking_level",
+      "input": "someone watching",
+      "value": "B"
+    },
+    {
+      "id": "cooking_level",
+      "input": "reminders",
+      "value": "B"
+    },
+    {
+      "id": "cooking_level",
+      "input": "prompting",
+      "value": "B"
+    },
+    {
+      "id": "cooking_level",
+      "input": "C",
+      "value": "C"
+    },
+    {
+      "id": "cooking_level",
+      "input": "Needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "cooking_level",
+      "input": "needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "cooking_level",
+      "input": "skills training",
+      "value": "C"
+    },
+    {
+      "id": "cooking_level",
+      "input": "skill training",
+      "value": "C"
+    },
+    {
+      "id": "cooking_level",
+      "input": "training",
+      "value": "C"
+    },
+    {
+      "id": "cooking_level",
+      "input": "still learning",
+      "value": "C"
+    },
+    {
+      "id": "cooking_level",
+      "input": "needs to learn",
+      "value": "C"
+    },
+    {
+      "id": "cooking_level",
+      "input": "D",
+      "value": "D"
+    },
+    {
+      "id": "cooking_level",
+      "input": "Needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "cooking_level",
+      "input": "needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "cooking_level",
+      "input": "physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "cooking_level",
+      "input": "physical help",
+      "value": "D"
+    },
+    {
+      "id": "cooking_level",
+      "input": "hands on help",
+      "value": "D"
+    },
+    {
+      "id": "cooking_level",
+      "input": "assistance",
+      "value": "D"
+    },
+    {
+      "id": "cooking_level",
+      "input": "E",
+      "value": "E"
+    },
+    {
+      "id": "cooking_level",
+      "input": "Total care",
+      "value": "E"
+    },
+    {
+      "id": "cooking_level",
+      "input": "total care",
+      "value": "E"
+    },
+    {
+      "id": "cooking_level",
+      "input": "full care",
+      "value": "E"
+    },
+    {
+      "id": "cooking_level",
+      "input": "complete care",
+      "value": "E"
+    },
+    {
+      "id": "cooking_level",
+      "input": "total assistance",
+      "value": "E"
+    },
+    {
+      "id": "cooking_level",
+      "input": "does it for me",
+      "value": "E"
+    },
+    {
+      "id": "cooking_level",
+      "input": "does it for them",
+      "value": "E"
+    },
+    {
+      "id": "cooking_level",
+      "input": "not Independent",
+      "value": null
+    },
+    {
+      "id": "cooking_level",
+      "input": "",
+      "value": null
+    },
+    {
+      "id": "cooking_level",
+      "input": "a little help sometimes",
+      "value": null
+    },
+    {
+      "id": "laundry_level",
+      "input": "A",
+      "value": "A"
+    },
+    {
+      "id": "laundry_level",
+      "input": "Independent",
+      "value": "A"
+    },
+    {
+      "id": "laundry_level",
+      "input": "independent",
+      "value": "A"
+    },
+    {
+      "id": "laundry_level",
+      "input": "independently",
+      "value": "A"
+    },
+    {
+      "id": "laundry_level",
+      "input": "on my own",
+      "value": "A"
+    },
+    {
+      "id": "laundry_level",
+      "input": "on their own",
+      "value": "A"
+    },
+    {
+      "id": "laundry_level",
+      "input": "by myself",
+      "value": "A"
+    },
+    {
+      "id": "laundry_level",
+      "input": "by themselves",
+      "value": "A"
+    },
+    {
+      "id": "laundry_level",
+      "input": "alone",
+      "value": "A"
+    },
+    {
+      "id": "laundry_level",
+      "input": "B",
+      "value": "B"
+    },
+    {
+      "id": "laundry_level",
+      "input": "Needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "laundry_level",
+      "input": "needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "laundry_level",
+      "input": "supervision",
+      "value": "B"
+    },
+    {
+      "id": "laundry_level",
+      "input": "supervised",
+      "value": "B"
+    },
+    {
+      "id": "laundry_level",
+      "input": "someone watching",
+      "value": "B"
+    },
+    {
+      "id": "laundry_level",
+      "input": "reminders",
+      "value": "B"
+    },
+    {
+      "id": "laundry_level",
+      "input": "prompting",
+      "value": "B"
+    },
+    {
+      "id": "laundry_level",
+      "input": "C",
+      "value": "C"
+    },
+    {
+      "id": "laundry_level",
+      "input": "Needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "laundry_level",
+      "input": "needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "laundry_level",
+      "input": "skills training",
+      "value": "C"
+    },
+    {
+      "id": "laundry_level",
+      "input": "skill training",
+      "value": "C"
+    },
+    {
+      "id": "laundry_level",
+      "input": "training",
+      "value": "C"
+    },
+    {
+      "id": "laundry_level",
+      "input": "still learning",
+      "value": "C"
+    },
+    {
+      "id": "laundry_level",
+      "input": "needs to learn",
+      "value": "C"
+    },
+    {
+      "id": "laundry_level",
+      "input": "D",
+      "value": "D"
+    },
+    {
+      "id": "laundry_level",
+      "input": "Needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "laundry_level",
+      "input": "needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "laundry_level",
+      "input": "physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "laundry_level",
+      "input": "physical help",
+      "value": "D"
+    },
+    {
+      "id": "laundry_level",
+      "input": "hands on help",
+      "value": "D"
+    },
+    {
+      "id": "laundry_level",
+      "input": "assistance",
+      "value": "D"
+    },
+    {
+      "id": "laundry_level",
+      "input": "E",
+      "value": "E"
+    },
+    {
+      "id": "laundry_level",
+      "input": "Total care",
+      "value": "E"
+    },
+    {
+      "id": "laundry_level",
+      "input": "total care",
+      "value": "E"
+    },
+    {
+      "id": "laundry_level",
+      "input": "full care",
+      "value": "E"
+    },
+    {
+      "id": "laundry_level",
+      "input": "complete care",
+      "value": "E"
+    },
+    {
+      "id": "laundry_level",
+      "input": "total assistance",
+      "value": "E"
+    },
+    {
+      "id": "laundry_level",
+      "input": "does it for me",
+      "value": "E"
+    },
+    {
+      "id": "laundry_level",
+      "input": "does it for them",
+      "value": "E"
+    },
+    {
+      "id": "laundry_level",
+      "input": "not Independent",
+      "value": null
+    },
+    {
+      "id": "laundry_level",
+      "input": "",
+      "value": null
+    },
+    {
+      "id": "laundry_level",
+      "input": "a little help sometimes",
+      "value": null
+    },
+    {
+      "id": "shopping_level",
+      "input": "A",
+      "value": "A"
+    },
+    {
+      "id": "shopping_level",
+      "input": "Independent",
+      "value": "A"
+    },
+    {
+      "id": "shopping_level",
+      "input": "independent",
+      "value": "A"
+    },
+    {
+      "id": "shopping_level",
+      "input": "independently",
+      "value": "A"
+    },
+    {
+      "id": "shopping_level",
+      "input": "on my own",
+      "value": "A"
+    },
+    {
+      "id": "shopping_level",
+      "input": "on their own",
+      "value": "A"
+    },
+    {
+      "id": "shopping_level",
+      "input": "by myself",
+      "value": "A"
+    },
+    {
+      "id": "shopping_level",
+      "input": "by themselves",
+      "value": "A"
+    },
+    {
+      "id": "shopping_level",
+      "input": "alone",
+      "value": "A"
+    },
+    {
+      "id": "shopping_level",
+      "input": "B",
+      "value": "B"
+    },
+    {
+      "id": "shopping_level",
+      "input": "Needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "shopping_level",
+      "input": "needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "shopping_level",
+      "input": "supervision",
+      "value": "B"
+    },
+    {
+      "id": "shopping_level",
+      "input": "supervised",
+      "value": "B"
+    },
+    {
+      "id": "shopping_level",
+      "input": "someone watching",
+      "value": "B"
+    },
+    {
+      "id": "shopping_level",
+      "input": "reminders",
+      "value": "B"
+    },
+    {
+      "id": "shopping_level",
+      "input": "prompting",
+      "value": "B"
+    },
+    {
+      "id": "shopping_level",
+      "input": "C",
+      "value": "C"
+    },
+    {
+      "id": "shopping_level",
+      "input": "Needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "shopping_level",
+      "input": "needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "shopping_level",
+      "input": "skills training",
+      "value": "C"
+    },
+    {
+      "id": "shopping_level",
+      "input": "skill training",
+      "value": "C"
+    },
+    {
+      "id": "shopping_level",
+      "input": "training",
+      "value": "C"
+    },
+    {
+      "id": "shopping_level",
+      "input": "still learning",
+      "value": "C"
+    },
+    {
+      "id": "shopping_level",
+      "input": "needs to learn",
+      "value": "C"
+    },
+    {
+      "id": "shopping_level",
+      "input": "D",
+      "value": "D"
+    },
+    {
+      "id": "shopping_level",
+      "input": "Needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "shopping_level",
+      "input": "needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "shopping_level",
+      "input": "physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "shopping_level",
+      "input": "physical help",
+      "value": "D"
+    },
+    {
+      "id": "shopping_level",
+      "input": "hands on help",
+      "value": "D"
+    },
+    {
+      "id": "shopping_level",
+      "input": "assistance",
+      "value": "D"
+    },
+    {
+      "id": "shopping_level",
+      "input": "E",
+      "value": "E"
+    },
+    {
+      "id": "shopping_level",
+      "input": "Total care",
+      "value": "E"
+    },
+    {
+      "id": "shopping_level",
+      "input": "total care",
+      "value": "E"
+    },
+    {
+      "id": "shopping_level",
+      "input": "full care",
+      "value": "E"
+    },
+    {
+      "id": "shopping_level",
+      "input": "complete care",
+      "value": "E"
+    },
+    {
+      "id": "shopping_level",
+      "input": "total assistance",
+      "value": "E"
+    },
+    {
+      "id": "shopping_level",
+      "input": "does it for me",
+      "value": "E"
+    },
+    {
+      "id": "shopping_level",
+      "input": "does it for them",
+      "value": "E"
+    },
+    {
+      "id": "shopping_level",
+      "input": "not Independent",
+      "value": null
+    },
+    {
+      "id": "shopping_level",
+      "input": "",
+      "value": null
+    },
+    {
+      "id": "shopping_level",
+      "input": "a little help sometimes",
+      "value": null
+    },
+    {
+      "id": "transportation_level",
+      "input": "A",
+      "value": "A"
+    },
+    {
+      "id": "transportation_level",
+      "input": "Independent",
+      "value": "A"
+    },
+    {
+      "id": "transportation_level",
+      "input": "independent",
+      "value": "A"
+    },
+    {
+      "id": "transportation_level",
+      "input": "independently",
+      "value": "A"
+    },
+    {
+      "id": "transportation_level",
+      "input": "on my own",
+      "value": "A"
+    },
+    {
+      "id": "transportation_level",
+      "input": "on their own",
+      "value": "A"
+    },
+    {
+      "id": "transportation_level",
+      "input": "by myself",
+      "value": "A"
+    },
+    {
+      "id": "transportation_level",
+      "input": "by themselves",
+      "value": "A"
+    },
+    {
+      "id": "transportation_level",
+      "input": "alone",
+      "value": "A"
+    },
+    {
+      "id": "transportation_level",
+      "input": "B",
+      "value": "B"
+    },
+    {
+      "id": "transportation_level",
+      "input": "Needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "transportation_level",
+      "input": "needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "transportation_level",
+      "input": "supervision",
+      "value": "B"
+    },
+    {
+      "id": "transportation_level",
+      "input": "supervised",
+      "value": "B"
+    },
+    {
+      "id": "transportation_level",
+      "input": "someone watching",
+      "value": "B"
+    },
+    {
+      "id": "transportation_level",
+      "input": "reminders",
+      "value": "B"
+    },
+    {
+      "id": "transportation_level",
+      "input": "prompting",
+      "value": "B"
+    },
+    {
+      "id": "transportation_level",
+      "input": "C",
+      "value": "C"
+    },
+    {
+      "id": "transportation_level",
+      "input": "Needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "transportation_level",
+      "input": "needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "transportation_level",
+      "input": "skills training",
+      "value": "C"
+    },
+    {
+      "id": "transportation_level",
+      "input": "skill training",
+      "value": "C"
+    },
+    {
+      "id": "transportation_level",
+      "input": "training",
+      "value": "C"
+    },
+    {
+      "id": "transportation_level",
+      "input": "still learning",
+      "value": "C"
+    },
+    {
+      "id": "transportation_level",
+      "input": "needs to learn",
+      "value": "C"
+    },
+    {
+      "id": "transportation_level",
+      "input": "D",
+      "value": "D"
+    },
+    {
+      "id": "transportation_level",
+      "input": "Needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "transportation_level",
+      "input": "needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "transportation_level",
+      "input": "physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "transportation_level",
+      "input": "physical help",
+      "value": "D"
+    },
+    {
+      "id": "transportation_level",
+      "input": "hands on help",
+      "value": "D"
+    },
+    {
+      "id": "transportation_level",
+      "input": "assistance",
+      "value": "D"
+    },
+    {
+      "id": "transportation_level",
+      "input": "E",
+      "value": "E"
+    },
+    {
+      "id": "transportation_level",
+      "input": "Total care",
+      "value": "E"
+    },
+    {
+      "id": "transportation_level",
+      "input": "total care",
+      "value": "E"
+    },
+    {
+      "id": "transportation_level",
+      "input": "full care",
+      "value": "E"
+    },
+    {
+      "id": "transportation_level",
+      "input": "complete care",
+      "value": "E"
+    },
+    {
+      "id": "transportation_level",
+      "input": "total assistance",
+      "value": "E"
+    },
+    {
+      "id": "transportation_level",
+      "input": "does it for me",
+      "value": "E"
+    },
+    {
+      "id": "transportation_level",
+      "input": "does it for them",
+      "value": "E"
+    },
+    {
+      "id": "transportation_level",
+      "input": "not Independent",
+      "value": null
+    },
+    {
+      "id": "transportation_level",
+      "input": "",
+      "value": null
+    },
+    {
+      "id": "transportation_level",
+      "input": "a little help sometimes",
+      "value": null
+    },
+    {
+      "id": "banking_level",
+      "input": "A",
+      "value": "A"
+    },
+    {
+      "id": "banking_level",
+      "input": "Independent",
+      "value": "A"
+    },
+    {
+      "id": "banking_level",
+      "input": "independent",
+      "value": "A"
+    },
+    {
+      "id": "banking_level",
+      "input": "independently",
+      "value": "A"
+    },
+    {
+      "id": "banking_level",
+      "input": "on my own",
+      "value": "A"
+    },
+    {
+      "id": "banking_level",
+      "input": "on their own",
+      "value": "A"
+    },
+    {
+      "id": "banking_level",
+      "input": "by myself",
+      "value": "A"
+    },
+    {
+      "id": "banking_level",
+      "input": "by themselves",
+      "value": "A"
+    },
+    {
+      "id": "banking_level",
+      "input": "alone",
+      "value": "A"
+    },
+    {
+      "id": "banking_level",
+      "input": "B",
+      "value": "B"
+    },
+    {
+      "id": "banking_level",
+      "input": "Needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "banking_level",
+      "input": "needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "banking_level",
+      "input": "supervision",
+      "value": "B"
+    },
+    {
+      "id": "banking_level",
+      "input": "supervised",
+      "value": "B"
+    },
+    {
+      "id": "banking_level",
+      "input": "someone watching",
+      "value": "B"
+    },
+    {
+      "id": "banking_level",
+      "input": "reminders",
+      "value": "B"
+    },
+    {
+      "id": "banking_level",
+      "input": "prompting",
+      "value": "B"
+    },
+    {
+      "id": "banking_level",
+      "input": "C",
+      "value": "C"
+    },
+    {
+      "id": "banking_level",
+      "input": "Needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "banking_level",
+      "input": "needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "banking_level",
+      "input": "skills training",
+      "value": "C"
+    },
+    {
+      "id": "banking_level",
+      "input": "skill training",
+      "value": "C"
+    },
+    {
+      "id": "banking_level",
+      "input": "training",
+      "value": "C"
+    },
+    {
+      "id": "banking_level",
+      "input": "still learning",
+      "value": "C"
+    },
+    {
+      "id": "banking_level",
+      "input": "needs to learn",
+      "value": "C"
+    },
+    {
+      "id": "banking_level",
+      "input": "D",
+      "value": "D"
+    },
+    {
+      "id": "banking_level",
+      "input": "Needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "banking_level",
+      "input": "needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "banking_level",
+      "input": "physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "banking_level",
+      "input": "physical help",
+      "value": "D"
+    },
+    {
+      "id": "banking_level",
+      "input": "hands on help",
+      "value": "D"
+    },
+    {
+      "id": "banking_level",
+      "input": "assistance",
+      "value": "D"
+    },
+    {
+      "id": "banking_level",
+      "input": "E",
+      "value": "E"
+    },
+    {
+      "id": "banking_level",
+      "input": "Total care",
+      "value": "E"
+    },
+    {
+      "id": "banking_level",
+      "input": "total care",
+      "value": "E"
+    },
+    {
+      "id": "banking_level",
+      "input": "full care",
+      "value": "E"
+    },
+    {
+      "id": "banking_level",
+      "input": "complete care",
+      "value": "E"
+    },
+    {
+      "id": "banking_level",
+      "input": "total assistance",
+      "value": "E"
+    },
+    {
+      "id": "banking_level",
+      "input": "does it for me",
+      "value": "E"
+    },
+    {
+      "id": "banking_level",
+      "input": "does it for them",
+      "value": "E"
+    },
+    {
+      "id": "banking_level",
+      "input": "not Independent",
+      "value": null
+    },
+    {
+      "id": "banking_level",
+      "input": "",
+      "value": null
+    },
+    {
+      "id": "banking_level",
+      "input": "a little help sometimes",
+      "value": null
+    },
+    {
+      "id": "recreation_level",
+      "input": "A",
+      "value": "A"
+    },
+    {
+      "id": "recreation_level",
+      "input": "Independent",
+      "value": "A"
+    },
+    {
+      "id": "recreation_level",
+      "input": "independent",
+      "value": "A"
+    },
+    {
+      "id": "recreation_level",
+      "input": "independently",
+      "value": "A"
+    },
+    {
+      "id": "recreation_level",
+      "input": "on my own",
+      "value": "A"
+    },
+    {
+      "id": "recreation_level",
+      "input": "on their own",
+      "value": "A"
+    },
+    {
+      "id": "recreation_level",
+      "input": "by myself",
+      "value": "A"
+    },
+    {
+      "id": "recreation_level",
+      "input": "by themselves",
+      "value": "A"
+    },
+    {
+      "id": "recreation_level",
+      "input": "alone",
+      "value": "A"
+    },
+    {
+      "id": "recreation_level",
+      "input": "B",
+      "value": "B"
+    },
+    {
+      "id": "recreation_level",
+      "input": "Needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "recreation_level",
+      "input": "needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "recreation_level",
+      "input": "supervision",
+      "value": "B"
+    },
+    {
+      "id": "recreation_level",
+      "input": "supervised",
+      "value": "B"
+    },
+    {
+      "id": "recreation_level",
+      "input": "someone watching",
+      "value": "B"
+    },
+    {
+      "id": "recreation_level",
+      "input": "reminders",
+      "value": "B"
+    },
+    {
+      "id": "recreation_level",
+      "input": "prompting",
+      "value": "B"
+    },
+    {
+      "id": "recreation_level",
+      "input": "C",
+      "value": "C"
+    },
+    {
+      "id": "recreation_level",
+      "input": "Needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "recreation_level",
+      "input": "needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "recreation_level",
+      "input": "skills training",
+      "value": "C"
+    },
+    {
+      "id": "recreation_level",
+      "input": "skill training",
+      "value": "C"
+    },
+    {
+      "id": "recreation_level",
+      "input": "training",
+      "value": "C"
+    },
+    {
+      "id": "recreation_level",
+      "input": "still learning",
+      "value": "C"
+    },
+    {
+      "id": "recreation_level",
+      "input": "needs to learn",
+      "value": "C"
+    },
+    {
+      "id": "recreation_level",
+      "input": "D",
+      "value": "D"
+    },
+    {
+      "id": "recreation_level",
+      "input": "Needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "recreation_level",
+      "input": "needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "recreation_level",
+      "input": "physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "recreation_level",
+      "input": "physical help",
+      "value": "D"
+    },
+    {
+      "id": "recreation_level",
+      "input": "hands on help",
+      "value": "D"
+    },
+    {
+      "id": "recreation_level",
+      "input": "assistance",
+      "value": "D"
+    },
+    {
+      "id": "recreation_level",
+      "input": "E",
+      "value": "E"
+    },
+    {
+      "id": "recreation_level",
+      "input": "Total care",
+      "value": "E"
+    },
+    {
+      "id": "recreation_level",
+      "input": "total care",
+      "value": "E"
+    },
+    {
+      "id": "recreation_level",
+      "input": "full care",
+      "value": "E"
+    },
+    {
+      "id": "recreation_level",
+      "input": "complete care",
+      "value": "E"
+    },
+    {
+      "id": "recreation_level",
+      "input": "total assistance",
+      "value": "E"
+    },
+    {
+      "id": "recreation_level",
+      "input": "does it for me",
+      "value": "E"
+    },
+    {
+      "id": "recreation_level",
+      "input": "does it for them",
+      "value": "E"
+    },
+    {
+      "id": "recreation_level",
+      "input": "not Independent",
+      "value": null
+    },
+    {
+      "id": "recreation_level",
+      "input": "",
+      "value": null
+    },
+    {
+      "id": "recreation_level",
+      "input": "a little help sometimes",
+      "value": null
+    },
+    {
+      "id": "rel_family_level",
+      "input": "A",
+      "value": "A"
+    },
+    {
+      "id": "rel_family_level",
+      "input": "Independent",
+      "value": "A"
+    },
+    {
+      "id": "rel_family_level",
+      "input": "independent",
+      "value": "A"
+    },
+    {
+      "id": "rel_family_level",
+      "input": "independently",
+      "value": "A"
+    },
+    {
+      "id": "rel_family_level",
+      "input": "on my own",
+      "value": "A"
+    },
+    {
+      "id": "rel_family_level",
+      "input": "on their own",
+      "value": "A"
+    },
+    {
+      "id": "rel_family_level",
+      "input": "by myself",
+      "value": "A"
+    },
+    {
+      "id": "rel_family_level",
+      "input": "by themselves",
+      "value": "A"
+    },
+    {
+      "id": "rel_family_level",
+      "input": "alone",
+      "value": "A"
+    },
+    {
+      "id": "rel_family_level",
+      "input": "B",
+      "value": "B"
+    },
+    {
+      "id": "rel_family_level",
+      "input": "Needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "rel_family_level",
+      "input": "needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "rel_family_level",
+      "input": "supervision",
+      "value": "B"
+    },
+    {
+      "id": "rel_family_level",
+      "input": "supervised",
+      "value": "B"
+    },
+    {
+      "id": "rel_family_level",
+      "input": "someone watching",
+      "value": "B"
+    },
+    {
+      "id": "rel_family_level",
+      "input": "reminders",
+      "value": "B"
+    },
+    {
+      "id": "rel_family_level",
+      "input": "prompting",
+      "value": "B"
+    },
+    {
+      "id": "rel_family_level",
+      "input": "C",
+      "value": "C"
+    },
+    {
+      "id": "rel_family_level",
+      "input": "Needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "rel_family_level",
+      "input": "needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "rel_family_level",
+      "input": "skills training",
+      "value": "C"
+    },
+    {
+      "id": "rel_family_level",
+      "input": "skill training",
+      "value": "C"
+    },
+    {
+      "id": "rel_family_level",
+      "input": "training",
+      "value": "C"
+    },
+    {
+      "id": "rel_family_level",
+      "input": "still learning",
+      "value": "C"
+    },
+    {
+      "id": "rel_family_level",
+      "input": "needs to learn",
+      "value": "C"
+    },
+    {
+      "id": "rel_family_level",
+      "input": "D",
+      "value": "D"
+    },
+    {
+      "id": "rel_family_level",
+      "input": "Needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "rel_family_level",
+      "input": "needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "rel_family_level",
+      "input": "physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "rel_family_level",
+      "input": "physical help",
+      "value": "D"
+    },
+    {
+      "id": "rel_family_level",
+      "input": "hands on help",
+      "value": "D"
+    },
+    {
+      "id": "rel_family_level",
+      "input": "assistance",
+      "value": "D"
+    },
+    {
+      "id": "rel_family_level",
+      "input": "E",
+      "value": "E"
+    },
+    {
+      "id": "rel_family_level",
+      "input": "Total care",
+      "value": "E"
+    },
+    {
+      "id": "rel_family_level",
+      "input": "total care",
+      "value": "E"
+    },
+    {
+      "id": "rel_family_level",
+      "input": "full care",
+      "value": "E"
+    },
+    {
+      "id": "rel_family_level",
+      "input": "complete care",
+      "value": "E"
+    },
+    {
+      "id": "rel_family_level",
+      "input": "total assistance",
+      "value": "E"
+    },
+    {
+      "id": "rel_family_level",
+      "input": "does it for me",
+      "value": "E"
+    },
+    {
+      "id": "rel_family_level",
+      "input": "does it for them",
+      "value": "E"
+    },
+    {
+      "id": "rel_family_level",
+      "input": "not Independent",
+      "value": null
+    },
+    {
+      "id": "rel_family_level",
+      "input": "",
+      "value": null
+    },
+    {
+      "id": "rel_family_level",
+      "input": "a little help sometimes",
+      "value": null
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "A",
+      "value": "A"
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "Independent",
+      "value": "A"
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "independent",
+      "value": "A"
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "independently",
+      "value": "A"
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "on my own",
+      "value": "A"
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "on their own",
+      "value": "A"
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "by myself",
+      "value": "A"
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "by themselves",
+      "value": "A"
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "alone",
+      "value": "A"
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "B",
+      "value": "B"
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "Needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "supervision",
+      "value": "B"
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "supervised",
+      "value": "B"
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "someone watching",
+      "value": "B"
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "reminders",
+      "value": "B"
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "prompting",
+      "value": "B"
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "C",
+      "value": "C"
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "Needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "skills training",
+      "value": "C"
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "skill training",
+      "value": "C"
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "training",
+      "value": "C"
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "still learning",
+      "value": "C"
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "needs to learn",
+      "value": "C"
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "D",
+      "value": "D"
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "Needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "physical help",
+      "value": "D"
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "hands on help",
+      "value": "D"
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "assistance",
+      "value": "D"
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "E",
+      "value": "E"
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "Total care",
+      "value": "E"
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "total care",
+      "value": "E"
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "full care",
+      "value": "E"
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "complete care",
+      "value": "E"
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "total assistance",
+      "value": "E"
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "does it for me",
+      "value": "E"
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "does it for them",
+      "value": "E"
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "not Independent",
+      "value": null
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "",
+      "value": null
+    },
+    {
+      "id": "rel_friends_level",
+      "input": "a little help sometimes",
+      "value": null
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "A",
+      "value": "A"
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "Independent",
+      "value": "A"
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "independent",
+      "value": "A"
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "independently",
+      "value": "A"
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "on my own",
+      "value": "A"
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "on their own",
+      "value": "A"
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "by myself",
+      "value": "A"
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "by themselves",
+      "value": "A"
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "alone",
+      "value": "A"
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "B",
+      "value": "B"
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "Needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "supervision",
+      "value": "B"
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "supervised",
+      "value": "B"
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "someone watching",
+      "value": "B"
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "reminders",
+      "value": "B"
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "prompting",
+      "value": "B"
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "C",
+      "value": "C"
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "Needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "skills training",
+      "value": "C"
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "skill training",
+      "value": "C"
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "training",
+      "value": "C"
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "still learning",
+      "value": "C"
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "needs to learn",
+      "value": "C"
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "D",
+      "value": "D"
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "Needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "physical help",
+      "value": "D"
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "hands on help",
+      "value": "D"
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "assistance",
+      "value": "D"
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "E",
+      "value": "E"
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "Total care",
+      "value": "E"
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "total care",
+      "value": "E"
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "full care",
+      "value": "E"
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "complete care",
+      "value": "E"
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "total assistance",
+      "value": "E"
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "does it for me",
+      "value": "E"
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "does it for them",
+      "value": "E"
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "not Independent",
+      "value": null
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "",
+      "value": null
+    },
+    {
+      "id": "rel_coworkers_level",
+      "input": "a little help sometimes",
+      "value": null
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "A",
+      "value": "A"
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "Independent",
+      "value": "A"
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "independent",
+      "value": "A"
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "independently",
+      "value": "A"
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "on my own",
+      "value": "A"
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "on their own",
+      "value": "A"
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "by myself",
+      "value": "A"
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "by themselves",
+      "value": "A"
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "alone",
+      "value": "A"
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "B",
+      "value": "B"
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "Needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "supervision",
+      "value": "B"
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "supervised",
+      "value": "B"
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "someone watching",
+      "value": "B"
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "reminders",
+      "value": "B"
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "prompting",
+      "value": "B"
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "C",
+      "value": "C"
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "Needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "skills training",
+      "value": "C"
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "skill training",
+      "value": "C"
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "training",
+      "value": "C"
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "still learning",
+      "value": "C"
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "needs to learn",
+      "value": "C"
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "D",
+      "value": "D"
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "Needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "physical help",
+      "value": "D"
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "hands on help",
+      "value": "D"
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "assistance",
+      "value": "D"
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "E",
+      "value": "E"
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "Total care",
+      "value": "E"
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "total care",
+      "value": "E"
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "full care",
+      "value": "E"
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "complete care",
+      "value": "E"
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "total assistance",
+      "value": "E"
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "does it for me",
+      "value": "E"
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "does it for them",
+      "value": "E"
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "not Independent",
+      "value": null
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "",
+      "value": null
+    },
+    {
+      "id": "rel_support_staff_level",
+      "input": "a little help sometimes",
+      "value": null
+    },
+    {
+      "id": "expressive_level",
+      "input": "A",
+      "value": "A"
+    },
+    {
+      "id": "expressive_level",
+      "input": "Independent",
+      "value": "A"
+    },
+    {
+      "id": "expressive_level",
+      "input": "independent",
+      "value": "A"
+    },
+    {
+      "id": "expressive_level",
+      "input": "independently",
+      "value": "A"
+    },
+    {
+      "id": "expressive_level",
+      "input": "on my own",
+      "value": "A"
+    },
+    {
+      "id": "expressive_level",
+      "input": "on their own",
+      "value": "A"
+    },
+    {
+      "id": "expressive_level",
+      "input": "by myself",
+      "value": "A"
+    },
+    {
+      "id": "expressive_level",
+      "input": "by themselves",
+      "value": "A"
+    },
+    {
+      "id": "expressive_level",
+      "input": "alone",
+      "value": "A"
+    },
+    {
+      "id": "expressive_level",
+      "input": "B",
+      "value": "B"
+    },
+    {
+      "id": "expressive_level",
+      "input": "Needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "expressive_level",
+      "input": "needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "expressive_level",
+      "input": "supervision",
+      "value": "B"
+    },
+    {
+      "id": "expressive_level",
+      "input": "supervised",
+      "value": "B"
+    },
+    {
+      "id": "expressive_level",
+      "input": "someone watching",
+      "value": "B"
+    },
+    {
+      "id": "expressive_level",
+      "input": "reminders",
+      "value": "B"
+    },
+    {
+      "id": "expressive_level",
+      "input": "prompting",
+      "value": "B"
+    },
+    {
+      "id": "expressive_level",
+      "input": "C",
+      "value": "C"
+    },
+    {
+      "id": "expressive_level",
+      "input": "Needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "expressive_level",
+      "input": "needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "expressive_level",
+      "input": "skills training",
+      "value": "C"
+    },
+    {
+      "id": "expressive_level",
+      "input": "skill training",
+      "value": "C"
+    },
+    {
+      "id": "expressive_level",
+      "input": "training",
+      "value": "C"
+    },
+    {
+      "id": "expressive_level",
+      "input": "still learning",
+      "value": "C"
+    },
+    {
+      "id": "expressive_level",
+      "input": "needs to learn",
+      "value": "C"
+    },
+    {
+      "id": "expressive_level",
+      "input": "D",
+      "value": "D"
+    },
+    {
+      "id": "expressive_level",
+      "input": "Needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "expressive_level",
+      "input": "needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "expressive_level",
+      "input": "physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "expressive_level",
+      "input": "physical help",
+      "value": "D"
+    },
+    {
+      "id": "expressive_level",
+      "input": "hands on help",
+      "value": "D"
+    },
+    {
+      "id": "expressive_level",
+      "input": "assistance",
+      "value": "D"
+    },
+    {
+      "id": "expressive_level",
+      "input": "E",
+      "value": "E"
+    },
+    {
+      "id": "expressive_level",
+      "input": "Total care",
+      "value": "E"
+    },
+    {
+      "id": "expressive_level",
+      "input": "total care",
+      "value": "E"
+    },
+    {
+      "id": "expressive_level",
+      "input": "full care",
+      "value": "E"
+    },
+    {
+      "id": "expressive_level",
+      "input": "complete care",
+      "value": "E"
+    },
+    {
+      "id": "expressive_level",
+      "input": "total assistance",
+      "value": "E"
+    },
+    {
+      "id": "expressive_level",
+      "input": "does it for me",
+      "value": "E"
+    },
+    {
+      "id": "expressive_level",
+      "input": "does it for them",
+      "value": "E"
+    },
+    {
+      "id": "expressive_level",
+      "input": "not Independent",
+      "value": null
+    },
+    {
+      "id": "expressive_level",
+      "input": "",
+      "value": null
+    },
+    {
+      "id": "expressive_level",
+      "input": "a little help sometimes",
+      "value": null
+    },
+    {
+      "id": "receptive_level",
+      "input": "A",
+      "value": "A"
+    },
+    {
+      "id": "receptive_level",
+      "input": "Independent",
+      "value": "A"
+    },
+    {
+      "id": "receptive_level",
+      "input": "independent",
+      "value": "A"
+    },
+    {
+      "id": "receptive_level",
+      "input": "independently",
+      "value": "A"
+    },
+    {
+      "id": "receptive_level",
+      "input": "on my own",
+      "value": "A"
+    },
+    {
+      "id": "receptive_level",
+      "input": "on their own",
+      "value": "A"
+    },
+    {
+      "id": "receptive_level",
+      "input": "by myself",
+      "value": "A"
+    },
+    {
+      "id": "receptive_level",
+      "input": "by themselves",
+      "value": "A"
+    },
+    {
+      "id": "receptive_level",
+      "input": "alone",
+      "value": "A"
+    },
+    {
+      "id": "receptive_level",
+      "input": "B",
+      "value": "B"
+    },
+    {
+      "id": "receptive_level",
+      "input": "Needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "receptive_level",
+      "input": "needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "receptive_level",
+      "input": "supervision",
+      "value": "B"
+    },
+    {
+      "id": "receptive_level",
+      "input": "supervised",
+      "value": "B"
+    },
+    {
+      "id": "receptive_level",
+      "input": "someone watching",
+      "value": "B"
+    },
+    {
+      "id": "receptive_level",
+      "input": "reminders",
+      "value": "B"
+    },
+    {
+      "id": "receptive_level",
+      "input": "prompting",
+      "value": "B"
+    },
+    {
+      "id": "receptive_level",
+      "input": "C",
+      "value": "C"
+    },
+    {
+      "id": "receptive_level",
+      "input": "Needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "receptive_level",
+      "input": "needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "receptive_level",
+      "input": "skills training",
+      "value": "C"
+    },
+    {
+      "id": "receptive_level",
+      "input": "skill training",
+      "value": "C"
+    },
+    {
+      "id": "receptive_level",
+      "input": "training",
+      "value": "C"
+    },
+    {
+      "id": "receptive_level",
+      "input": "still learning",
+      "value": "C"
+    },
+    {
+      "id": "receptive_level",
+      "input": "needs to learn",
+      "value": "C"
+    },
+    {
+      "id": "receptive_level",
+      "input": "D",
+      "value": "D"
+    },
+    {
+      "id": "receptive_level",
+      "input": "Needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "receptive_level",
+      "input": "needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "receptive_level",
+      "input": "physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "receptive_level",
+      "input": "physical help",
+      "value": "D"
+    },
+    {
+      "id": "receptive_level",
+      "input": "hands on help",
+      "value": "D"
+    },
+    {
+      "id": "receptive_level",
+      "input": "assistance",
+      "value": "D"
+    },
+    {
+      "id": "receptive_level",
+      "input": "E",
+      "value": "E"
+    },
+    {
+      "id": "receptive_level",
+      "input": "Total care",
+      "value": "E"
+    },
+    {
+      "id": "receptive_level",
+      "input": "total care",
+      "value": "E"
+    },
+    {
+      "id": "receptive_level",
+      "input": "full care",
+      "value": "E"
+    },
+    {
+      "id": "receptive_level",
+      "input": "complete care",
+      "value": "E"
+    },
+    {
+      "id": "receptive_level",
+      "input": "total assistance",
+      "value": "E"
+    },
+    {
+      "id": "receptive_level",
+      "input": "does it for me",
+      "value": "E"
+    },
+    {
+      "id": "receptive_level",
+      "input": "does it for them",
+      "value": "E"
+    },
+    {
+      "id": "receptive_level",
+      "input": "not Independent",
+      "value": null
+    },
+    {
+      "id": "receptive_level",
+      "input": "",
+      "value": null
+    },
+    {
+      "id": "receptive_level",
+      "input": "a little help sometimes",
+      "value": null
+    },
+    {
+      "id": "sign_language_level",
+      "input": "A",
+      "value": "A"
+    },
+    {
+      "id": "sign_language_level",
+      "input": "Independent",
+      "value": "A"
+    },
+    {
+      "id": "sign_language_level",
+      "input": "independent",
+      "value": "A"
+    },
+    {
+      "id": "sign_language_level",
+      "input": "independently",
+      "value": "A"
+    },
+    {
+      "id": "sign_language_level",
+      "input": "on my own",
+      "value": "A"
+    },
+    {
+      "id": "sign_language_level",
+      "input": "on their own",
+      "value": "A"
+    },
+    {
+      "id": "sign_language_level",
+      "input": "by myself",
+      "value": "A"
+    },
+    {
+      "id": "sign_language_level",
+      "input": "by themselves",
+      "value": "A"
+    },
+    {
+      "id": "sign_language_level",
+      "input": "alone",
+      "value": "A"
+    },
+    {
+      "id": "sign_language_level",
+      "input": "B",
+      "value": "B"
+    },
+    {
+      "id": "sign_language_level",
+      "input": "Needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "sign_language_level",
+      "input": "needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "sign_language_level",
+      "input": "supervision",
+      "value": "B"
+    },
+    {
+      "id": "sign_language_level",
+      "input": "supervised",
+      "value": "B"
+    },
+    {
+      "id": "sign_language_level",
+      "input": "someone watching",
+      "value": "B"
+    },
+    {
+      "id": "sign_language_level",
+      "input": "reminders",
+      "value": "B"
+    },
+    {
+      "id": "sign_language_level",
+      "input": "prompting",
+      "value": "B"
+    },
+    {
+      "id": "sign_language_level",
+      "input": "C",
+      "value": "C"
+    },
+    {
+      "id": "sign_language_level",
+      "input": "Needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "sign_language_level",
+      "input": "needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "sign_language_level",
+      "input": "skills training",
+      "value": "C"
+    },
+    {
+      "id": "sign_language_level",
+      "input": "skill training",
+      "value": "C"
+    },
+    {
+      "id": "sign_language_level",
+      "input": "training",
+      "value": "C"
+    },
+    {
+      "id": "sign_language_level",
+      "input": "still learning",
+      "value": "C"
+    },
+    {
+      "id": "sign_language_level",
+      "input": "needs to learn",
+      "value": "C"
+    },
+    {
+      "id": "sign_language_level",
+      "input": "D",
+      "value": "D"
+    },
+    {
+      "id": "sign_language_level",
+      "input": "Needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "sign_language_level",
+      "input": "needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "sign_language_level",
+      "input": "physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "sign_language_level",
+      "input": "physical help",
+      "value": "D"
+    },
+    {
+      "id": "sign_language_level",
+      "input": "hands on help",
+      "value": "D"
+    },
+    {
+      "id": "sign_language_level",
+      "input": "assistance",
+      "value": "D"
+    },
+    {
+      "id": "sign_language_level",
+      "input": "E",
+      "value": "E"
+    },
+    {
+      "id": "sign_language_level",
+      "input": "Total care",
+      "value": "E"
+    },
+    {
+      "id": "sign_language_level",
+      "input": "total care",
+      "value": "E"
+    },
+    {
+      "id": "sign_language_level",
+      "input": "full care",
+      "value": "E"
+    },
+    {
+      "id": "sign_language_level",
+      "input": "complete care",
+      "value": "E"
+    },
+    {
+      "id": "sign_language_level",
+      "input": "total assistance",
+      "value": "E"
+    },
+    {
+      "id": "sign_language_level",
+      "input": "does it for me",
+      "value": "E"
+    },
+    {
+      "id": "sign_language_level",
+      "input": "does it for them",
+      "value": "E"
+    },
+    {
+      "id": "sign_language_level",
+      "input": "not Independent",
+      "value": null
+    },
+    {
+      "id": "sign_language_level",
+      "input": "",
+      "value": null
+    },
+    {
+      "id": "sign_language_level",
+      "input": "a little help sometimes",
+      "value": null
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "A",
+      "value": "A"
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "Independent",
+      "value": "A"
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "independent",
+      "value": "A"
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "independently",
+      "value": "A"
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "on my own",
+      "value": "A"
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "on their own",
+      "value": "A"
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "by myself",
+      "value": "A"
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "by themselves",
+      "value": "A"
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "alone",
+      "value": "A"
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "B",
+      "value": "B"
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "Needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "needs supervision",
+      "value": "B"
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "supervision",
+      "value": "B"
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "supervised",
+      "value": "B"
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "someone watching",
+      "value": "B"
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "reminders",
+      "value": "B"
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "prompting",
+      "value": "B"
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "C",
+      "value": "C"
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "Needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "needs skills training",
+      "value": "C"
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "skills training",
+      "value": "C"
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "skill training",
+      "value": "C"
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "training",
+      "value": "C"
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "still learning",
+      "value": "C"
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "needs to learn",
+      "value": "C"
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "D",
+      "value": "D"
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "Needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "needs physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "physical assistance",
+      "value": "D"
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "physical help",
+      "value": "D"
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "hands on help",
+      "value": "D"
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "assistance",
+      "value": "D"
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "E",
+      "value": "E"
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "Total care",
+      "value": "E"
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "total care",
+      "value": "E"
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "full care",
+      "value": "E"
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "complete care",
+      "value": "E"
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "total assistance",
+      "value": "E"
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "does it for me",
+      "value": "E"
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "does it for them",
+      "value": "E"
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "not Independent",
+      "value": null
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "",
+      "value": null
+    },
+    {
+      "id": "visual_gestural_level",
+      "input": "a little help sometimes",
+      "value": null
+    }
+  ],
+  "correct": [
+    {
+      "phrase": "change my phone number",
+      "forms": "both",
+      "result": {
+        "reason": "ambiguous",
+        "candidates": [
+          {
+            "id": "applicant_phone",
+            "loopId": null,
+            "label": "Phone number"
+          },
+          {
+            "id": "ref1_phone",
+            "loopId": null,
+            "label": "Reference 1 — phone"
+          },
+          {
+            "id": "phone",
+            "loopId": "providers",
+            "label": "Phone number"
+          }
+        ]
+      }
+    },
+    {
+      "phrase": "my date of birth",
+      "forms": "both",
+      "result": {
+        "target": {
+          "id": "date_of_birth",
+          "loopId": null,
+          "loopIndex": null,
+          "label": "Date of birth"
+        }
+      }
+    },
+    {
+      "phrase": "the second provider",
+      "forms": "both",
+      "result": {
+        "reason": "ambiguous",
+        "candidates": [
+          {
+            "id": "name",
+            "loopId": "providers",
+            "label": "Name"
+          },
+          {
+            "id": "address",
+            "loopId": "providers",
+            "label": "Address"
+          },
+          {
+            "id": "phone",
+            "loopId": "providers",
+            "label": "Phone number"
+          },
+          {
+            "id": "first_seen",
+            "loopId": "providers",
+            "label": "Date first seen or admission date"
+          },
+          {
+            "id": "last_seen",
+            "loopId": "providers",
+            "label": "Date last seen or discharge date"
+          }
+        ]
+      }
+    },
+    {
+      "phrase": "change my name",
+      "forms": "both",
+      "result": {
+        "reason": "ambiguous",
+        "candidates": [
+          {
+            "id": "name",
+            "loopId": "conditions",
+            "label": "Name"
+          },
+          {
+            "id": "name",
+            "loopId": "idd_diagnoses",
+            "label": "Name"
+          },
+          {
+            "id": "name",
+            "loopId": "providers",
+            "label": "Name"
+          },
+          {
+            "id": "name",
+            "loopId": "tests",
+            "label": "Name"
+          },
+          {
+            "id": "name",
+            "loopId": "medications",
+            "label": "Name"
+          }
+        ]
+      }
+    },
+    {
+      "phrase": "my social security number",
+      "forms": "both",
+      "result": {
+        "target": {
+          "id": "ssn",
+          "loopId": null,
+          "loopIndex": null,
+          "label": "Social Security number"
+        }
+      }
+    },
+    {
+      "phrase": "change the first job",
+      "forms": "both",
+      "result": {
+        "reason": "ambiguous",
+        "candidates": [
+          {
+            "id": "job_title",
+            "loopId": "jobs",
+            "label": "Job title"
+          },
+          {
+            "id": "start",
+            "loopId": "jobs",
+            "label": "Start month and year"
+          },
+          {
+            "id": "end",
+            "loopId": "jobs",
+            "label": "End month and year"
+          },
+          {
+            "id": "hours_per_day",
+            "loopId": "jobs",
+            "label": "Average hours per day"
+          }
+        ]
+      }
+    },
+    {
+      "phrase": "my email address",
+      "forms": "both",
+      "result": {
+        "target": {
+          "id": "applicant_email",
+          "loopId": null,
+          "loopIndex": null,
+          "label": "Email address"
+        }
+      }
+    },
+    {
+      "phrase": "the guardian name",
+      "forms": "both",
+      "result": {
+        "target": {
+          "id": "guardian_name",
+          "loopId": null,
+          "loopIndex": null,
+          "label": "Guardian's name"
+        }
+      }
+    },
+    {
+      "phrase": "change my address",
+      "forms": "both",
+      "result": {
+        "target": {
+          "id": "home_street",
+          "loopId": null,
+          "loopIndex": null,
+          "label": "Street address"
+        }
+      }
+    },
+    {
+      "phrase": "change the onset date",
+      "forms": "both",
+      "result": {
+        "target": {
+          "id": "onset_date",
+          "loopId": null,
+          "loopIndex": null,
+          "label": "Date condition began limiting work"
+        }
+      }
+    },
+    {
+      "phrase": "my marital status",
+      "forms": "both",
+      "result": {
+        "reason": "none",
+        "candidates": []
+      }
+    },
+    {
+      "phrase": "change the last provider",
+      "forms": "both",
+      "result": {
+        "target": {
+          "id": "last_seen",
+          "loopId": "providers",
+          "loopIndex": 4,
+          "label": "Date last seen or discharge date"
+        }
+      }
+    },
+    {
+      "phrase": "the second condition",
+      "forms": "both",
+      "result": {
+        "target": {
+          "id": "name",
+          "loopId": "conditions",
+          "loopIndex": 1,
+          "label": "Name"
+        }
+      }
+    },
+    {
+      "phrase": "change my birth city",
+      "forms": "both",
+      "result": {
+        "target": {
+          "id": "birth_city",
+          "loopId": null,
+          "loopIndex": null,
+          "label": "City of birth"
+        }
+      }
+    },
+    {
+      "phrase": "my first name",
+      "forms": "both",
+      "result": {
+        "target": {
+          "id": "first_name",
+          "loopId": null,
+          "loopIndex": null,
+          "label": "Legal first name"
+        }
+      }
+    },
+    {
+      "phrase": "change my doctors phone",
+      "forms": "both",
+      "result": {
+        "target": {
+          "id": "phone",
+          "loopId": "providers",
+          "loopIndex": 0,
+          "label": "Phone number"
+        }
+      }
+    },
+    {
+      "phrase": "the landlord phone number",
+      "forms": "both",
+      "result": {
+        "reason": "ambiguous",
+        "candidates": [
+          {
+            "id": "applicant_phone",
+            "loopId": null,
+            "label": "Phone number"
+          },
+          {
+            "id": "ref1_phone",
+            "loopId": null,
+            "label": "Reference 1 — phone"
+          },
+          {
+            "id": "phone",
+            "loopId": "providers",
+            "label": "Phone number"
+          }
+        ]
+      }
+    },
+    {
+      "phrase": "change the third medication",
+      "forms": "both",
+      "result": {
+        "target": {
+          "id": "name",
+          "loopId": "medications",
+          "loopIndex": 2,
+          "label": "Name"
+        }
+      }
+    },
+    {
+      "phrase": "my routing number",
+      "forms": "both",
+      "result": {
+        "target": {
+          "id": "routing_number",
+          "loopId": null,
+          "loopIndex": null,
+          "label": "Bank's 9-digit routing number"
+        }
+      }
+    },
+    {
+      "phrase": "change the account number",
+      "forms": "both",
+      "result": {
+        "target": {
+          "id": "account_number",
+          "loopId": null,
+          "loopIndex": null,
+          "label": "Bank account number"
+        }
+      }
+    },
+    {
+      "phrase": "nonsense phrase that names nothing",
+      "forms": "both",
+      "result": {
+        "reason": "none",
+        "candidates": []
+      }
+    },
+    {
+      "phrase": "my date of birth",
+      "forms": "ssa",
+      "result": {
+        "target": {
+          "id": "date_of_birth",
+          "loopId": null,
+          "loopIndex": null,
+          "label": "Date of birth"
+        }
+      }
+    },
+    {
+      "phrase": "change my phone number",
+      "forms": "ssa",
+      "result": {
+        "reason": "ambiguous",
+        "candidates": [
+          {
+            "id": "ref1_phone",
+            "loopId": null,
+            "label": "Reference 1 — phone"
+          },
+          {
+            "id": "landlord_phone",
+            "loopId": null,
+            "label": "Landlord's phone number"
+          },
+          {
+            "id": "phone",
+            "loopId": "providers",
+            "label": "Phone number"
+          }
+        ]
+      }
+    }
+  ],
+  "additions": [
+    {
+      "phrase": "add another condition",
+      "result": {
+        "loopId": "conditions",
+        "nextNumber": 7
+      }
+    },
+    {
+      "phrase": "add a provider",
+      "result": {
+        "loopId": "providers",
+        "nextNumber": 6
+      }
+    },
+    {
+      "phrase": "add a job",
+      "result": {
+        "loopId": "jobs",
+        "nextNumber": 6
+      }
+    },
+    {
+      "phrase": "one more medication",
+      "result": {
+        "loopId": "medications",
+        "nextNumber": 7
+      }
+    },
+    {
+      "phrase": "add nothing",
+      "result": {
+        "reason": "none"
+      }
+    },
+    {
+      "phrase": "add a marriage",
+      "result": {
+        "loopId": "marriages",
+        "nextNumber": 1
+      }
+    },
+    {
+      "phrase": "add an income source",
+      "result": {
+        "loopId": "income_sources",
+        "nextNumber": 1
+      }
+    }
+  ],
+  "deletions": [
+    {
+      "phrase": "remove the second provider",
+      "result": {
+        "loopId": "providers",
+        "loopIndex": 1,
+        "number": 2
+      }
+    },
+    {
+      "phrase": "delete that last job",
+      "result": {
+        "loopId": "jobs",
+        "loopIndex": 4,
+        "number": 5
+      }
+    },
+    {
+      "phrase": "remove the first condition",
+      "result": {
+        "loopId": "conditions",
+        "loopIndex": 0,
+        "number": 1
+      }
+    },
+    {
+      "phrase": "remove the provider",
+      "result": {
+        "loopId": "providers",
+        "reason": "ambiguous",
+        "loopIndex": null,
+        "number": null
+      }
+    },
+    {
+      "phrase": "delete a medication",
+      "result": {
+        "loopId": "medications",
+        "reason": "ambiguous",
+        "loopIndex": null,
+        "number": null
+      }
+    },
+    {
+      "phrase": "remove the third provider",
+      "result": {
+        "loopId": "providers",
+        "loopIndex": 2,
+        "number": 3
+      }
+    },
+    {
+      "phrase": "remove something else",
+      "result": {
+        "reason": "none"
+      }
+    }
+  ]
+}

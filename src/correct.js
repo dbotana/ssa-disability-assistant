@@ -22,7 +22,7 @@ import { shortLabel } from './summary.js';
  * Multi-word aliases are matched as phrases, so "date of birth" outranks a
  * stray "date".
  */
-const ALIASES = {
+export const ALIASES = {
   first_name: ['first name', 'my name', 'given name'],
   last_name: ['last name', 'surname', 'family name'],
   date_of_birth: ['date of birth', 'birthday', 'birth date', 'dob', 'when i was born'],
@@ -158,7 +158,7 @@ const ALIASES = {
  * Words that name a loop group out loud. Used both to scope a field match
  * ("my doctor's phone" -> providers.phone) and to resolve which item is meant.
  */
-const LOOP_WORDS = {
+export const LOOP_WORDS = {
   conditions: ['condition', 'conditions', 'diagnosis', 'illness'],
   diagnoses: ['diagnosis', 'diagnoses', 'condition', 'conditions'],
   idd_diagnoses: ['confirmed diagnosis', 'confirmed diagnoses', 'evaluation diagnosis'],
@@ -180,7 +180,7 @@ const LOOP_WORDS = {
  * activity. The rating and its explanation are separate answers, so only the
  * explanation takes the words that name it.
  */
-function ratingAliases() {
+export function ratingAliases() {
   const out = {};
   for (const group of RATING_GROUPS) {
     for (const act of group.activities) {
@@ -193,7 +193,7 @@ function ratingAliases() {
 }
 
 /** Spoken ordinals, for "the second provider". */
-const ORDINALS = {
+export const ORDINALS = {
   first: 1, second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6,
   seventh: 7, eighth: 8, ninth: 9, tenth: 10,
   '1st': 1, '2nd': 2, '3rd': 3, '4th': 4, '5th': 5,
@@ -326,7 +326,7 @@ function scoreTarget(phrase, target) {
 
 const LOOP_NODES = new Map(flatten(SECTIONS).filter(n => n.type === 'loop').map(n => [n.id, n]));
 
-const STOP = new Set(['the', 'my', 'a', 'an', 'of', 'for', 'to', 'is', 'was', 'and', 'i', 'me', 'that', 'this', 'it']);
+export const STOP = new Set(['the', 'my', 'a', 'an', 'of', 'for', 'to', 'is', 'was', 'and', 'i', 'me', 'that', 'this', 'it']);
 const contentWords = phrase => normalizeText(phrase).split(' ').filter(w => w && !STOP.has(w) && w.length > 2);
 const escapeRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 

@@ -5,38 +5,43 @@
 // has a field for every blank. So the download is the agency's own document
 // with the answers typed into it, not a look-alike.
 //
-// A form's boxes are fixed in size, and answers are not. Each value is shrunk
-// to fit its box, down to MIN_SIZE; below that it would be unreadable, so the
-// value is cut short, marked "(see attached)", and written out in full on an
-// addendum page. Rows past a table's printed capacity go to the addendum too.
-// Nothing an applicant said is silently dropped.
+// The thinking lives in plan.js (pure: fit decisions, overflow, addendum
+// content) and addendum.js (pure: page layout as a draw list). This module
+// only applies a plan to a pdf-lib document: set text, size, radios, checks,
+// fix the default appearances, and replay the addendum draw list. The Android
+// port runs the same plan through its own writer (AcroFormWriter), so the two
+// implementations are pinned to each other by golden fixtures rather than by
+// sharing code.
 //
 // Fields are left editable rather than flattened, so a caregiver can fix a
 // typo in any PDF reader, and the signature lines stay blank for a real
 // signature.
-//
-// fillTemplate() takes pdf-lib and the template bytes as arguments, so tests
-// can run it in Node against the real forms. downloadForm() is the browser
-// wrapper around it.
 
 import { toWinAnsi } from './forms/common.js';
-import { createWriter, loadPdfLib, downloadWorksheet } from './pdf.js';
-import { triggerDownload } from './summary.js';
+import { buildManifest, parseDa } from './manifest.js';
+import { planFill } from './plan.js';
+import { layoutAddendum } from './addendum.js';
+import { loadPdfLib, downloadWorksheet, fontMetrics, renderAddendum } from './pdf.js';
 import * as ssaKit from './forms/ssa-starter-kit.js';
 import * as dsIntake from './forms/ds-intake.js';
 
 export const FORMS = { ssa: ssaKit, ds: dsIntake };
 
-const MAX_SIZE = 10;
-const MIN_SIZE = 7;
-const SEE_ATTACHED = ' (see attached)';
-// Room pdf-lib keeps between the text and the box's edge, plus a margin so our
-// line wrapping never produces fewer lines than pdf-lib's own does.
-const INSET_X = 8;
-const INSET_Y = 3;
+/**
+ * The font resource a field's appearance is allowed to name: the one its own
+ * DA already uses. pdf-lib's updateFieldAppearances() rewrites every DA with
+ * the name of the font it was handed — "/Helvetica" — which the DS form's
+ * /DR does not contain, leaving viewers without a font to regenerate the
+ * appearance. Both forms' /DR contain /Helv, so a field that named /Helv
+ * keeps naming /Helv. A field with no DA at all (the DS form has 27) gets
+ * /Helv, which is the name fill.js has always written for those.
+ */
+function daFontFor(fieldEntry) {
+  return fieldEntry?.da?.font ?? fieldEntry?.widgets?.find(w => w?.da?.font)?.da?.font ?? '/Helv';
+}
 
 /**
- * Fill a form. Returns { bytes, missing, overflowText }:
+ * Fill a form from a plan. Returns { bytes, missing, overflowText }:
  *   bytes         the finished PDF
  *   missing       field names the mapping used that the template lacks — a
  *                 test failure, never expected at runtime
@@ -47,54 +52,88 @@ export async function fillTemplate(PDFLib, templateBytes, mapping, { title, adde
   const doc = await PDFDocument.load(templateBytes);
   const form = doc.getForm();
   const font = await doc.embedFont(StandardFonts.Helvetica);
+  const metrics = fontMetrics(font, font);
 
-  const missing = [];
-  const overflowText = [];
+  // Everything headed for a PDF goes through toWinAnsi first, exactly as the
+  // Android port's FormSpecs do — one name typed with a character outside it
+  // must not fail the whole download.
+  const planMapping = {
+    ...mapping,
+    text: Object.fromEntries(Object.entries(mapping.text ?? {}).map(([k, v]) => [k, toWinAnsi(v)]))
+  };
 
-  for (const [name, raw] of Object.entries(mapping.text ?? {})) {
-    const value = toWinAnsi(raw).trim();
-    if (!value) continue;
+  // The manifest is read from this template, and planFill() consumes it, so
+  // the web fill and the Android fill plan from the same shape.
+  const manifest = buildManifest(form, PDFLib);
+  const plan = planFill(planMapping, manifest, metrics.regular);
+
+  const missing = [...plan.missing];
+  const overflowText = [...plan.overflowText];
+
+  for (const pf of plan.fields) {
     let field;
-    try { field = form.getTextField(name); } catch { missing.push(name); continue; }
+    try { field = form.getTextField(pf.name); } catch { missing.push(pf.name); continue; }
     // A few fields on the DS form were authored with no default appearance,
     // and pdf-lib cannot size text without one.
     if (!field.acroField.getDefaultAppearance()) field.acroField.setDefaultAppearance('/Helv 0 Tf 0 g');
-    const fit = fitText(field, value, font);
-    field.setFontSize(fit.size);
-    field.setText(fit.text);
-    if (fit.cut) overflowText.push({ label: mapping.labels?.[name] ?? name, value });
+    field.setFontSize(pf.fit.size);
+    field.setText(pf.fit.text);
+
+    // A widget's own DA overrides the field's: without this, pdf-lib lays the
+    // appearance out at the widget's printed size (8) instead of the fitted
+    // one (8.5). Rewrite every widget DA to the fitted size before the
+    // appearances are generated, keeping its original font name.
+    const entry = manifest.fields[pf.name];
+    const name = daFontFor(entry);
+    field.acroField.getWidgets().forEach(w => {
+      if (w.getDefaultAppearance()) w.setDefaultAppearance(`${name} ${pf.fit.size} Tf 0 g`);
+    });
+    if (field.acroField.getDefaultAppearance()) {
+      field.acroField.setDefaultAppearance(`${name} ${pf.fit.size} Tf 0 g`);
+    }
   }
 
-  for (const [name, option] of Object.entries(mapping.radios ?? {})) {
+  for (const [name, option] of Object.entries(plan.radios)) {
     if (option == null || option === '') continue;
     try { form.getRadioGroup(name).select(option); } catch { missing.push(name); }
   }
 
-  for (const name of mapping.checks ?? []) {
+  for (const name of plan.checks) {
     try { form.getCheckBox(name).check(); } catch { missing.push(name); }
   }
 
   form.updateFieldAppearances(font);
 
-  const tables = mapping.tables ?? [];
-  const sections = mapping.sections ?? [];
+  // updateFieldAppearances() rewrites every DA with the name of the font it
+  // drew with ("/Helvetica") — including blank fields it still touched, like
+  // the DS form's signature dates. Put the original names back everywhere,
+  // keeping the size pdf-lib just wrote, so the DA font always exists in the
+  // form's /DR and Acrobat can regenerate any appearance.
+  for (const field of form.getFields()) {
+    if (!(field instanceof PDFLib.PDFTextField)) continue;
+    const entry = manifest.fields[field.getName()];
+    const name = daFontFor(entry);
+    field.acroField.getWidgets().forEach(w => {
+      const current = parseDa(w.getDefaultAppearance());
+      if (current) w.setDefaultAppearance(`${name} ${current.size} Tf 0 g`);
+    });
+    const current = parseDa(field.acroField.getDefaultAppearance());
+    if (current) field.acroField.setDefaultAppearance(`${name} ${current.size} Tf 0 g`);
+  }
+
+  const tables = plan.tables;
+  const sections = plan.sections;
   if (addendum && (overflowText.length || tables.length || sections.length)) {
     const bold = await doc.embedFont(StandardFonts.HelveticaBold);
-    const w = await createWriter(doc, PDFLib, { font, bold });
-    w.title(addendum.title);
-    for (const line of addendum.intro ?? []) { w.paragraph(line, { size: 10 }); w.gap(4); }
-
-    if (overflowText.length || tables.length) {
-      w.heading('Continued from the form');
-      for (const { label, value } of overflowText) w.fieldRow(label, value);
-      for (const t of tables) {
-        w.paragraph(t.title, { size: 11 });
-        w.gap(2);
-        w.table(t.columns, t.rows, t.itemLabel ?? 'row', { startAt: t.startAt ?? 1 });
-      }
-    }
-    if (sections.length) w.report(sections);
-    w.finish(addendum.footer ?? []);
+    const drawList = layoutAddendum({
+      title: addendum.title,
+      intro: addendum.intro ?? [],
+      overflowText,
+      tables,
+      sections,
+      footer: addendum.footer ?? []
+    }, fontMetrics(font, bold));
+    renderAddendum(doc, PDFLib, drawList, { font, bold });
   }
 
   if (title) doc.setTitle(title);
@@ -103,62 +142,8 @@ export async function fillTemplate(PDFLib, templateBytes, mapping, { title, adde
   return { bytes: await doc.save(), missing, overflowText };
 }
 
-// -- fitting text to a box ----------------------------------------------------
-
-function fitText(field, value, font) {
-  const rect = field.acroField.getWidgets()[0].getRectangle();
-  const width = Math.max(rect.width - INSET_X, 10);
-  const height = Math.max(rect.height - INSET_Y, 6);
-  const multiline = field.isMultiline();
-  const lineHeight = size => font.heightAtSize(size) * 1.2;
-
-  const fits = (str, size) => {
-    if (!multiline) {
-      return font.widthOfTextAtSize(str, size) <= width && font.heightAtSize(size) <= height;
-    }
-    return wrap(str, width, font, size).length * lineHeight(size) <= height;
-  };
-
-  // Single-line boxes are sized for their printed type; never go larger than
-  // the box is tall.
-  const top = multiline ? MAX_SIZE : Math.min(MAX_SIZE, Math.floor(height / 1.05));
-  for (let size = top; size >= MIN_SIZE; size -= 0.5) {
-    if (fits(value, size)) return { size, text: value, cut: false };
-  }
-
-  // Too long at the smallest legible size: keep what fits, point to the rest.
-  const size = MIN_SIZE;
-  let keep = value;
-  while (keep && !fits(`${keep}…${SEE_ATTACHED}`, size)) {
-    const lastSpace = keep.lastIndexOf(' ');
-    keep = lastSpace > keep.length / 2 ? keep.slice(0, lastSpace) : keep.slice(0, -1);
-    keep = keep.replace(/[\s,;:.-]+$/, '');
-  }
-  const text = keep ? `${keep}…${SEE_ATTACHED}` : SEE_ATTACHED.trim();
-  return { size, text, cut: true };
-}
-
-/** Word wrap for measuring. Honors explicit line breaks. */
-function wrap(str, width, font, size) {
-  const lines = [];
-  for (const para of String(str).split('\n')) {
-    let line = '';
-    for (const word of para.split(/\s+/).filter(Boolean)) {
-      const test = line ? `${line} ${word}` : word;
-      if (font.widthOfTextAtSize(test, size) > width && line) { lines.push(line); line = word; }
-      else line = test;
-      // A single word wider than the box wraps by character in pdf-lib; count it.
-      while (font.widthOfTextAtSize(line, size) > width && line.length > 1) {
-        let cut = line.length - 1;
-        while (cut > 1 && font.widthOfTextAtSize(line.slice(0, cut), size) > width) cut--;
-        lines.push(line.slice(0, cut));
-        line = line.slice(cut);
-      }
-    }
-    lines.push(line);
-  }
-  return lines;
-}
+/** Re-exported for tests and the golden generator. */
+export { planFill, layoutAddendum, buildManifest };
 
 // -- browser -------------------------------------------------------------------
 
@@ -170,14 +155,15 @@ const slug = s => String(s ?? '').trim().replace(/[^a-z0-9]+/gi, '-').replace(/^
  *
  * If the official form cannot be fetched — offline with nothing cached, or a
  * page opened straight from disk — a plain worksheet of the same answers is
- * downloaded instead, and `fallback` says so.
+ * downloaded instead, and `fallback` says so. `now` supplies the date stamp
+ * in the filename.
  */
-export async function downloadForm(formId, answers) {
+export async function downloadForm(formId, answers, { now = () => new Date() } = {}) {
   const spec = FORMS[formId];
   if (!spec) throw new Error(`Unknown form: ${formId}`);
 
   const who = slug([answers.first_name, answers.last_name].filter(Boolean).join(' '));
-  const d = new Date();
+  const d = now();
   const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const filename = `${spec.FILE_PREFIX}${who ? `-${who}` : ''}-${stamp}.pdf`;
 
@@ -196,6 +182,14 @@ export async function downloadForm(formId, answers) {
     title: spec.TITLE,
     addendum: spec.ADDENDUM
   });
-  triggerDownload(new Blob([bytes], { type: 'application/pdf' }), filename);
+  const blob = new Blob([bytes], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
   return { filename, fallback: false };
 }

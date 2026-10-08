@@ -12,6 +12,213 @@ Open items come first, ordered roughly by what would block real use. Closed
 items are kept below with the detail of what was actually done, so a later
 change can tell whether it is undoing a decision or fixing an oversight.
 
+The `android` branch also carries the first pass of the on-device Android
+port, built from [the Android plan](<on-device Android app for the disability forms assistant.md>).
+Its review comes first.
+
+---
+
+# Android port
+
+Reviewed 2026-10-08 against the plan, after the first implementation pass,
+and its fixes made the same day. Nothing is committed yet. Where it stands:
+
+- **JS steps 1–7 (M2): done.** The 21 web test files, `tools/smoke.mjs` and
+  the 9 turn scenarios all pass. The goldens are generated in UTC and come
+  out the same on any machine.
+- **`core` port (M3): Schema, Engine, Parse, Choice, Correct and Validate.**
+  `./gradlew :core:test` runs 17 tests, all passing. They cover the parse,
+  choice and walks goldens, a replay of every recorded engine action, JS regex
+  and number semantics, and the phrases. Every Kotlin regex now goes through
+  one JS-to-platform translator (`core/js/JsRegex.kt`).
+- **`pdf`, `speech`, `llm`, `app`: skeletons**, as the review found. The
+  privacy and native audits around them now work and fail closed.
+
+## Open
+
+- [ ] **Commit `android/`, the goldens and `tools/schema.json`.**
+      `node tools/golden/check.mjs` now fails on goldens that were never
+      committed (it used to pass while checking nothing). So it fails until
+      the first commit, and passes from then on.
+- [ ] **Run the new CI once and fix what it finds.** Not yet run anywhere:
+      the `device-tests` job, the canary job against real artifacts, and the
+      bundletool download. Two parts are unverified. One is the emulator
+      image name `google_apis_ps16k` (the 16 KB page-size image); check that
+      `reactivecircus/android-emulator-runner` accepts it. The other is
+      whether the goldens fit in the test process's memory on the emulator:
+      walks and fillplans are about 30 MB of JSON. The bundletool checksum was
+      recorded from the 1.17.2 release on 2026-10-08.
+- [ ] **Port what reads the other seven goldens** (metrics,
+      templateManifest, fits, fillplans, addendum, import, turn). Each needs
+      its port and a test: HelveticaMetrics, TextFitter, FillPlanner and
+      AddendumLayout, then Importer and TurnController. `tts` is read only to
+      check that every phrase is in the corpus; ttshash itself is not ported.
+      This is most of what is left of M3.
+- [ ] **Device-group delivery for `llm_pack` needs AI packs.** A plain asset
+      pack cannot be sent to the ≥ 6 GB group. Tried with a
+      `models#group_llmCapable/` folder and the bundle's device-group split
+      switched on: bundletool 1.17.2 rejects the bundle ("unsupported key
+      'group'"); its folder keys are lang, tcf, tier and countries. The plan
+      already names AI packs: use the `com.android.ai-pack` plugin and a
+      bundletool that supports them, in M6/M7. Until then `llm_pack` is not
+      in `assetPacks`. Still open as well: whether fast-follow delivery needs
+      a library that adds a network permission.
+- [ ] **Android wording for the phrases.** `Phrases` now reads the exported
+      phrase table instead of a hand-made copy. The words are still the web
+      app's ("hold the space bar", "check your downloads folder"). The
+      Compose screens need their own, which means new clips and `tts`
+      entries.
+- [ ] **The goldens are large**: about 33 MB pretty-printed, mostly walks
+      (18 MB, the full state after every action) and fillplans (10 MB).
+      Writing those two without indentation would roughly halve that, at the
+      cost of readable diffs. Decide before the first commit, since git
+      keeps every version.
+- [ ] **M0 hardware:** a 6–8 GB arm64 reference phone and a low-end phone.
+- [ ] **M1a, the PDF spike** (the plan's biggest risk): TemplateLoader,
+      AcroFormWriter, AddendumRenderer and PdfSelfCheck; both forms filled
+      from the JS-exported plan; a pdf-lib cross-read; the viewer checks;
+      time and size; a written go/fallback decision. The templates are now in
+      `:pdf`'s assets, pinned.
+- [ ] **M1b:** whisper.cpp and llama.cpp as pinned submodules, linked
+      statically into the JNI libraries; the version script and export audit
+      already apply to them. Load the models mmapped from
+      `(fd, offset, length)`, transcribe the 9 WAVs, and make a latency and
+      RAM table.
+- [ ] **M1c:** `tools/llm-eval/` and eval v0 against parser v2.
+- [ ] **M4–M8** as the plan describes. TurnController should be a sealed
+      type, a base mode × one overlay, rather than a copy of turn.js's
+      nullable flags.
+
+## Done in the fix pass (2026-10-08)
+
+Each was checked by a test or a re-run, and the new tests were checked by
+putting the bug back and watching them fail.
+
+**JS reference**
+- [x] **Parser v2 numbers.** `wordsToNumber()` follows the spoken grammar
+      instead of summing words: "nineteen ninety eight", "three fifty", "one
+      two three" and a bare "hundred" defer. A period said with an amount is
+      checked against the schema's new `per` on money and number questions:
+      "$20 an hour" defers for a monthly amount and is kept for a job's pay.
+      `kind: 'year'` reads "nineteen ninety eight" as 1998 where the question
+      asks for a year. `engine.current()` carries `per` and `kind`. Without
+      that, the live app would have deferred every job pay said with its
+      period; a test now goes through `current()`.
+- [x] **Yes/no clauses are anchored at the end**, so "yes I do not" and "yes
+      I do, no wait" defer, read-backs included. Curly apostrophes read as
+      straight ones.
+- [x] **A word that is not a digit word no longer reads as digits.** Found
+      on the way: `DIGIT_WORDS[token]` found "constructor" on the prototype,
+      so "1234 constructor" passed as an account number.
+- [x] **Typed non-numbers are refused** rather than stored as 0.
+- [x] **Echo stripping applies to typed input**, as its comment said. Kept
+      deliberately for sensitive digits: "My Social Security number is …"
+      parses; "my social is …" still defers.
+- [x] **`askIf` scope is explicit.** A loop field's rule reads its item, a
+      top-level rule reads the answers, and `scope: 'answers'` reaches across.
+      There is no fallback between the two. tests/schema-data.js lints every
+      rule for known operators and for keys its scope can read, and proves
+      the lint fires.
+- [x] **turn.js:** "no" to a read-back reopens the question without its
+      prompt again (`ANSWER_AGAIN`), and `repeat` still replays the prompt. A
+      command wins over an open read-back, and `repeat` there replays the
+      read-back. The clock reaches the parser and the engine. A second
+      concurrent `start()` joins the first, so every front end gets the guard.
+      Also found and fixed:
+      - Resumed sessions never asked again for the SSN and bank numbers:
+        `withheldFrom = []` threw the saved list away.
+      - The idle lock left the cleared number in the screen's last snapshot.
+- [x] **Scenarios:** the runner has a fixed clock, fake timers (`advance`),
+      `resume` built through store.js's real redaction, `start-twice`, and the
+      `unspoken`, `spokenOnce` and `withheld` assertions. New scenarios cover
+      the SSN digit gate and read-back, resume with withheld numbers, the idle
+      lock, commands during a correction, and the double start.
+- [x] **Goldens:**
+      - Generated in UTC.
+      - Walks record every action with its arguments, give each walk its own
+        generator, and add correction, mid-correction save and remove actions.
+        Each step records the full `current()` view and `missingRequired()`.
+      - The parse corpus covers loop fields and typed cases, plus probes where
+        the regex dialects differ.
+      - Choice cases always record candidates.
+      - Fillplans record their answers, and random answer sets now get choice
+        values (they never did).
+      - `fits` records the value it actually fitted.
+      - `check.mjs` also fails on goldens that were never committed.
+- [x] **Smaller.** The phrases are exported in `tools/schema.json`, and
+      form-fill checks widget DAs as well as field DAs.
+
+**Kotlin `core`**
+- [x] **One regex translator** (`JsRegex.kt`, 25 cases taken from Node). It
+      writes JS's `\s`, `\w`, `\d`, `\b`, `.`, `$` and `/i` as explicit
+      classes, and `jsTrim()` matches JS `trim()`. Parse.kt is a function-by-
+      function port of parse.js. Choice, Correct and Validate use the
+      translator too. That fixed several mismatches:
+      - Correct removed every add/delete verb where JS's non-global regex
+        removes only the first.
+      - "your" was replaced inside other words.
+      - `String.format` would have written Arabic-Indic digits into dates on a
+        phone set to Arabic.
+- [x] **Numbers:**
+      - `jsNumberToString()` uses JS's notation thresholds and the shortest
+        round-trip digits, from the exact value rather than `Double.toString`.
+      - Validate turns values into text the JS way: an imported zip of 4101
+        no longer becomes "41010".
+      - JSON writes NaN as null.
+- [x] **Engine:**
+      - `getState(returnTo)` and `rewind()` are ported.
+      - Entry prompts carry their section.
+      - `sectionNumber` is 0 like JS when the section isn't active.
+      - Paths hold numbers.
+      - `present` treats a stored null as absent.
+      - `jsEquals` uses IEEE equality.
+      - `findQuestion` returns section and loopId.
+      - JsonParser throws only `IllegalArgumentException`.
+- [x] **Tests.** WalksGoldenTest replays the recorded actions, with no
+      generator. ParseGoldenTest builds its questions exactly as the
+      generator does, reads `now` from the golden, and covers typed and
+      loop-field cases. ChoiceGoldenTest fails on a missing question and
+      compares whole resolutions.
+- [x] **`:core-device`** compiles core's tests and goldens into an
+      instrumented APK, so they run under ICU
+      (`:core-device:connectedDebugAndroidTest`). The APK builds; nothing has
+      run it yet (see Open).
+
+**CI and privacy**
+- [x] **Permission audit.** It matches aapt2's quoted output, including
+      `uses-permission-sdk-23`, and reads AAB modules through a pinned,
+      checksum-verified bundletool. It fails closed when a tool is missing or
+      errors.
+- [x] **The canary is a real app (`:canary`).** Its APK, its AAB and its
+      manifest each make the audit fail.
+- [x] **`verify<Variant>NoNetworkPermissions`** fails the build on a merged
+      manifest. Found with it: the manifest's removals covered
+      `<uses-permission>` only, so a library's `<uses-permission-sdk-23>`
+      INTERNET got through. The sdk-23 forms are now removed too.
+- [x] **Native audit (`tools/audit-native.sh`, replaces audit-alignment.sh).**
+      It checks ELF 16 KB alignment, `zipalign -P 16` and JNI-only exports,
+      and fails when it finds nothing to check. The JNI library now has the
+      version script its comments promised and links the C++ runtime
+      statically: no more 9 MB `libc++_shared.so` per ABI.
+- [x] **Workflow:**
+      - It triggers on `src/**`, `tests/fixtures/**` and `vendor/**`.
+      - It uses Node 20 with `TZ=UTC`, and runs the freshness check first.
+      - The audits run on every artifact, with the canary step after them.
+      - A new emulator job runs the goldens under ICU.
+- [x] **Smaller:**
+      - `setRecentsScreenshotEnabled` now applies from API 33.
+      - R8 also strips `Log.wtf`, `Log.println` and `printStackTrace`.
+      - The manifest comment describes what the app actually asks for.
+
+**Repository**
+- [x] **`android/.gitignore`** covers `local.properties`, `.gradle/`,
+      `.kotlin/`, `build/` and `.cxx/`. `schema.json` is generated under
+      `build/`, so `tools/schema.json` is the only copy.
+- [x] **Pinned assets.** `forms/` and `audio/` are copied into `:pdf` and
+      `:speech` assets by `CopyPinnedAssets` (buildSrc), checked against
+      `forms.SHA256SUMS` and `audio.SHA256SUMS`. The build fails on a wrong
+      hash, a missing file or an unpinned one.
+
 ---
 
 # Open
@@ -64,10 +271,10 @@ cover is still open.
       enough to answer the later rows without hearing it again. Also check that
       someone answering for the applicant is not confused by "you" after the
       one-time explanation.
-- [ ] **Regenerate the audio.** The form choice added the DS prompts and
-      section counts of 19 and 32 alongside the Starter Kit's 20. `audio/` is
-      still not committed, so nothing fails, but none of the new prompts have
-      clips.
+- [x] **Regenerate the audio.** Done: `audio/` is committed (552 clips and
+      the manifest), the `tts` golden finds a clip for every fixed string and
+      prompt, and the Android build pins all of them
+      (`android/speech/audio.SHA256SUMS`).
 - [ ] **Ask Maine OADS whether a typed-in copy of the intake application,
       with an addendum page for long answers, is acceptable** as submitted.
 - [ ] **Re-tune the filler list against a real room.** `FILLER_TRANSCRIPTS` in

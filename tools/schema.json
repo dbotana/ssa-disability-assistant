@@ -1,0 +1,5856 @@
+{
+  "schemaVersion": 3,
+  "formIds": [
+    "ssa",
+    "ds"
+  ],
+  "formTitles": {
+    "ssa": "Adult Disability Starter Kit",
+    "ds": "Developmental Services Intake Application"
+  },
+  "sections": [
+    {
+      "id": "forms",
+      "title": "Choosing your form",
+      "questions": [
+        {
+          "id": "forms",
+          "prompt": "Which form are we filling out today: Social Security's Adult Disability Starter Kit, Maine's Developmental Services Intake Application, or both?",
+          "type": "choice",
+          "options": [
+            {
+              "value": "ssa",
+              "label": "Adult Disability Starter Kit",
+              "aliases": [
+                "starter kit",
+                "the starter kit",
+                "disability starter kit",
+                "the kit",
+                "kit",
+                "social security",
+                "social security form",
+                "ssa"
+              ]
+            },
+            {
+              "value": "ds",
+              "label": "Developmental Services Intake Application",
+              "aliases": [
+                "developmental services",
+                "developmental services application",
+                "developmental services intake",
+                "developmental",
+                "ds",
+                "ds intake",
+                "intake application",
+                "the maine application",
+                "maine application",
+                "maine form",
+                "maine",
+                "dhhs",
+                "oads"
+              ]
+            },
+            {
+              "value": "both",
+              "label": "Both forms",
+              "aliases": [
+                "both",
+                "both of them",
+                "both forms",
+                "all of them",
+                "the two of them"
+              ],
+              "impliedBy": [
+                "ssa",
+                "ds"
+              ]
+            }
+          ],
+          "required": true,
+          "hint": "The Starter Kit helps you get ready to apply for Social Security disability benefits. The Developmental Services application is how adults with an intellectual disability or autism apply to Maine for services. Say starter kit, developmental services, or both."
+        }
+      ]
+    },
+    {
+      "id": "ds_helper",
+      "title": "Who is filling out this application",
+      "forms": [
+        "ds"
+      ],
+      "questions": [
+        {
+          "id": "for_self",
+          "prompt": "Are you filling out this application for yourself?",
+          "type": "yesno",
+          "required": true,
+          "hint": "Say no if you are a parent, guardian, caseworker, or anyone else helping the person applying."
+        },
+        {
+          "id": "helper_name",
+          "prompt": "What is your name, or the name of your agency?",
+          "type": "text",
+          "askIf": {
+            "eq": [
+              "for_self",
+              false
+            ]
+          },
+          "warn": "Thank you for helping. From here on, every question is about the person applying, even when I say you. First, a few details about you."
+        },
+        {
+          "id": "helper_address",
+          "prompt": "What is your mailing address? Just the street or post office box for now.",
+          "type": "text",
+          "askIf": {
+            "eq": [
+              "for_self",
+              false
+            ]
+          }
+        },
+        {
+          "id": "helper_city",
+          "prompt": "What town or city is that in?",
+          "type": "text",
+          "askIf": {
+            "eq": [
+              "for_self",
+              false
+            ]
+          },
+          "hint": "If it is outside Maine, include the state too."
+        },
+        {
+          "id": "helper_county",
+          "prompt": "What county is that in?",
+          "type": "text",
+          "askIf": {
+            "eq": [
+              "for_self",
+              false
+            ]
+          }
+        },
+        {
+          "id": "helper_zip",
+          "prompt": "What is the zip code?",
+          "type": "zip",
+          "askIf": {
+            "eq": [
+              "for_self",
+              false
+            ]
+          }
+        },
+        {
+          "id": "helper_phone",
+          "prompt": "What is your phone number?",
+          "type": "phone",
+          "askIf": {
+            "eq": [
+              "for_self",
+              false
+            ]
+          },
+          "hint": "You can say the ten digits one at a time, and it is fine to pause between groups."
+        },
+        {
+          "id": "helper_fax",
+          "prompt": "What is your fax number? Say skip if you do not have one.",
+          "type": "phone",
+          "askIf": {
+            "eq": [
+              "for_self",
+              false
+            ]
+          },
+          "hint": "You can say the ten digits one at a time, and it is fine to pause between groups."
+        },
+        {
+          "id": "helper_email",
+          "prompt": "What is your email address?",
+          "type": "email",
+          "askIf": {
+            "eq": [
+              "for_self",
+              false
+            ]
+          },
+          "hint": "You can say it like john dot smith at gmail dot com, or say skip."
+        }
+      ]
+    },
+    {
+      "id": "identity",
+      "title": "Basic information about you",
+      "forms": [
+        "ssa",
+        "ds"
+      ],
+      "questions": [
+        {
+          "id": "first_name",
+          "prompt": "What is your legal first name?",
+          "type": "text",
+          "required": true
+        },
+        {
+          "id": "last_name",
+          "prompt": "What is your legal last name?",
+          "type": "text",
+          "required": true
+        },
+        {
+          "id": "date_of_birth",
+          "prompt": "What is your date of birth? Say the month, the day, and then the year.",
+          "type": "date",
+          "required": true,
+          "confirm": true,
+          "hint": "Say the month, then the day, then the year. For example, March fourteenth, nineteen seventy nine."
+        },
+        {
+          "id": "birth_city",
+          "prompt": "What city were you born in?",
+          "type": "text",
+          "required": true
+        },
+        {
+          "id": "birth_state",
+          "prompt": "What state or province were you born in?",
+          "type": "text",
+          "required": true
+        },
+        {
+          "id": "birth_country",
+          "prompt": "What country were you born in?",
+          "type": "text",
+          "required": true
+        },
+        {
+          "id": "ssn",
+          "prompt": "What is your Social Security number?",
+          "type": "ssn",
+          "required": true,
+          "confirm": true,
+          "warn": "Next I need your Social Security number. It is saved only on this device, and it is never sent to Social Security. You can say skip to leave it blank, or type it instead of saying it.",
+          "hint": "You can say the nine digits one at a time, and it is fine to pause between groups."
+        }
+      ]
+    },
+    {
+      "id": "ds_contact",
+      "title": "Your address and background",
+      "forms": [
+        "ds"
+      ],
+      "questions": [
+        {
+          "id": "home_street",
+          "prompt": "What is your street address?",
+          "type": "text",
+          "hint": "Just the number and street. I will ask for the town next."
+        },
+        {
+          "id": "home_town",
+          "prompt": "What town or city do you live in?",
+          "type": "text"
+        },
+        {
+          "id": "home_state",
+          "prompt": "What state do you live in?",
+          "type": "text"
+        },
+        {
+          "id": "home_zip",
+          "prompt": "What is your zip code?",
+          "type": "zip"
+        },
+        {
+          "id": "mailing_different",
+          "prompt": "Is your mailing address different from your street address?",
+          "type": "yesno"
+        },
+        {
+          "id": "mailing_address",
+          "prompt": "What is your full mailing address, including the town, state, and zip code?",
+          "type": "text",
+          "askIf": {
+            "eq": [
+              "mailing_different",
+              true
+            ]
+          }
+        },
+        {
+          "id": "applicant_phone",
+          "prompt": "What is your phone number?",
+          "type": "phone",
+          "hint": "You can say the ten digits one at a time, and it is fine to pause between groups."
+        },
+        {
+          "id": "applicant_email",
+          "prompt": "What is your email address? Say skip if you do not have one.",
+          "type": "email",
+          "hint": "You can say it like john dot smith at gmail dot com."
+        },
+        {
+          "id": "primary_language",
+          "prompt": "What is your primary language?",
+          "type": "text"
+        },
+        {
+          "id": "deaf_hoh",
+          "prompt": "Are you deaf or hard of hearing?",
+          "type": "yesno"
+        },
+        {
+          "id": "gender",
+          "prompt": "The form asks for gender, and it only offers male or female. Which should I put?",
+          "type": "choice",
+          "options": [
+            {
+              "value": "M",
+              "letter": "M",
+              "label": "Male",
+              "aliases": [
+                "male",
+                "man",
+                "boy"
+              ]
+            },
+            {
+              "value": "F",
+              "letter": "F",
+              "label": "Female",
+              "aliases": [
+                "female",
+                "woman",
+                "girl"
+              ]
+            }
+          ],
+          "hint": "Say male or female, or say skip to leave it blank."
+        },
+        {
+          "id": "mainecare_number",
+          "prompt": "What is your MaineCare number? Say skip if you do not have one.",
+          "type": "text"
+        },
+        {
+          "id": "marital_status",
+          "prompt": "What is your marital status: never married, married, separated, divorced, or widowed?",
+          "type": "choice",
+          "options": [
+            {
+              "value": "never_married",
+              "label": "Never married",
+              "aliases": [
+                "never married",
+                "never been married",
+                "single"
+              ]
+            },
+            {
+              "value": "married",
+              "label": "Married",
+              "aliases": [
+                "married"
+              ]
+            },
+            {
+              "value": "separated",
+              "label": "Separated",
+              "aliases": [
+                "separated"
+              ]
+            },
+            {
+              "value": "divorced",
+              "label": "Divorced",
+              "aliases": [
+                "divorced"
+              ]
+            },
+            {
+              "value": "widowed",
+              "label": "Widowed",
+              "aliases": [
+                "widowed",
+                "widow",
+                "widower"
+              ]
+            }
+          ],
+          "askIf": {
+            "form": "dsOnly"
+          }
+        }
+      ]
+    },
+    {
+      "id": "guardian",
+      "title": "Guardian or power of attorney",
+      "forms": [
+        "ds"
+      ],
+      "questions": [
+        {
+          "id": "has_guardian",
+          "prompt": "Do you have a legal guardian, or someone with power of attorney for you?",
+          "type": "yesno"
+        },
+        {
+          "id": "guardian_name",
+          "prompt": "What is their full name?",
+          "type": "text",
+          "askIf": {
+            "eq": [
+              "has_guardian",
+              true
+            ]
+          },
+          "warn": "Maine asks for a copy of the guardianship or power of attorney paperwork to be sent with this application."
+        },
+        {
+          "id": "guardian_relationship",
+          "prompt": "How are they related to you?",
+          "type": "text",
+          "askIf": {
+            "eq": [
+              "has_guardian",
+              true
+            ]
+          },
+          "hint": "For example, parent, sister, or professional guardian."
+        },
+        {
+          "id": "guardian_address",
+          "prompt": "What is their mailing address? Just the street or post office box for now.",
+          "type": "text",
+          "askIf": {
+            "eq": [
+              "has_guardian",
+              true
+            ]
+          }
+        },
+        {
+          "id": "guardian_city",
+          "prompt": "What town or city is that in?",
+          "type": "text",
+          "askIf": {
+            "eq": [
+              "has_guardian",
+              true
+            ]
+          },
+          "hint": "If it is outside Maine, include the state too."
+        },
+        {
+          "id": "guardian_county",
+          "prompt": "What county is that in?",
+          "type": "text",
+          "askIf": {
+            "eq": [
+              "has_guardian",
+              true
+            ]
+          }
+        },
+        {
+          "id": "guardian_zip",
+          "prompt": "What is the zip code?",
+          "type": "zip",
+          "askIf": {
+            "eq": [
+              "has_guardian",
+              true
+            ]
+          }
+        },
+        {
+          "id": "guardian_phone",
+          "prompt": "What is their phone number?",
+          "type": "phone",
+          "askIf": {
+            "eq": [
+              "has_guardian",
+              true
+            ]
+          },
+          "hint": "You can say the ten digits one at a time, and it is fine to pause between groups."
+        },
+        {
+          "id": "guardian_email",
+          "prompt": "What is their email address? Say skip if you do not know it.",
+          "type": "email",
+          "askIf": {
+            "eq": [
+              "has_guardian",
+              true
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "emergency",
+      "title": "Emergency contact",
+      "forms": [
+        "ds"
+      ],
+      "questions": [
+        {
+          "id": "ec_same_as_guardian",
+          "prompt": "Should your guardian also be listed as your emergency contact?",
+          "type": "yesno",
+          "askIf": {
+            "eq": [
+              "has_guardian",
+              true
+            ]
+          }
+        },
+        {
+          "id": "ec_name",
+          "prompt": "Who should be contacted in an emergency? Tell me their full name.",
+          "type": "text",
+          "askIf": {
+            "not": {
+              "and": [
+                {
+                  "eq": [
+                    "has_guardian",
+                    true
+                  ]
+                },
+                {
+                  "eq": [
+                    "ec_same_as_guardian",
+                    true
+                  ]
+                }
+              ]
+            }
+          },
+          "hint": "Usually a guardian or your closest family member. Say skip to leave this blank."
+        },
+        {
+          "id": "ec_relationship",
+          "prompt": "How are they related to you?",
+          "type": "text",
+          "askIf": {
+            "and": [
+              {
+                "not": {
+                  "and": [
+                    {
+                      "eq": [
+                        "has_guardian",
+                        true
+                      ]
+                    },
+                    {
+                      "eq": [
+                        "ec_same_as_guardian",
+                        true
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "truthy": "ec_name"
+              }
+            ]
+          }
+        },
+        {
+          "id": "ec_address",
+          "prompt": "What is their street address?",
+          "type": "text",
+          "askIf": {
+            "and": [
+              {
+                "not": {
+                  "and": [
+                    {
+                      "eq": [
+                        "has_guardian",
+                        true
+                      ]
+                    },
+                    {
+                      "eq": [
+                        "ec_same_as_guardian",
+                        true
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "truthy": "ec_name"
+              }
+            ]
+          }
+        },
+        {
+          "id": "ec_city",
+          "prompt": "What town or city is that in?",
+          "type": "text",
+          "askIf": {
+            "and": [
+              {
+                "not": {
+                  "and": [
+                    {
+                      "eq": [
+                        "has_guardian",
+                        true
+                      ]
+                    },
+                    {
+                      "eq": [
+                        "ec_same_as_guardian",
+                        true
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "truthy": "ec_name"
+              }
+            ]
+          },
+          "hint": "If it is outside Maine, include the state too."
+        },
+        {
+          "id": "ec_county",
+          "prompt": "What county is that in?",
+          "type": "text",
+          "askIf": {
+            "and": [
+              {
+                "not": {
+                  "and": [
+                    {
+                      "eq": [
+                        "has_guardian",
+                        true
+                      ]
+                    },
+                    {
+                      "eq": [
+                        "ec_same_as_guardian",
+                        true
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "truthy": "ec_name"
+              }
+            ]
+          }
+        },
+        {
+          "id": "ec_zip",
+          "prompt": "What is the zip code?",
+          "type": "zip",
+          "askIf": {
+            "and": [
+              {
+                "not": {
+                  "and": [
+                    {
+                      "eq": [
+                        "has_guardian",
+                        true
+                      ]
+                    },
+                    {
+                      "eq": [
+                        "ec_same_as_guardian",
+                        true
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "truthy": "ec_name"
+              }
+            ]
+          }
+        },
+        {
+          "id": "ec_phone",
+          "prompt": "What is their phone number?",
+          "type": "phone",
+          "askIf": {
+            "and": [
+              {
+                "not": {
+                  "and": [
+                    {
+                      "eq": [
+                        "has_guardian",
+                        true
+                      ]
+                    },
+                    {
+                      "eq": [
+                        "ec_same_as_guardian",
+                        true
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "truthy": "ec_name"
+              }
+            ]
+          },
+          "hint": "You can say the ten digits one at a time, and it is fine to pause between groups."
+        },
+        {
+          "id": "ec_email",
+          "prompt": "What is their email address? Say skip if you do not know it.",
+          "type": "email",
+          "askIf": {
+            "and": [
+              {
+                "not": {
+                  "and": [
+                    {
+                      "eq": [
+                        "has_guardian",
+                        true
+                      ]
+                    },
+                    {
+                      "eq": [
+                        "ec_same_as_guardian",
+                        true
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "truthy": "ec_name"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "conditions",
+      "title": "Your medical conditions",
+      "forms": [
+        "ssa",
+        "ds"
+      ],
+      "questions": [
+        {
+          "id": "conditions",
+          "type": "loop",
+          "askIf": {
+            "form": "ssa"
+          },
+          "entryPrompt": "What is the medical condition that limits your ability to work? If you have more than one, we will take them one at a time.",
+          "repeatPrompt": "Do you have another medical condition to add?",
+          "itemLabel": "condition",
+          "entryIsFirstField": true,
+          "fields": [
+            {
+              "id": "name",
+              "prompt": "What is the name of this condition?",
+              "type": "text",
+              "required": true,
+              "hint": "If you have cancer, please include the stage and type."
+            }
+          ]
+        },
+        {
+          "id": "diagnoses",
+          "type": "loop",
+          "askIf": {
+            "form": "dsOnly"
+          },
+          "entryPrompt": "Do you have a current diagnosis to list? It can be any physical, mental, or developmental condition.",
+          "repeatPrompt": "Do you have another diagnosis to list?",
+          "itemLabel": "diagnosis",
+          "fields": [
+            {
+              "id": "name",
+              "prompt": "What is the diagnosis?",
+              "type": "text",
+              "required": true
+            }
+          ]
+        },
+        {
+          "id": "onset_date",
+          "prompt": "What month and year did your condition begin to limit your ability to work?",
+          "type": "monthyear",
+          "required": true,
+          "forms": [
+            "ssa"
+          ],
+          "hint": "An approximate month and year is fine. This is the date your condition started making it hard to work, not the date you stopped working."
+        }
+      ]
+    },
+    {
+      "id": "ds_health",
+      "title": "Allergies, diet, and developmental diagnosis",
+      "forms": [
+        "ds"
+      ],
+      "questions": [
+        {
+          "id": "medication_allergies",
+          "prompt": "Do you have any medication allergies? Tell me what they are, or say none.",
+          "type": "text"
+        },
+        {
+          "id": "food_allergies",
+          "prompt": "Any food allergies? Tell me what they are, or say none.",
+          "type": "text"
+        },
+        {
+          "id": "environmental_allergies",
+          "prompt": "Any environmental allergies, such as pollen, dust, or animals? Tell me what they are, or say none.",
+          "type": "text"
+        },
+        {
+          "id": "dietary_restrictions",
+          "prompt": "Do you have any dietary restrictions? Tell me what they are, or say none.",
+          "type": "text"
+        },
+        {
+          "id": "has_idd_dx",
+          "prompt": "Have you been diagnosed with an intellectual disability, a developmental disability, or autism?",
+          "type": "yesno"
+        },
+        {
+          "id": "idd_dx_date",
+          "prompt": "About when were you diagnosed? A month and year is fine.",
+          "type": "monthyear",
+          "askIf": {
+            "eq": [
+              "has_idd_dx",
+              true
+            ]
+          },
+          "hint": "If you do not know, say skip."
+        },
+        {
+          "id": "idd_age_at_dx",
+          "prompt": "How old were you when you were diagnosed?",
+          "type": "number",
+          "askIf": {
+            "eq": [
+              "has_idd_dx",
+              true
+            ]
+          }
+        },
+        {
+          "id": "idd_diagnoses",
+          "type": "loop",
+          "askIf": {
+            "eq": [
+              "has_idd_dx",
+              true
+            ]
+          },
+          "entryPrompt": "Has a psychological evaluation with IQ and adaptive scores confirmed a diagnosis?",
+          "repeatPrompt": "Did the evaluation confirm another diagnosis?",
+          "itemLabel": "confirmed diagnosis",
+          "fields": [
+            {
+              "id": "name",
+              "prompt": "What is the confirmed diagnosis?",
+              "type": "text",
+              "required": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "medical_providers",
+      "title": "Your doctors, hospitals, and clinics",
+      "forms": [
+        "ssa"
+      ],
+      "questions": [
+        {
+          "id": "providers",
+          "type": "loop",
+          "entryPrompt": "Do you have a doctor, hospital, or clinic to add?",
+          "repeatPrompt": "Do you have another doctor, hospital, or clinic to add?",
+          "itemLabel": "provider",
+          "fields": [
+            {
+              "id": "name",
+              "prompt": "What is the name of this provider or facility?",
+              "type": "text",
+              "required": true
+            },
+            {
+              "id": "address",
+              "prompt": "What is the address for this provider or facility?",
+              "type": "text",
+              "hint": "Street, city, and state is enough. You can say skip if you do not have it."
+            },
+            {
+              "id": "phone",
+              "prompt": "What is the phone number for this provider or facility?",
+              "type": "phone",
+              "hint": "You can say the ten digits one at a time, and it is fine to pause between groups."
+            },
+            {
+              "id": "first_seen",
+              "prompt": "What date did you first see this provider? If this was a hospital stay, give me the admission date.",
+              "type": "monthyear",
+              "hint": "Say the month and then the year. For example, March, nineteen seventy nine."
+            },
+            {
+              "id": "last_seen",
+              "prompt": "What date did you last see this provider? If this was a hospital stay, give me the discharge date. You can say still seeing them.",
+              "type": "monthyear",
+              "hint": "Say the month and then the year. For example, March, nineteen seventy nine."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "medical_tests",
+      "title": "Medical tests",
+      "forms": [
+        "ssa"
+      ],
+      "questions": [
+        {
+          "id": "tests",
+          "type": "loop",
+          "entryPrompt": "Have you had, or do you have scheduled, any medical test related to your condition?",
+          "repeatPrompt": "Do you have another medical test to add?",
+          "itemLabel": "test",
+          "fields": [
+            {
+              "id": "name",
+              "prompt": "What is the name of this test?",
+              "type": "text",
+              "required": true
+            },
+            {
+              "id": "date",
+              "prompt": "What date was, or will, this test be performed?",
+              "type": "date",
+              "allowFuture": true,
+              "hint": "Say the month, then the day, then the year. For example, March fourteenth, nineteen seventy nine."
+            },
+            {
+              "id": "ordered_by",
+              "prompt": "Who ordered this test?",
+              "type": "text"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "medications",
+      "title": "Your medications",
+      "forms": [
+        "ssa",
+        "ds"
+      ],
+      "questions": [
+        {
+          "id": "medications",
+          "type": "loop",
+          "entryPrompt": "Are you currently taking any medicine, prescribed or over the counter?",
+          "repeatPrompt": "Do you have another medication to add?",
+          "itemLabel": "medication",
+          "fields": [
+            {
+              "id": "name",
+              "prompt": "What is the name of this medication?",
+              "type": "text",
+              "required": true
+            },
+            {
+              "id": "reason",
+              "prompt": "Why do you take it?",
+              "type": "text",
+              "hint": "If you are not sure, you can say skip."
+            },
+            {
+              "id": "prescribed_by",
+              "prompt": "Which provider prescribed it?",
+              "type": "text"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "workers_comp",
+      "title": "Workers' compensation",
+      "forms": [
+        "ssa"
+      ],
+      "questions": [
+        {
+          "id": "wc_receives",
+          "prompt": "Do you receive workers' compensation or another disability benefit?",
+          "type": "yesno",
+          "required": true
+        },
+        {
+          "id": "wc_injury_date",
+          "prompt": "What is the date of injury?",
+          "type": "date",
+          "askIf": {
+            "eq": [
+              "wc_receives",
+              true
+            ]
+          },
+          "hint": "Say the month, then the day, then the year. For example, March fourteenth, nineteen seventy nine."
+        },
+        {
+          "id": "wc_claim_number",
+          "prompt": "What is the claim number?",
+          "type": "text",
+          "askIf": {
+            "eq": [
+              "wc_receives",
+              true
+            ]
+          }
+        },
+        {
+          "id": "wc_settlement",
+          "prompt": "Is there a settlement agreement?",
+          "type": "yesno",
+          "askIf": {
+            "eq": [
+              "wc_receives",
+              true
+            ]
+          }
+        },
+        {
+          "id": "wc_source",
+          "prompt": "What is the source of the payment?",
+          "type": "text",
+          "askIf": {
+            "eq": [
+              "wc_receives",
+              true
+            ]
+          }
+        },
+        {
+          "id": "wc_amount",
+          "prompt": "What is the payment amount?",
+          "type": "money",
+          "askIf": {
+            "eq": [
+              "wc_receives",
+              true
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "records_permission",
+      "title": "Permission to request your medical records",
+      "forms": [
+        "ssa"
+      ],
+      "questions": [
+        {
+          "id": "records_permission",
+          "prompt": "Do you give permission for Social Security to request your medical records directly from your providers?",
+          "type": "yesno",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "references",
+      "title": "People who know about your condition",
+      "forms": [
+        "ssa"
+      ],
+      "questions": [
+        {
+          "id": "ref1_name",
+          "prompt": "Can you give me the name of one person, other than a medical provider, who knows about your condition?",
+          "type": "text"
+        },
+        {
+          "id": "ref1_phone",
+          "prompt": "What is that person's phone number?",
+          "type": "phone",
+          "askIf": {
+            "truthy": "ref1_name"
+          },
+          "hint": "You can say the ten digits one at a time, and it is fine to pause between groups."
+        },
+        {
+          "id": "ref2_name",
+          "prompt": "Can you give me the name of a second such person? This one is optional.",
+          "type": "text",
+          "askIf": {
+            "truthy": "ref1_name"
+          }
+        },
+        {
+          "id": "ref2_phone",
+          "prompt": "What is that person's phone number?",
+          "type": "phone",
+          "askIf": {
+            "truthy": "ref2_name"
+          },
+          "hint": "You can say the ten digits one at a time, and it is fine to pause between groups."
+        }
+      ]
+    },
+    {
+      "id": "earnings",
+      "title": "Your earnings record",
+      "forms": [
+        "ssa"
+      ],
+      "questions": [
+        {
+          "id": "earnings_reviewed",
+          "prompt": "Have you reviewed your Social Security earnings record for accuracy?",
+          "type": "yesno"
+        }
+      ]
+    },
+    {
+      "id": "employment",
+      "title": "Your work history",
+      "forms": [
+        "ssa",
+        "ds"
+      ],
+      "questions": [
+        {
+          "id": "jobs",
+          "type": "loop",
+          "askIf": {
+            "form": "ssa"
+          },
+          "entryPrompt": "Did you work a job in the 5 years before your condition began to limit your work?",
+          "repeatPrompt": "Did you work another job in that 5 year period?",
+          "itemLabel": "job",
+          "fields": [
+            {
+              "id": "employer",
+              "prompt": "What was the employer's name?",
+              "type": "text",
+              "required": true
+            },
+            {
+              "id": "job_title",
+              "prompt": "What was your job title?",
+              "type": "text",
+              "hint": "For example, cook."
+            },
+            {
+              "id": "business_type",
+              "prompt": "What type of business was this?",
+              "type": "text",
+              "hint": "For example, restaurant."
+            },
+            {
+              "id": "start",
+              "prompt": "What month and year did you start this job?",
+              "type": "monthyear",
+              "hint": "Say the month and then the year. For example, March, nineteen seventy nine."
+            },
+            {
+              "id": "end",
+              "prompt": "What month and year did this job end? You can say still working.",
+              "type": "monthyear",
+              "hint": "Say the month and then the year. For example, March, nineteen seventy nine."
+            },
+            {
+              "id": "hours_per_day",
+              "prompt": "On average, how many hours a day did you work at this job?",
+              "type": "number",
+              "per": "day"
+            },
+            {
+              "id": "days_per_week",
+              "prompt": "And how many days a week?",
+              "type": "number",
+              "per": "week"
+            },
+            {
+              "id": "pay_amount",
+              "prompt": "How much were you paid? Just the amount for now.",
+              "type": "money",
+              "per": "any",
+              "hint": "For example, twenty dollars. I will ask next whether that was per hour, per week, or some other period."
+            },
+            {
+              "id": "pay_frequency",
+              "prompt": "Was that per hour, per day, per week, every two weeks, twice a month, per month, or per year?",
+              "type": "choice",
+              "options": [
+                {
+                  "value": "hour",
+                  "label": "Per hour",
+                  "aliases": [
+                    "hour",
+                    "hourly",
+                    "an hour",
+                    "per hour",
+                    "by the hour"
+                  ]
+                },
+                {
+                  "value": "day",
+                  "label": "Per day",
+                  "aliases": [
+                    "day",
+                    "daily",
+                    "a day",
+                    "per day"
+                  ]
+                },
+                {
+                  "value": "week",
+                  "label": "Per week",
+                  "aliases": [
+                    "week",
+                    "weekly",
+                    "a week",
+                    "per week"
+                  ]
+                },
+                {
+                  "value": "biweekly",
+                  "label": "Every two weeks",
+                  "aliases": [
+                    "every two weeks",
+                    "every 2 weeks",
+                    "biweekly",
+                    "bi weekly",
+                    "every other week"
+                  ]
+                },
+                {
+                  "value": "twice_month",
+                  "label": "Twice a month",
+                  "aliases": [
+                    "twice a month",
+                    "twice monthly",
+                    "semimonthly",
+                    "semi monthly"
+                  ]
+                },
+                {
+                  "value": "month",
+                  "label": "Per month",
+                  "aliases": [
+                    "month",
+                    "monthly",
+                    "a month",
+                    "per month"
+                  ]
+                },
+                {
+                  "value": "year",
+                  "label": "Per year",
+                  "aliases": [
+                    "year",
+                    "yearly",
+                    "annually",
+                    "annual",
+                    "a year",
+                    "per year",
+                    "salary"
+                  ]
+                }
+              ],
+              "askIf": {
+                "present": "pay_amount"
+              }
+            }
+          ]
+        },
+        {
+          "id": "currently_employed",
+          "prompt": "Are you working right now?",
+          "type": "yesno",
+          "forms": [
+            "ds"
+          ]
+        },
+        {
+          "id": "ds_jobs",
+          "type": "loop",
+          "askIf": {
+            "form": "dsOnly"
+          },
+          "entryPrompt": "Have you ever had a job? It can be paid, part time, or supported employment.",
+          "repeatPrompt": "Have you had another job?",
+          "itemLabel": "job",
+          "fields": [
+            {
+              "id": "employer",
+              "prompt": "Where did you work?",
+              "type": "text",
+              "required": true
+            },
+            {
+              "id": "job_title",
+              "prompt": "What was your job there?",
+              "type": "text",
+              "hint": "For example, stocking shelves."
+            },
+            {
+              "id": "start",
+              "prompt": "What month and year did you start?",
+              "type": "monthyear",
+              "hint": "Say the month and then the year. For example, March, nineteen seventy nine."
+            },
+            {
+              "id": "end",
+              "prompt": "What month and year did it end? You can say still working.",
+              "type": "monthyear",
+              "hint": "Say the month and then the year. For example, March, nineteen seventy nine."
+            }
+          ]
+        },
+        {
+          "id": "vr_involvement",
+          "prompt": "Have you worked with Vocational Rehabilitation? If so, tell me briefly what they helped with. If not, say no.",
+          "type": "text",
+          "forms": [
+            "ds"
+          ]
+        },
+        {
+          "id": "volunteer_experience",
+          "prompt": "Have you done any volunteer work? If so, tell me about it, or say none.",
+          "type": "text",
+          "forms": [
+            "ds"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "education",
+      "title": "Your education",
+      "forms": [
+        "ssa",
+        "ds"
+      ],
+      "questions": [
+        {
+          "id": "in_school",
+          "prompt": "Are you going to school right now?",
+          "type": "yesno",
+          "forms": [
+            "ds"
+          ]
+        },
+        {
+          "id": "graduation_date",
+          "prompt": "When do you expect to graduate? A month and year is fine.",
+          "type": "monthyear",
+          "allowFuture": true,
+          "forms": [
+            "ds"
+          ],
+          "askIf": {
+            "eq": [
+              "in_school",
+              true
+            ]
+          },
+          "hint": "Say the month and then the year. For example, March, nineteen seventy nine."
+        },
+        {
+          "id": "education_level",
+          "prompt": "What is the highest level of education you completed?",
+          "type": "text"
+        },
+        {
+          "id": "education_year",
+          "prompt": "What year did you complete it?",
+          "type": "number",
+          "kind": "year",
+          "forms": [
+            "ssa"
+          ]
+        },
+        {
+          "id": "education_school",
+          "prompt": "What school or institution did you complete it at?",
+          "type": "text"
+        },
+        {
+          "id": "special_ed",
+          "prompt": "Did you receive special education services?",
+          "type": "yesno"
+        },
+        {
+          "id": "special_ed_where",
+          "prompt": "Where did you receive special education services?",
+          "type": "text",
+          "forms": [
+            "ssa"
+          ],
+          "askIf": {
+            "eq": [
+              "special_ed",
+              true
+            ]
+          }
+        },
+        {
+          "id": "special_ed_year",
+          "prompt": "What year did you complete special education services?",
+          "type": "number",
+          "kind": "year",
+          "forms": [
+            "ssa"
+          ],
+          "askIf": {
+            "eq": [
+              "special_ed",
+              true
+            ]
+          }
+        },
+        {
+          "id": "has_504_plan",
+          "prompt": "Have you ever had a 504 plan at school?",
+          "type": "yesno",
+          "forms": [
+            "ds"
+          ]
+        },
+        {
+          "id": "psychoed_eval",
+          "prompt": "Have you had a psychoeducational evaluation?",
+          "type": "yesno",
+          "forms": [
+            "ds"
+          ],
+          "hint": "That is an evaluation of learning and thinking skills, often done through school."
+        }
+      ]
+    },
+    {
+      "id": "vocational",
+      "title": "Job, trade, or vocational training",
+      "forms": [
+        "ssa"
+      ],
+      "questions": [
+        {
+          "id": "training",
+          "type": "loop",
+          "entryPrompt": "Have you completed any specialized job, trade, or vocational training?",
+          "repeatPrompt": "Do you have another training program to add?",
+          "itemLabel": "training program",
+          "fields": [
+            {
+              "id": "name",
+              "prompt": "What was the name of this training program?",
+              "type": "text",
+              "required": true
+            },
+            {
+              "id": "completed",
+              "prompt": "What date did you complete it?",
+              "type": "monthyear",
+              "hint": "Say the month and then the year. For example, March, nineteen seventy nine."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "marriages",
+      "title": "Current and past marriages",
+      "forms": [
+        "ssa"
+      ],
+      "questions": [
+        {
+          "id": "marriages",
+          "type": "loop",
+          "entryPrompt": "Have you ever been married?",
+          "repeatPrompt": "Do you have another marriage to add?",
+          "itemLabel": "marriage",
+          "fields": [
+            {
+              "id": "spouse_name",
+              "prompt": "What is your spouse's or former spouse's full name?",
+              "type": "text",
+              "required": true
+            },
+            {
+              "id": "spouse_ssn",
+              "prompt": "What is your spouse's or former spouse's Social Security number?",
+              "type": "ssn",
+              "confirm": true,
+              "hint": "You can say the nine digits one at a time, and it is fine to pause between groups."
+            },
+            {
+              "id": "spouse_dob",
+              "prompt": "What is your spouse's or former spouse's date of birth?",
+              "type": "date",
+              "hint": "Say the month, then the day, then the year. For example, March fourteenth, nineteen seventy nine."
+            },
+            {
+              "id": "marriage_city",
+              "prompt": "What city did you get married in?",
+              "type": "text"
+            },
+            {
+              "id": "marriage_state",
+              "prompt": "What state did you get married in?",
+              "type": "text"
+            },
+            {
+              "id": "marriage_country",
+              "prompt": "What country did you get married in?",
+              "type": "text"
+            },
+            {
+              "id": "marriage_date",
+              "prompt": "What date did you get married?",
+              "type": "date",
+              "confirm": true,
+              "hint": "Say the month, then the day, then the year. For example, March fourteenth, nineteen seventy nine."
+            },
+            {
+              "id": "still_active",
+              "prompt": "Is this marriage still active?",
+              "type": "yesno",
+              "required": true
+            },
+            {
+              "id": "divorce_date",
+              "prompt": "What date did you get divorced?",
+              "type": "date",
+              "askIf": {
+                "eq": [
+                  "still_active",
+                  false
+                ]
+              },
+              "hint": "Say the month, then the day, then the year. For example, March fourteenth, nineteen seventy nine."
+            },
+            {
+              "id": "spouse_died",
+              "prompt": "Did this spouse pass away?",
+              "type": "yesno",
+              "askIf": {
+                "eq": [
+                  "still_active",
+                  false
+                ]
+              }
+            },
+            {
+              "id": "spouse_death_date",
+              "prompt": "What date did this spouse pass away?",
+              "type": "date",
+              "askIf": {
+                "eq": [
+                  "spouse_died",
+                  true
+                ]
+              },
+              "hint": "Say the month, then the day, then the year. For example, March fourteenth, nineteen seventy nine."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "children",
+      "title": "Your children",
+      "forms": [
+        "ssa"
+      ],
+      "questions": [
+        {
+          "id": "children",
+          "type": "loop",
+          "entryPrompt": "Do you have a child age 17 or younger, a child age 18 to 19 who is in school full time, or a child of any age with a disability that began at or before age 21?",
+          "repeatPrompt": "Do you have another child to add?",
+          "itemLabel": "child",
+          "fields": [
+            {
+              "id": "first_name",
+              "prompt": "What is this child's first name?",
+              "type": "text",
+              "required": true
+            },
+            {
+              "id": "last_name",
+              "prompt": "What is this child's last name?",
+              "type": "text"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "household",
+      "title": "People who live with you",
+      "forms": [
+        "ssa",
+        "ds"
+      ],
+      "questions": [
+        {
+          "id": "living_arrangement",
+          "prompt": "What is your current living arrangement? For example, living with family, in your own apartment, or in a group home.",
+          "type": "text",
+          "forms": [
+            "ds"
+          ]
+        },
+        {
+          "id": "household",
+          "type": "loop",
+          "entryPrompt": "Does anyone live with you?",
+          "repeatPrompt": "Do you have another household member to add?",
+          "itemLabel": "household member",
+          "fields": [
+            {
+              "id": "name",
+              "prompt": "What is this person's name?",
+              "type": "text",
+              "required": true
+            },
+            {
+              "id": "dob",
+              "prompt": "What is this person's date of birth?",
+              "type": "date",
+              "hint": "Say the month, then the day, then the year. For example, March fourteenth, nineteen seventy nine."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "housing",
+      "title": "Your home",
+      "forms": [
+        "ssa"
+      ],
+      "questions": [
+        {
+          "id": "rents",
+          "prompt": "Do you rent your home?",
+          "type": "yesno"
+        },
+        {
+          "id": "landlord_name",
+          "prompt": "What is your landlord's name?",
+          "type": "text",
+          "askIf": {
+            "eq": [
+              "rents",
+              true
+            ]
+          }
+        },
+        {
+          "id": "landlord_phone",
+          "prompt": "What is your landlord's phone number?",
+          "type": "phone",
+          "askIf": {
+            "eq": [
+              "rents",
+              true
+            ]
+          },
+          "hint": "You can say the ten digits one at a time, and it is fine to pause between groups."
+        },
+        {
+          "id": "has_rental_contract",
+          "prompt": "Do you have a rental contract on file?",
+          "type": "yesno",
+          "askIf": {
+            "eq": [
+              "rents",
+              true
+            ]
+          }
+        },
+        {
+          "id": "has_admission_agreement",
+          "prompt": "Do you have an admission agreement on file?",
+          "type": "yesno"
+        },
+        {
+          "id": "recent_admission",
+          "prompt": "Have you been admitted to, or discharged from, a hospital or institution recently?",
+          "type": "yesno"
+        },
+        {
+          "id": "has_admit_papers",
+          "prompt": "Do you have the admit or discharge papers on file?",
+          "type": "yesno",
+          "askIf": {
+            "eq": [
+              "recent_admission",
+              true
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "income",
+      "title": "Your current income",
+      "forms": [
+        "ssa"
+      ],
+      "questions": [
+        {
+          "id": "income_sources",
+          "type": "loop",
+          "entryPrompt": "Do you currently receive income from any source? That includes pay, self-employment, unemployment, dividends, stocks, a pension, an insurance payout, alimony, child support, gambling winnings, or a state disability payment.",
+          "repeatPrompt": "Do you have another income source to add?",
+          "itemLabel": "income source",
+          "fields": [
+            {
+              "id": "kind",
+              "prompt": "What type of income is this?",
+              "type": "text",
+              "required": true
+            },
+            {
+              "id": "monthly_amount",
+              "prompt": "What is the approximate monthly amount?",
+              "type": "money",
+              "per": "month"
+            },
+            {
+              "id": "has_documentation",
+              "prompt": "Do you have documentation for this income?",
+              "type": "yesno"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "resources",
+      "title": "Other financial resources",
+      "forms": [
+        "ssa"
+      ],
+      "questions": [
+        {
+          "id": "resources",
+          "type": "loop",
+          "entryPrompt": "Do you have any other financial resource? That includes a bank account, a car title or loan, a burial contract, a trust fund, a life insurance policy, or stocks and bonds.",
+          "repeatPrompt": "Do you have another resource to add?",
+          "itemLabel": "resource",
+          "fields": [
+            {
+              "id": "kind",
+              "prompt": "What type of resource is this?",
+              "type": "text",
+              "required": true
+            },
+            {
+              "id": "value",
+              "prompt": "What is the approximate value?",
+              "type": "money"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "adl",
+      "title": "Daily living activities",
+      "forms": [
+        "ds"
+      ],
+      "questions": [
+        {
+          "id": "eating_level",
+          "prompt": "Eating. Which fits best?",
+          "type": "choice",
+          "options": [
+            {
+              "value": "A",
+              "letter": "A",
+              "label": "Independent",
+              "aliases": [
+                "independent",
+                "independently",
+                "on my own",
+                "on their own",
+                "by myself",
+                "by themselves",
+                "alone"
+              ]
+            },
+            {
+              "value": "B",
+              "letter": "B",
+              "label": "Needs supervision",
+              "aliases": [
+                "needs supervision",
+                "supervision",
+                "supervised",
+                "someone watching",
+                "reminders",
+                "prompting"
+              ]
+            },
+            {
+              "value": "C",
+              "letter": "C",
+              "label": "Needs skills training",
+              "aliases": [
+                "needs skills training",
+                "skills training",
+                "skill training",
+                "training",
+                "still learning",
+                "needs to learn"
+              ]
+            },
+            {
+              "value": "D",
+              "letter": "D",
+              "label": "Needs physical assistance",
+              "aliases": [
+                "needs physical assistance",
+                "physical assistance",
+                "physical help",
+                "hands on help",
+                "assistance"
+              ]
+            },
+            {
+              "value": "E",
+              "letter": "E",
+              "label": "Total care",
+              "aliases": [
+                "total care",
+                "full care",
+                "complete care",
+                "total assistance",
+                "does it for me",
+                "does it for them"
+              ]
+            }
+          ],
+          "warn": "For each of the next activities, tell me which fits best: A, independent. B, needs supervision. C, needs skills training. D, needs physical assistance. Or E, total care. If it is anything but independent, I will ask you to explain briefly.",
+          "hint": "Say independent, needs supervision, needs skills training, needs physical assistance, or total care. Or say the letter, A through E."
+        },
+        {
+          "id": "eating_explain",
+          "prompt": "Briefly, what help is needed with eating?",
+          "type": "text",
+          "askIf": {
+            "and": [
+              {
+                "present": "eating_level"
+              },
+              {
+                "ne": [
+                  "eating_level",
+                  "A"
+                ]
+              }
+            ]
+          },
+          "hint": "For example, who helps, and how often. You can say skip."
+        },
+        {
+          "id": "dressing_level",
+          "prompt": "Dressing. Which fits best?",
+          "type": "choice",
+          "options": [
+            {
+              "value": "A",
+              "letter": "A",
+              "label": "Independent",
+              "aliases": [
+                "independent",
+                "independently",
+                "on my own",
+                "on their own",
+                "by myself",
+                "by themselves",
+                "alone"
+              ]
+            },
+            {
+              "value": "B",
+              "letter": "B",
+              "label": "Needs supervision",
+              "aliases": [
+                "needs supervision",
+                "supervision",
+                "supervised",
+                "someone watching",
+                "reminders",
+                "prompting"
+              ]
+            },
+            {
+              "value": "C",
+              "letter": "C",
+              "label": "Needs skills training",
+              "aliases": [
+                "needs skills training",
+                "skills training",
+                "skill training",
+                "training",
+                "still learning",
+                "needs to learn"
+              ]
+            },
+            {
+              "value": "D",
+              "letter": "D",
+              "label": "Needs physical assistance",
+              "aliases": [
+                "needs physical assistance",
+                "physical assistance",
+                "physical help",
+                "hands on help",
+                "assistance"
+              ]
+            },
+            {
+              "value": "E",
+              "letter": "E",
+              "label": "Total care",
+              "aliases": [
+                "total care",
+                "full care",
+                "complete care",
+                "total assistance",
+                "does it for me",
+                "does it for them"
+              ]
+            }
+          ],
+          "hint": "Say independent, needs supervision, needs skills training, needs physical assistance, or total care. Or say the letter, A through E."
+        },
+        {
+          "id": "dressing_explain",
+          "prompt": "Briefly, what help is needed with dressing?",
+          "type": "text",
+          "askIf": {
+            "and": [
+              {
+                "present": "dressing_level"
+              },
+              {
+                "ne": [
+                  "dressing_level",
+                  "A"
+                ]
+              }
+            ]
+          },
+          "hint": "For example, who helps, and how often. You can say skip."
+        },
+        {
+          "id": "toileting_level",
+          "prompt": "Using the toilet. Which fits best?",
+          "type": "choice",
+          "options": [
+            {
+              "value": "A",
+              "letter": "A",
+              "label": "Independent",
+              "aliases": [
+                "independent",
+                "independently",
+                "on my own",
+                "on their own",
+                "by myself",
+                "by themselves",
+                "alone"
+              ]
+            },
+            {
+              "value": "B",
+              "letter": "B",
+              "label": "Needs supervision",
+              "aliases": [
+                "needs supervision",
+                "supervision",
+                "supervised",
+                "someone watching",
+                "reminders",
+                "prompting"
+              ]
+            },
+            {
+              "value": "C",
+              "letter": "C",
+              "label": "Needs skills training",
+              "aliases": [
+                "needs skills training",
+                "skills training",
+                "skill training",
+                "training",
+                "still learning",
+                "needs to learn"
+              ]
+            },
+            {
+              "value": "D",
+              "letter": "D",
+              "label": "Needs physical assistance",
+              "aliases": [
+                "needs physical assistance",
+                "physical assistance",
+                "physical help",
+                "hands on help",
+                "assistance"
+              ]
+            },
+            {
+              "value": "E",
+              "letter": "E",
+              "label": "Total care",
+              "aliases": [
+                "total care",
+                "full care",
+                "complete care",
+                "total assistance",
+                "does it for me",
+                "does it for them"
+              ]
+            }
+          ],
+          "hint": "Say independent, needs supervision, needs skills training, needs physical assistance, or total care. Or say the letter, A through E."
+        },
+        {
+          "id": "toileting_explain",
+          "prompt": "Briefly, what help is needed with toileting?",
+          "type": "text",
+          "askIf": {
+            "and": [
+              {
+                "present": "toileting_level"
+              },
+              {
+                "ne": [
+                  "toileting_level",
+                  "A"
+                ]
+              }
+            ]
+          },
+          "hint": "For example, who helps, and how often. You can say skip."
+        },
+        {
+          "id": "bathing_level",
+          "prompt": "Bathing. Which fits best?",
+          "type": "choice",
+          "options": [
+            {
+              "value": "A",
+              "letter": "A",
+              "label": "Independent",
+              "aliases": [
+                "independent",
+                "independently",
+                "on my own",
+                "on their own",
+                "by myself",
+                "by themselves",
+                "alone"
+              ]
+            },
+            {
+              "value": "B",
+              "letter": "B",
+              "label": "Needs supervision",
+              "aliases": [
+                "needs supervision",
+                "supervision",
+                "supervised",
+                "someone watching",
+                "reminders",
+                "prompting"
+              ]
+            },
+            {
+              "value": "C",
+              "letter": "C",
+              "label": "Needs skills training",
+              "aliases": [
+                "needs skills training",
+                "skills training",
+                "skill training",
+                "training",
+                "still learning",
+                "needs to learn"
+              ]
+            },
+            {
+              "value": "D",
+              "letter": "D",
+              "label": "Needs physical assistance",
+              "aliases": [
+                "needs physical assistance",
+                "physical assistance",
+                "physical help",
+                "hands on help",
+                "assistance"
+              ]
+            },
+            {
+              "value": "E",
+              "letter": "E",
+              "label": "Total care",
+              "aliases": [
+                "total care",
+                "full care",
+                "complete care",
+                "total assistance",
+                "does it for me",
+                "does it for them"
+              ]
+            }
+          ],
+          "hint": "Say independent, needs supervision, needs skills training, needs physical assistance, or total care. Or say the letter, A through E."
+        },
+        {
+          "id": "bathing_explain",
+          "prompt": "Briefly, what help is needed with bathing?",
+          "type": "text",
+          "askIf": {
+            "and": [
+              {
+                "present": "bathing_level"
+              },
+              {
+                "ne": [
+                  "bathing_level",
+                  "A"
+                ]
+              }
+            ]
+          },
+          "hint": "For example, who helps, and how often. You can say skip."
+        },
+        {
+          "id": "grooming_level",
+          "prompt": "Grooming, such as brushing teeth and hair. Which fits best?",
+          "type": "choice",
+          "options": [
+            {
+              "value": "A",
+              "letter": "A",
+              "label": "Independent",
+              "aliases": [
+                "independent",
+                "independently",
+                "on my own",
+                "on their own",
+                "by myself",
+                "by themselves",
+                "alone"
+              ]
+            },
+            {
+              "value": "B",
+              "letter": "B",
+              "label": "Needs supervision",
+              "aliases": [
+                "needs supervision",
+                "supervision",
+                "supervised",
+                "someone watching",
+                "reminders",
+                "prompting"
+              ]
+            },
+            {
+              "value": "C",
+              "letter": "C",
+              "label": "Needs skills training",
+              "aliases": [
+                "needs skills training",
+                "skills training",
+                "skill training",
+                "training",
+                "still learning",
+                "needs to learn"
+              ]
+            },
+            {
+              "value": "D",
+              "letter": "D",
+              "label": "Needs physical assistance",
+              "aliases": [
+                "needs physical assistance",
+                "physical assistance",
+                "physical help",
+                "hands on help",
+                "assistance"
+              ]
+            },
+            {
+              "value": "E",
+              "letter": "E",
+              "label": "Total care",
+              "aliases": [
+                "total care",
+                "full care",
+                "complete care",
+                "total assistance",
+                "does it for me",
+                "does it for them"
+              ]
+            }
+          ],
+          "hint": "Say independent, needs supervision, needs skills training, needs physical assistance, or total care. Or say the letter, A through E."
+        },
+        {
+          "id": "grooming_explain",
+          "prompt": "Briefly, what help is needed with grooming?",
+          "type": "text",
+          "askIf": {
+            "and": [
+              {
+                "present": "grooming_level"
+              },
+              {
+                "ne": [
+                  "grooming_level",
+                  "A"
+                ]
+              }
+            ]
+          },
+          "hint": "For example, who helps, and how often. You can say skip."
+        },
+        {
+          "id": "mobility_level",
+          "prompt": "Mobility, meaning getting around. Which fits best?",
+          "type": "choice",
+          "options": [
+            {
+              "value": "A",
+              "letter": "A",
+              "label": "Independent",
+              "aliases": [
+                "independent",
+                "independently",
+                "on my own",
+                "on their own",
+                "by myself",
+                "by themselves",
+                "alone"
+              ]
+            },
+            {
+              "value": "B",
+              "letter": "B",
+              "label": "Needs supervision",
+              "aliases": [
+                "needs supervision",
+                "supervision",
+                "supervised",
+                "someone watching",
+                "reminders",
+                "prompting"
+              ]
+            },
+            {
+              "value": "C",
+              "letter": "C",
+              "label": "Needs skills training",
+              "aliases": [
+                "needs skills training",
+                "skills training",
+                "skill training",
+                "training",
+                "still learning",
+                "needs to learn"
+              ]
+            },
+            {
+              "value": "D",
+              "letter": "D",
+              "label": "Needs physical assistance",
+              "aliases": [
+                "needs physical assistance",
+                "physical assistance",
+                "physical help",
+                "hands on help",
+                "assistance"
+              ]
+            },
+            {
+              "value": "E",
+              "letter": "E",
+              "label": "Total care",
+              "aliases": [
+                "total care",
+                "full care",
+                "complete care",
+                "total assistance",
+                "does it for me",
+                "does it for them"
+              ]
+            }
+          ],
+          "hint": "Say independent, needs supervision, needs skills training, needs physical assistance, or total care. Or say the letter, A through E."
+        },
+        {
+          "id": "mobility_explain",
+          "prompt": "Briefly, what help is needed with mobility?",
+          "type": "text",
+          "askIf": {
+            "and": [
+              {
+                "present": "mobility_level"
+              },
+              {
+                "ne": [
+                  "mobility_level",
+                  "A"
+                ]
+              }
+            ]
+          },
+          "hint": "For example, who helps, and how often. You can say skip."
+        }
+      ]
+    },
+    {
+      "id": "safety",
+      "title": "Safety",
+      "forms": [
+        "ds"
+      ],
+      "questions": [
+        {
+          "id": "physical_danger_level",
+          "prompt": "Avoiding physical danger. Which fits best?",
+          "type": "choice",
+          "options": [
+            {
+              "value": "A",
+              "letter": "A",
+              "label": "Independent",
+              "aliases": [
+                "independent",
+                "independently",
+                "on my own",
+                "on their own",
+                "by myself",
+                "by themselves",
+                "alone"
+              ]
+            },
+            {
+              "value": "B",
+              "letter": "B",
+              "label": "Needs supervision",
+              "aliases": [
+                "needs supervision",
+                "supervision",
+                "supervised",
+                "someone watching",
+                "reminders",
+                "prompting"
+              ]
+            },
+            {
+              "value": "C",
+              "letter": "C",
+              "label": "Needs skills training",
+              "aliases": [
+                "needs skills training",
+                "skills training",
+                "skill training",
+                "training",
+                "still learning",
+                "needs to learn"
+              ]
+            },
+            {
+              "value": "D",
+              "letter": "D",
+              "label": "Needs physical assistance",
+              "aliases": [
+                "needs physical assistance",
+                "physical assistance",
+                "physical help",
+                "hands on help",
+                "assistance"
+              ]
+            },
+            {
+              "value": "E",
+              "letter": "E",
+              "label": "Total care",
+              "aliases": [
+                "total care",
+                "full care",
+                "complete care",
+                "total assistance",
+                "does it for me",
+                "does it for them"
+              ]
+            }
+          ],
+          "warn": "For each of the next activities, tell me which fits best: A, independent. B, needs supervision. C, needs skills training. D, needs physical assistance. Or E, total care. If it is anything but independent, I will ask you to explain briefly.",
+          "hint": "Say independent, needs supervision, needs skills training, needs physical assistance, or total care. Or say the letter, A through E."
+        },
+        {
+          "id": "physical_danger_explain",
+          "prompt": "Briefly, what help is needed with physical danger?",
+          "type": "text",
+          "askIf": {
+            "and": [
+              {
+                "present": "physical_danger_level"
+              },
+              {
+                "ne": [
+                  "physical_danger_level",
+                  "A"
+                ]
+              }
+            ]
+          },
+          "hint": "For example, who helps, and how often. You can say skip."
+        },
+        {
+          "id": "emotional_jeopardy_level",
+          "prompt": "Avoiding emotional harm. Which fits best?",
+          "type": "choice",
+          "options": [
+            {
+              "value": "A",
+              "letter": "A",
+              "label": "Independent",
+              "aliases": [
+                "independent",
+                "independently",
+                "on my own",
+                "on their own",
+                "by myself",
+                "by themselves",
+                "alone"
+              ]
+            },
+            {
+              "value": "B",
+              "letter": "B",
+              "label": "Needs supervision",
+              "aliases": [
+                "needs supervision",
+                "supervision",
+                "supervised",
+                "someone watching",
+                "reminders",
+                "prompting"
+              ]
+            },
+            {
+              "value": "C",
+              "letter": "C",
+              "label": "Needs skills training",
+              "aliases": [
+                "needs skills training",
+                "skills training",
+                "skill training",
+                "training",
+                "still learning",
+                "needs to learn"
+              ]
+            },
+            {
+              "value": "D",
+              "letter": "D",
+              "label": "Needs physical assistance",
+              "aliases": [
+                "needs physical assistance",
+                "physical assistance",
+                "physical help",
+                "hands on help",
+                "assistance"
+              ]
+            },
+            {
+              "value": "E",
+              "letter": "E",
+              "label": "Total care",
+              "aliases": [
+                "total care",
+                "full care",
+                "complete care",
+                "total assistance",
+                "does it for me",
+                "does it for them"
+              ]
+            }
+          ],
+          "hint": "Say independent, needs supervision, needs skills training, needs physical assistance, or total care. Or say the letter, A through E."
+        },
+        {
+          "id": "emotional_jeopardy_explain",
+          "prompt": "Briefly, what help is needed with emotional harm?",
+          "type": "text",
+          "askIf": {
+            "and": [
+              {
+                "present": "emotional_jeopardy_level"
+              },
+              {
+                "ne": [
+                  "emotional_jeopardy_level",
+                  "A"
+                ]
+              }
+            ]
+          },
+          "hint": "For example, who helps, and how often. You can say skip."
+        },
+        {
+          "id": "healthy_relationships_level",
+          "prompt": "Keeping relationships healthy. Which fits best?",
+          "type": "choice",
+          "options": [
+            {
+              "value": "A",
+              "letter": "A",
+              "label": "Independent",
+              "aliases": [
+                "independent",
+                "independently",
+                "on my own",
+                "on their own",
+                "by myself",
+                "by themselves",
+                "alone"
+              ]
+            },
+            {
+              "value": "B",
+              "letter": "B",
+              "label": "Needs supervision",
+              "aliases": [
+                "needs supervision",
+                "supervision",
+                "supervised",
+                "someone watching",
+                "reminders",
+                "prompting"
+              ]
+            },
+            {
+              "value": "C",
+              "letter": "C",
+              "label": "Needs skills training",
+              "aliases": [
+                "needs skills training",
+                "skills training",
+                "skill training",
+                "training",
+                "still learning",
+                "needs to learn"
+              ]
+            },
+            {
+              "value": "D",
+              "letter": "D",
+              "label": "Needs physical assistance",
+              "aliases": [
+                "needs physical assistance",
+                "physical assistance",
+                "physical help",
+                "hands on help",
+                "assistance"
+              ]
+            },
+            {
+              "value": "E",
+              "letter": "E",
+              "label": "Total care",
+              "aliases": [
+                "total care",
+                "full care",
+                "complete care",
+                "total assistance",
+                "does it for me",
+                "does it for them"
+              ]
+            }
+          ],
+          "hint": "Say independent, needs supervision, needs skills training, needs physical assistance, or total care. Or say the letter, A through E."
+        },
+        {
+          "id": "healthy_relationships_explain",
+          "prompt": "Briefly, what help is needed with healthy relationships?",
+          "type": "text",
+          "askIf": {
+            "and": [
+              {
+                "present": "healthy_relationships_level"
+              },
+              {
+                "ne": [
+                  "healthy_relationships_level",
+                  "A"
+                ]
+              }
+            ]
+          },
+          "hint": "For example, who helps, and how often. You can say skip."
+        },
+        {
+          "id": "judgment_level",
+          "prompt": "Judgment about personal conduct. Which fits best?",
+          "type": "choice",
+          "options": [
+            {
+              "value": "A",
+              "letter": "A",
+              "label": "Independent",
+              "aliases": [
+                "independent",
+                "independently",
+                "on my own",
+                "on their own",
+                "by myself",
+                "by themselves",
+                "alone"
+              ]
+            },
+            {
+              "value": "B",
+              "letter": "B",
+              "label": "Needs supervision",
+              "aliases": [
+                "needs supervision",
+                "supervision",
+                "supervised",
+                "someone watching",
+                "reminders",
+                "prompting"
+              ]
+            },
+            {
+              "value": "C",
+              "letter": "C",
+              "label": "Needs skills training",
+              "aliases": [
+                "needs skills training",
+                "skills training",
+                "skill training",
+                "training",
+                "still learning",
+                "needs to learn"
+              ]
+            },
+            {
+              "value": "D",
+              "letter": "D",
+              "label": "Needs physical assistance",
+              "aliases": [
+                "needs physical assistance",
+                "physical assistance",
+                "physical help",
+                "hands on help",
+                "assistance"
+              ]
+            },
+            {
+              "value": "E",
+              "letter": "E",
+              "label": "Total care",
+              "aliases": [
+                "total care",
+                "full care",
+                "complete care",
+                "total assistance",
+                "does it for me",
+                "does it for them"
+              ]
+            }
+          ],
+          "hint": "Say independent, needs supervision, needs skills training, needs physical assistance, or total care. Or say the letter, A through E."
+        },
+        {
+          "id": "judgment_explain",
+          "prompt": "Briefly, what help is needed with judgment?",
+          "type": "text",
+          "askIf": {
+            "and": [
+              {
+                "present": "judgment_level"
+              },
+              {
+                "ne": [
+                  "judgment_level",
+                  "A"
+                ]
+              }
+            ]
+          },
+          "hint": "For example, who helps, and how often. You can say skip."
+        }
+      ]
+    },
+    {
+      "id": "household_activities",
+      "title": "Household activities",
+      "forms": [
+        "ds"
+      ],
+      "questions": [
+        {
+          "id": "cooking_level",
+          "prompt": "Cooking. Which fits best?",
+          "type": "choice",
+          "options": [
+            {
+              "value": "A",
+              "letter": "A",
+              "label": "Independent",
+              "aliases": [
+                "independent",
+                "independently",
+                "on my own",
+                "on their own",
+                "by myself",
+                "by themselves",
+                "alone"
+              ]
+            },
+            {
+              "value": "B",
+              "letter": "B",
+              "label": "Needs supervision",
+              "aliases": [
+                "needs supervision",
+                "supervision",
+                "supervised",
+                "someone watching",
+                "reminders",
+                "prompting"
+              ]
+            },
+            {
+              "value": "C",
+              "letter": "C",
+              "label": "Needs skills training",
+              "aliases": [
+                "needs skills training",
+                "skills training",
+                "skill training",
+                "training",
+                "still learning",
+                "needs to learn"
+              ]
+            },
+            {
+              "value": "D",
+              "letter": "D",
+              "label": "Needs physical assistance",
+              "aliases": [
+                "needs physical assistance",
+                "physical assistance",
+                "physical help",
+                "hands on help",
+                "assistance"
+              ]
+            },
+            {
+              "value": "E",
+              "letter": "E",
+              "label": "Total care",
+              "aliases": [
+                "total care",
+                "full care",
+                "complete care",
+                "total assistance",
+                "does it for me",
+                "does it for them"
+              ]
+            }
+          ],
+          "warn": "For each of the next activities, tell me which fits best: A, independent. B, needs supervision. C, needs skills training. D, needs physical assistance. Or E, total care. If it is anything but independent, I will ask you to explain briefly.",
+          "hint": "Say independent, needs supervision, needs skills training, needs physical assistance, or total care. Or say the letter, A through E."
+        },
+        {
+          "id": "cooking_explain",
+          "prompt": "Briefly, what help is needed with cooking?",
+          "type": "text",
+          "askIf": {
+            "and": [
+              {
+                "present": "cooking_level"
+              },
+              {
+                "ne": [
+                  "cooking_level",
+                  "A"
+                ]
+              }
+            ]
+          },
+          "hint": "For example, who helps, and how often. You can say skip."
+        },
+        {
+          "id": "laundry_level",
+          "prompt": "Laundry. Which fits best?",
+          "type": "choice",
+          "options": [
+            {
+              "value": "A",
+              "letter": "A",
+              "label": "Independent",
+              "aliases": [
+                "independent",
+                "independently",
+                "on my own",
+                "on their own",
+                "by myself",
+                "by themselves",
+                "alone"
+              ]
+            },
+            {
+              "value": "B",
+              "letter": "B",
+              "label": "Needs supervision",
+              "aliases": [
+                "needs supervision",
+                "supervision",
+                "supervised",
+                "someone watching",
+                "reminders",
+                "prompting"
+              ]
+            },
+            {
+              "value": "C",
+              "letter": "C",
+              "label": "Needs skills training",
+              "aliases": [
+                "needs skills training",
+                "skills training",
+                "skill training",
+                "training",
+                "still learning",
+                "needs to learn"
+              ]
+            },
+            {
+              "value": "D",
+              "letter": "D",
+              "label": "Needs physical assistance",
+              "aliases": [
+                "needs physical assistance",
+                "physical assistance",
+                "physical help",
+                "hands on help",
+                "assistance"
+              ]
+            },
+            {
+              "value": "E",
+              "letter": "E",
+              "label": "Total care",
+              "aliases": [
+                "total care",
+                "full care",
+                "complete care",
+                "total assistance",
+                "does it for me",
+                "does it for them"
+              ]
+            }
+          ],
+          "hint": "Say independent, needs supervision, needs skills training, needs physical assistance, or total care. Or say the letter, A through E."
+        },
+        {
+          "id": "laundry_explain",
+          "prompt": "Briefly, what help is needed with laundry?",
+          "type": "text",
+          "askIf": {
+            "and": [
+              {
+                "present": "laundry_level"
+              },
+              {
+                "ne": [
+                  "laundry_level",
+                  "A"
+                ]
+              }
+            ]
+          },
+          "hint": "For example, who helps, and how often. You can say skip."
+        }
+      ]
+    },
+    {
+      "id": "community",
+      "title": "Getting around the community",
+      "forms": [
+        "ds"
+      ],
+      "questions": [
+        {
+          "id": "shopping_level",
+          "prompt": "Shopping. Which fits best?",
+          "type": "choice",
+          "options": [
+            {
+              "value": "A",
+              "letter": "A",
+              "label": "Independent",
+              "aliases": [
+                "independent",
+                "independently",
+                "on my own",
+                "on their own",
+                "by myself",
+                "by themselves",
+                "alone"
+              ]
+            },
+            {
+              "value": "B",
+              "letter": "B",
+              "label": "Needs supervision",
+              "aliases": [
+                "needs supervision",
+                "supervision",
+                "supervised",
+                "someone watching",
+                "reminders",
+                "prompting"
+              ]
+            },
+            {
+              "value": "C",
+              "letter": "C",
+              "label": "Needs skills training",
+              "aliases": [
+                "needs skills training",
+                "skills training",
+                "skill training",
+                "training",
+                "still learning",
+                "needs to learn"
+              ]
+            },
+            {
+              "value": "D",
+              "letter": "D",
+              "label": "Needs physical assistance",
+              "aliases": [
+                "needs physical assistance",
+                "physical assistance",
+                "physical help",
+                "hands on help",
+                "assistance"
+              ]
+            },
+            {
+              "value": "E",
+              "letter": "E",
+              "label": "Total care",
+              "aliases": [
+                "total care",
+                "full care",
+                "complete care",
+                "total assistance",
+                "does it for me",
+                "does it for them"
+              ]
+            }
+          ],
+          "warn": "For each of the next activities, tell me which fits best: A, independent. B, needs supervision. C, needs skills training. D, needs physical assistance. Or E, total care. If it is anything but independent, I will ask you to explain briefly.",
+          "hint": "Say independent, needs supervision, needs skills training, needs physical assistance, or total care. Or say the letter, A through E."
+        },
+        {
+          "id": "shopping_explain",
+          "prompt": "Briefly, what help is needed with shopping?",
+          "type": "text",
+          "askIf": {
+            "and": [
+              {
+                "present": "shopping_level"
+              },
+              {
+                "ne": [
+                  "shopping_level",
+                  "A"
+                ]
+              }
+            ]
+          },
+          "hint": "For example, who helps, and how often. You can say skip."
+        },
+        {
+          "id": "transportation_level",
+          "prompt": "Transportation. Which fits best?",
+          "type": "choice",
+          "options": [
+            {
+              "value": "A",
+              "letter": "A",
+              "label": "Independent",
+              "aliases": [
+                "independent",
+                "independently",
+                "on my own",
+                "on their own",
+                "by myself",
+                "by themselves",
+                "alone"
+              ]
+            },
+            {
+              "value": "B",
+              "letter": "B",
+              "label": "Needs supervision",
+              "aliases": [
+                "needs supervision",
+                "supervision",
+                "supervised",
+                "someone watching",
+                "reminders",
+                "prompting"
+              ]
+            },
+            {
+              "value": "C",
+              "letter": "C",
+              "label": "Needs skills training",
+              "aliases": [
+                "needs skills training",
+                "skills training",
+                "skill training",
+                "training",
+                "still learning",
+                "needs to learn"
+              ]
+            },
+            {
+              "value": "D",
+              "letter": "D",
+              "label": "Needs physical assistance",
+              "aliases": [
+                "needs physical assistance",
+                "physical assistance",
+                "physical help",
+                "hands on help",
+                "assistance"
+              ]
+            },
+            {
+              "value": "E",
+              "letter": "E",
+              "label": "Total care",
+              "aliases": [
+                "total care",
+                "full care",
+                "complete care",
+                "total assistance",
+                "does it for me",
+                "does it for them"
+              ]
+            }
+          ],
+          "hint": "Say independent, needs supervision, needs skills training, needs physical assistance, or total care. Or say the letter, A through E."
+        },
+        {
+          "id": "transportation_explain",
+          "prompt": "Briefly, what help is needed with transportation?",
+          "type": "text",
+          "askIf": {
+            "and": [
+              {
+                "present": "transportation_level"
+              },
+              {
+                "ne": [
+                  "transportation_level",
+                  "A"
+                ]
+              }
+            ]
+          },
+          "hint": "For example, who helps, and how often. You can say skip."
+        },
+        {
+          "id": "banking_level",
+          "prompt": "Banking and handling money. Which fits best?",
+          "type": "choice",
+          "options": [
+            {
+              "value": "A",
+              "letter": "A",
+              "label": "Independent",
+              "aliases": [
+                "independent",
+                "independently",
+                "on my own",
+                "on their own",
+                "by myself",
+                "by themselves",
+                "alone"
+              ]
+            },
+            {
+              "value": "B",
+              "letter": "B",
+              "label": "Needs supervision",
+              "aliases": [
+                "needs supervision",
+                "supervision",
+                "supervised",
+                "someone watching",
+                "reminders",
+                "prompting"
+              ]
+            },
+            {
+              "value": "C",
+              "letter": "C",
+              "label": "Needs skills training",
+              "aliases": [
+                "needs skills training",
+                "skills training",
+                "skill training",
+                "training",
+                "still learning",
+                "needs to learn"
+              ]
+            },
+            {
+              "value": "D",
+              "letter": "D",
+              "label": "Needs physical assistance",
+              "aliases": [
+                "needs physical assistance",
+                "physical assistance",
+                "physical help",
+                "hands on help",
+                "assistance"
+              ]
+            },
+            {
+              "value": "E",
+              "letter": "E",
+              "label": "Total care",
+              "aliases": [
+                "total care",
+                "full care",
+                "complete care",
+                "total assistance",
+                "does it for me",
+                "does it for them"
+              ]
+            }
+          ],
+          "hint": "Say independent, needs supervision, needs skills training, needs physical assistance, or total care. Or say the letter, A through E."
+        },
+        {
+          "id": "banking_explain",
+          "prompt": "Briefly, what help is needed with banking?",
+          "type": "text",
+          "askIf": {
+            "and": [
+              {
+                "present": "banking_level"
+              },
+              {
+                "ne": [
+                  "banking_level",
+                  "A"
+                ]
+              }
+            ]
+          },
+          "hint": "For example, who helps, and how often. You can say skip."
+        },
+        {
+          "id": "recreation_level",
+          "prompt": "Recreation. Which fits best?",
+          "type": "choice",
+          "options": [
+            {
+              "value": "A",
+              "letter": "A",
+              "label": "Independent",
+              "aliases": [
+                "independent",
+                "independently",
+                "on my own",
+                "on their own",
+                "by myself",
+                "by themselves",
+                "alone"
+              ]
+            },
+            {
+              "value": "B",
+              "letter": "B",
+              "label": "Needs supervision",
+              "aliases": [
+                "needs supervision",
+                "supervision",
+                "supervised",
+                "someone watching",
+                "reminders",
+                "prompting"
+              ]
+            },
+            {
+              "value": "C",
+              "letter": "C",
+              "label": "Needs skills training",
+              "aliases": [
+                "needs skills training",
+                "skills training",
+                "skill training",
+                "training",
+                "still learning",
+                "needs to learn"
+              ]
+            },
+            {
+              "value": "D",
+              "letter": "D",
+              "label": "Needs physical assistance",
+              "aliases": [
+                "needs physical assistance",
+                "physical assistance",
+                "physical help",
+                "hands on help",
+                "assistance"
+              ]
+            },
+            {
+              "value": "E",
+              "letter": "E",
+              "label": "Total care",
+              "aliases": [
+                "total care",
+                "full care",
+                "complete care",
+                "total assistance",
+                "does it for me",
+                "does it for them"
+              ]
+            }
+          ],
+          "hint": "Say independent, needs supervision, needs skills training, needs physical assistance, or total care. Or say the letter, A through E."
+        },
+        {
+          "id": "recreation_explain",
+          "prompt": "Briefly, what help is needed with recreation?",
+          "type": "text",
+          "askIf": {
+            "and": [
+              {
+                "present": "recreation_level"
+              },
+              {
+                "ne": [
+                  "recreation_level",
+                  "A"
+                ]
+              }
+            ]
+          },
+          "hint": "For example, who helps, and how often. You can say skip."
+        }
+      ]
+    },
+    {
+      "id": "relationships",
+      "title": "Keeping up relationships",
+      "forms": [
+        "ds"
+      ],
+      "questions": [
+        {
+          "id": "rel_family_level",
+          "prompt": "Relationships with family. Which fits best?",
+          "type": "choice",
+          "options": [
+            {
+              "value": "A",
+              "letter": "A",
+              "label": "Independent",
+              "aliases": [
+                "independent",
+                "independently",
+                "on my own",
+                "on their own",
+                "by myself",
+                "by themselves",
+                "alone"
+              ]
+            },
+            {
+              "value": "B",
+              "letter": "B",
+              "label": "Needs supervision",
+              "aliases": [
+                "needs supervision",
+                "supervision",
+                "supervised",
+                "someone watching",
+                "reminders",
+                "prompting"
+              ]
+            },
+            {
+              "value": "C",
+              "letter": "C",
+              "label": "Needs skills training",
+              "aliases": [
+                "needs skills training",
+                "skills training",
+                "skill training",
+                "training",
+                "still learning",
+                "needs to learn"
+              ]
+            },
+            {
+              "value": "D",
+              "letter": "D",
+              "label": "Needs physical assistance",
+              "aliases": [
+                "needs physical assistance",
+                "physical assistance",
+                "physical help",
+                "hands on help",
+                "assistance"
+              ]
+            },
+            {
+              "value": "E",
+              "letter": "E",
+              "label": "Total care",
+              "aliases": [
+                "total care",
+                "full care",
+                "complete care",
+                "total assistance",
+                "does it for me",
+                "does it for them"
+              ]
+            }
+          ],
+          "warn": "For each of the next activities, tell me which fits best: A, independent. B, needs supervision. C, needs skills training. D, needs physical assistance. Or E, total care. If it is anything but independent, I will ask you to explain briefly.",
+          "hint": "Say independent, needs supervision, needs skills training, needs physical assistance, or total care. Or say the letter, A through E."
+        },
+        {
+          "id": "rel_family_explain",
+          "prompt": "Briefly, what help is needed with family relationships?",
+          "type": "text",
+          "askIf": {
+            "and": [
+              {
+                "present": "rel_family_level"
+              },
+              {
+                "ne": [
+                  "rel_family_level",
+                  "A"
+                ]
+              }
+            ]
+          },
+          "hint": "For example, who helps, and how often. You can say skip."
+        },
+        {
+          "id": "rel_friends_level",
+          "prompt": "Relationships with friends. Which fits best?",
+          "type": "choice",
+          "options": [
+            {
+              "value": "A",
+              "letter": "A",
+              "label": "Independent",
+              "aliases": [
+                "independent",
+                "independently",
+                "on my own",
+                "on their own",
+                "by myself",
+                "by themselves",
+                "alone"
+              ]
+            },
+            {
+              "value": "B",
+              "letter": "B",
+              "label": "Needs supervision",
+              "aliases": [
+                "needs supervision",
+                "supervision",
+                "supervised",
+                "someone watching",
+                "reminders",
+                "prompting"
+              ]
+            },
+            {
+              "value": "C",
+              "letter": "C",
+              "label": "Needs skills training",
+              "aliases": [
+                "needs skills training",
+                "skills training",
+                "skill training",
+                "training",
+                "still learning",
+                "needs to learn"
+              ]
+            },
+            {
+              "value": "D",
+              "letter": "D",
+              "label": "Needs physical assistance",
+              "aliases": [
+                "needs physical assistance",
+                "physical assistance",
+                "physical help",
+                "hands on help",
+                "assistance"
+              ]
+            },
+            {
+              "value": "E",
+              "letter": "E",
+              "label": "Total care",
+              "aliases": [
+                "total care",
+                "full care",
+                "complete care",
+                "total assistance",
+                "does it for me",
+                "does it for them"
+              ]
+            }
+          ],
+          "hint": "Say independent, needs supervision, needs skills training, needs physical assistance, or total care. Or say the letter, A through E."
+        },
+        {
+          "id": "rel_friends_explain",
+          "prompt": "Briefly, what help is needed with friends?",
+          "type": "text",
+          "askIf": {
+            "and": [
+              {
+                "present": "rel_friends_level"
+              },
+              {
+                "ne": [
+                  "rel_friends_level",
+                  "A"
+                ]
+              }
+            ]
+          },
+          "hint": "For example, who helps, and how often. You can say skip."
+        },
+        {
+          "id": "rel_coworkers_level",
+          "prompt": "Relationships with coworkers. Which fits best?",
+          "type": "choice",
+          "options": [
+            {
+              "value": "A",
+              "letter": "A",
+              "label": "Independent",
+              "aliases": [
+                "independent",
+                "independently",
+                "on my own",
+                "on their own",
+                "by myself",
+                "by themselves",
+                "alone"
+              ]
+            },
+            {
+              "value": "B",
+              "letter": "B",
+              "label": "Needs supervision",
+              "aliases": [
+                "needs supervision",
+                "supervision",
+                "supervised",
+                "someone watching",
+                "reminders",
+                "prompting"
+              ]
+            },
+            {
+              "value": "C",
+              "letter": "C",
+              "label": "Needs skills training",
+              "aliases": [
+                "needs skills training",
+                "skills training",
+                "skill training",
+                "training",
+                "still learning",
+                "needs to learn"
+              ]
+            },
+            {
+              "value": "D",
+              "letter": "D",
+              "label": "Needs physical assistance",
+              "aliases": [
+                "needs physical assistance",
+                "physical assistance",
+                "physical help",
+                "hands on help",
+                "assistance"
+              ]
+            },
+            {
+              "value": "E",
+              "letter": "E",
+              "label": "Total care",
+              "aliases": [
+                "total care",
+                "full care",
+                "complete care",
+                "total assistance",
+                "does it for me",
+                "does it for them"
+              ]
+            }
+          ],
+          "hint": "Say independent, needs supervision, needs skills training, needs physical assistance, or total care. Or say the letter, A through E."
+        },
+        {
+          "id": "rel_coworkers_explain",
+          "prompt": "Briefly, what help is needed with coworkers?",
+          "type": "text",
+          "askIf": {
+            "and": [
+              {
+                "present": "rel_coworkers_level"
+              },
+              {
+                "ne": [
+                  "rel_coworkers_level",
+                  "A"
+                ]
+              }
+            ]
+          },
+          "hint": "For example, who helps, and how often. You can say skip."
+        },
+        {
+          "id": "rel_support_staff_level",
+          "prompt": "Relationships with support staff. Which fits best?",
+          "type": "choice",
+          "options": [
+            {
+              "value": "A",
+              "letter": "A",
+              "label": "Independent",
+              "aliases": [
+                "independent",
+                "independently",
+                "on my own",
+                "on their own",
+                "by myself",
+                "by themselves",
+                "alone"
+              ]
+            },
+            {
+              "value": "B",
+              "letter": "B",
+              "label": "Needs supervision",
+              "aliases": [
+                "needs supervision",
+                "supervision",
+                "supervised",
+                "someone watching",
+                "reminders",
+                "prompting"
+              ]
+            },
+            {
+              "value": "C",
+              "letter": "C",
+              "label": "Needs skills training",
+              "aliases": [
+                "needs skills training",
+                "skills training",
+                "skill training",
+                "training",
+                "still learning",
+                "needs to learn"
+              ]
+            },
+            {
+              "value": "D",
+              "letter": "D",
+              "label": "Needs physical assistance",
+              "aliases": [
+                "needs physical assistance",
+                "physical assistance",
+                "physical help",
+                "hands on help",
+                "assistance"
+              ]
+            },
+            {
+              "value": "E",
+              "letter": "E",
+              "label": "Total care",
+              "aliases": [
+                "total care",
+                "full care",
+                "complete care",
+                "total assistance",
+                "does it for me",
+                "does it for them"
+              ]
+            }
+          ],
+          "hint": "Say independent, needs supervision, needs skills training, needs physical assistance, or total care. Or say the letter, A through E."
+        },
+        {
+          "id": "rel_support_staff_explain",
+          "prompt": "Briefly, what help is needed with support staff?",
+          "type": "text",
+          "askIf": {
+            "and": [
+              {
+                "present": "rel_support_staff_level"
+              },
+              {
+                "ne": [
+                  "rel_support_staff_level",
+                  "A"
+                ]
+              }
+            ]
+          },
+          "hint": "For example, who helps, and how often. You can say skip."
+        }
+      ]
+    },
+    {
+      "id": "communication",
+      "title": "Communication",
+      "forms": [
+        "ds"
+      ],
+      "questions": [
+        {
+          "id": "expressive_level",
+          "prompt": "Expressing yourself, called expressive communication. Which fits best?",
+          "type": "choice",
+          "options": [
+            {
+              "value": "A",
+              "letter": "A",
+              "label": "Independent",
+              "aliases": [
+                "independent",
+                "independently",
+                "on my own",
+                "on their own",
+                "by myself",
+                "by themselves",
+                "alone"
+              ]
+            },
+            {
+              "value": "B",
+              "letter": "B",
+              "label": "Needs supervision",
+              "aliases": [
+                "needs supervision",
+                "supervision",
+                "supervised",
+                "someone watching",
+                "reminders",
+                "prompting"
+              ]
+            },
+            {
+              "value": "C",
+              "letter": "C",
+              "label": "Needs skills training",
+              "aliases": [
+                "needs skills training",
+                "skills training",
+                "skill training",
+                "training",
+                "still learning",
+                "needs to learn"
+              ]
+            },
+            {
+              "value": "D",
+              "letter": "D",
+              "label": "Needs physical assistance",
+              "aliases": [
+                "needs physical assistance",
+                "physical assistance",
+                "physical help",
+                "hands on help",
+                "assistance"
+              ]
+            },
+            {
+              "value": "E",
+              "letter": "E",
+              "label": "Total care",
+              "aliases": [
+                "total care",
+                "full care",
+                "complete care",
+                "total assistance",
+                "does it for me",
+                "does it for them"
+              ]
+            }
+          ],
+          "warn": "For each of the next activities, tell me which fits best: A, independent. B, needs supervision. C, needs skills training. D, needs physical assistance. Or E, total care. If it is anything but independent, I will ask you to explain briefly.",
+          "hint": "Say independent, needs supervision, needs skills training, needs physical assistance, or total care. Or say the letter, A through E."
+        },
+        {
+          "id": "expressive_explain",
+          "prompt": "Briefly, what help is needed with expressive communication?",
+          "type": "text",
+          "askIf": {
+            "and": [
+              {
+                "present": "expressive_level"
+              },
+              {
+                "ne": [
+                  "expressive_level",
+                  "A"
+                ]
+              }
+            ]
+          },
+          "hint": "For example, who helps, and how often. You can say skip."
+        },
+        {
+          "id": "receptive_level",
+          "prompt": "Understanding others, called receptive communication. Which fits best?",
+          "type": "choice",
+          "options": [
+            {
+              "value": "A",
+              "letter": "A",
+              "label": "Independent",
+              "aliases": [
+                "independent",
+                "independently",
+                "on my own",
+                "on their own",
+                "by myself",
+                "by themselves",
+                "alone"
+              ]
+            },
+            {
+              "value": "B",
+              "letter": "B",
+              "label": "Needs supervision",
+              "aliases": [
+                "needs supervision",
+                "supervision",
+                "supervised",
+                "someone watching",
+                "reminders",
+                "prompting"
+              ]
+            },
+            {
+              "value": "C",
+              "letter": "C",
+              "label": "Needs skills training",
+              "aliases": [
+                "needs skills training",
+                "skills training",
+                "skill training",
+                "training",
+                "still learning",
+                "needs to learn"
+              ]
+            },
+            {
+              "value": "D",
+              "letter": "D",
+              "label": "Needs physical assistance",
+              "aliases": [
+                "needs physical assistance",
+                "physical assistance",
+                "physical help",
+                "hands on help",
+                "assistance"
+              ]
+            },
+            {
+              "value": "E",
+              "letter": "E",
+              "label": "Total care",
+              "aliases": [
+                "total care",
+                "full care",
+                "complete care",
+                "total assistance",
+                "does it for me",
+                "does it for them"
+              ]
+            }
+          ],
+          "hint": "Say independent, needs supervision, needs skills training, needs physical assistance, or total care. Or say the letter, A through E."
+        },
+        {
+          "id": "receptive_explain",
+          "prompt": "Briefly, what help is needed with receptive communication?",
+          "type": "text",
+          "askIf": {
+            "and": [
+              {
+                "present": "receptive_level"
+              },
+              {
+                "ne": [
+                  "receptive_level",
+                  "A"
+                ]
+              }
+            ]
+          },
+          "hint": "For example, who helps, and how often. You can say skip."
+        },
+        {
+          "id": "sign_language_level",
+          "prompt": "Sign language. Which fits best?",
+          "type": "choice",
+          "options": [
+            {
+              "value": "A",
+              "letter": "A",
+              "label": "Independent",
+              "aliases": [
+                "independent",
+                "independently",
+                "on my own",
+                "on their own",
+                "by myself",
+                "by themselves",
+                "alone"
+              ]
+            },
+            {
+              "value": "B",
+              "letter": "B",
+              "label": "Needs supervision",
+              "aliases": [
+                "needs supervision",
+                "supervision",
+                "supervised",
+                "someone watching",
+                "reminders",
+                "prompting"
+              ]
+            },
+            {
+              "value": "C",
+              "letter": "C",
+              "label": "Needs skills training",
+              "aliases": [
+                "needs skills training",
+                "skills training",
+                "skill training",
+                "training",
+                "still learning",
+                "needs to learn"
+              ]
+            },
+            {
+              "value": "D",
+              "letter": "D",
+              "label": "Needs physical assistance",
+              "aliases": [
+                "needs physical assistance",
+                "physical assistance",
+                "physical help",
+                "hands on help",
+                "assistance"
+              ]
+            },
+            {
+              "value": "E",
+              "letter": "E",
+              "label": "Total care",
+              "aliases": [
+                "total care",
+                "full care",
+                "complete care",
+                "total assistance",
+                "does it for me",
+                "does it for them"
+              ]
+            }
+          ],
+          "hint": "Say independent, needs supervision, needs skills training, needs physical assistance, or total care. Or say the letter, A through E. If this does not apply, say skip."
+        },
+        {
+          "id": "sign_language_explain",
+          "prompt": "Briefly, what help is needed with sign language?",
+          "type": "text",
+          "askIf": {
+            "and": [
+              {
+                "present": "sign_language_level"
+              },
+              {
+                "ne": [
+                  "sign_language_level",
+                  "A"
+                ]
+              }
+            ]
+          },
+          "hint": "For example, who helps, and how often. You can say skip."
+        },
+        {
+          "id": "visual_gestural_level",
+          "prompt": "Visual or gestural communication, such as pointing or pictures. Which fits best?",
+          "type": "choice",
+          "options": [
+            {
+              "value": "A",
+              "letter": "A",
+              "label": "Independent",
+              "aliases": [
+                "independent",
+                "independently",
+                "on my own",
+                "on their own",
+                "by myself",
+                "by themselves",
+                "alone"
+              ]
+            },
+            {
+              "value": "B",
+              "letter": "B",
+              "label": "Needs supervision",
+              "aliases": [
+                "needs supervision",
+                "supervision",
+                "supervised",
+                "someone watching",
+                "reminders",
+                "prompting"
+              ]
+            },
+            {
+              "value": "C",
+              "letter": "C",
+              "label": "Needs skills training",
+              "aliases": [
+                "needs skills training",
+                "skills training",
+                "skill training",
+                "training",
+                "still learning",
+                "needs to learn"
+              ]
+            },
+            {
+              "value": "D",
+              "letter": "D",
+              "label": "Needs physical assistance",
+              "aliases": [
+                "needs physical assistance",
+                "physical assistance",
+                "physical help",
+                "hands on help",
+                "assistance"
+              ]
+            },
+            {
+              "value": "E",
+              "letter": "E",
+              "label": "Total care",
+              "aliases": [
+                "total care",
+                "full care",
+                "complete care",
+                "total assistance",
+                "does it for me",
+                "does it for them"
+              ]
+            }
+          ],
+          "hint": "Say independent, needs supervision, needs skills training, needs physical assistance, or total care. Or say the letter, A through E. If this does not apply, say skip."
+        },
+        {
+          "id": "visual_gestural_explain",
+          "prompt": "Briefly, what help is needed with visual communication?",
+          "type": "text",
+          "askIf": {
+            "and": [
+              {
+                "present": "visual_gestural_level"
+              },
+              {
+                "ne": [
+                  "visual_gestural_level",
+                  "A"
+                ]
+              }
+            ]
+          },
+          "hint": "For example, who helps, and how often. You can say skip."
+        }
+      ]
+    },
+    {
+      "id": "ds_documents",
+      "title": "Documents to send with the application",
+      "forms": [
+        "ds"
+      ],
+      "questions": [
+        {
+          "id": "has_comprehensive_eval",
+          "prompt": "Do you have a comprehensive evaluation, done by a licensed physician or psychologist?",
+          "type": "yesno",
+          "warn": "Maine asks for some evaluations to be sent with this application. I will ask which ones you already have. If you do not have them, the intake coordinator can arrange them."
+        },
+        {
+          "id": "has_adaptive_test",
+          "prompt": "Do you have a completed adaptive behavior test?",
+          "type": "yesno"
+        },
+        {
+          "id": "has_iq_test",
+          "prompt": "Do you have a completed intelligence test, sometimes called an IQ test?",
+          "type": "yesno"
+        },
+        {
+          "id": "has_other_assessments",
+          "prompt": "Do you have any other assessments, such as a psychosocial evaluation or an education plan, called an IEP?",
+          "type": "yesno"
+        }
+      ]
+    },
+    {
+      "id": "direct_deposit",
+      "title": "Direct deposit for benefit payments",
+      "forms": [
+        "ssa"
+      ],
+      "questions": [
+        {
+          "id": "routing_number",
+          "prompt": "What is your bank's 9-digit routing number?",
+          "type": "routing",
+          "confirm": true,
+          "warn": "Last section. I need your bank routing and account numbers for direct deposit. They are saved only on this device, and they are never sent to Social Security. You can say skip to leave them blank, or type them instead of saying them.",
+          "hint": "You can say the nine digits one at a time, and it is fine to pause between groups."
+        },
+        {
+          "id": "account_number",
+          "prompt": "What is your bank account number?",
+          "type": "account",
+          "confirm": true,
+          "hint": "You can say the digits one at a time, and it is fine to pause between groups."
+        }
+      ]
+    }
+  ],
+  "ratingOptions": [
+    {
+      "value": "A",
+      "letter": "A",
+      "label": "Independent",
+      "aliases": [
+        "independent",
+        "independently",
+        "on my own",
+        "on their own",
+        "by myself",
+        "by themselves",
+        "alone"
+      ]
+    },
+    {
+      "value": "B",
+      "letter": "B",
+      "label": "Needs supervision",
+      "aliases": [
+        "needs supervision",
+        "supervision",
+        "supervised",
+        "someone watching",
+        "reminders",
+        "prompting"
+      ]
+    },
+    {
+      "value": "C",
+      "letter": "C",
+      "label": "Needs skills training",
+      "aliases": [
+        "needs skills training",
+        "skills training",
+        "skill training",
+        "training",
+        "still learning",
+        "needs to learn"
+      ]
+    },
+    {
+      "value": "D",
+      "letter": "D",
+      "label": "Needs physical assistance",
+      "aliases": [
+        "needs physical assistance",
+        "physical assistance",
+        "physical help",
+        "hands on help",
+        "assistance"
+      ]
+    },
+    {
+      "value": "E",
+      "letter": "E",
+      "label": "Total care",
+      "aliases": [
+        "total care",
+        "full care",
+        "complete care",
+        "total assistance",
+        "does it for me",
+        "does it for them"
+      ]
+    }
+  ],
+  "ratingGroups": [
+    {
+      "id": "adl",
+      "title": "Daily living activities",
+      "activities": [
+        {
+          "key": "eating",
+          "label": "Eating",
+          "say": "Eating",
+          "short": "eating"
+        },
+        {
+          "key": "dressing",
+          "label": "Dressing",
+          "say": "Dressing",
+          "short": "dressing"
+        },
+        {
+          "key": "toileting",
+          "label": "Toileting",
+          "say": "Using the toilet",
+          "short": "toileting"
+        },
+        {
+          "key": "bathing",
+          "label": "Bathing",
+          "say": "Bathing",
+          "short": "bathing"
+        },
+        {
+          "key": "grooming",
+          "label": "Grooming",
+          "say": "Grooming, such as brushing teeth and hair",
+          "short": "grooming"
+        },
+        {
+          "key": "mobility",
+          "label": "Mobility",
+          "say": "Mobility, meaning getting around",
+          "short": "mobility"
+        }
+      ]
+    },
+    {
+      "id": "safety",
+      "title": "Safety",
+      "activities": [
+        {
+          "key": "physical_danger",
+          "label": "Avoidance of physical danger",
+          "say": "Avoiding physical danger",
+          "short": "physical danger"
+        },
+        {
+          "key": "emotional_jeopardy",
+          "label": "Avoidance of emotional jeopardy",
+          "say": "Avoiding emotional harm",
+          "short": "emotional harm"
+        },
+        {
+          "key": "healthy_relationships",
+          "label": "Engagement in healthy relationships",
+          "say": "Keeping relationships healthy",
+          "short": "healthy relationships"
+        },
+        {
+          "key": "judgment",
+          "label": "Judgment regarding personal conduct",
+          "say": "Judgment about personal conduct",
+          "short": "judgment"
+        }
+      ]
+    },
+    {
+      "id": "household_activities",
+      "title": "Household activities",
+      "activities": [
+        {
+          "key": "cooking",
+          "label": "Cooking",
+          "say": "Cooking",
+          "short": "cooking"
+        },
+        {
+          "key": "laundry",
+          "label": "Laundry",
+          "say": "Laundry",
+          "short": "laundry"
+        }
+      ]
+    },
+    {
+      "id": "community",
+      "title": "Getting around the community",
+      "activities": [
+        {
+          "key": "shopping",
+          "label": "Shopping",
+          "say": "Shopping",
+          "short": "shopping"
+        },
+        {
+          "key": "transportation",
+          "label": "Transportation",
+          "say": "Transportation",
+          "short": "transportation"
+        },
+        {
+          "key": "banking",
+          "label": "Banking",
+          "say": "Banking and handling money",
+          "short": "banking"
+        },
+        {
+          "key": "recreation",
+          "label": "Recreation",
+          "say": "Recreation",
+          "short": "recreation"
+        }
+      ]
+    },
+    {
+      "id": "relationships",
+      "title": "Keeping up relationships",
+      "activities": [
+        {
+          "key": "rel_family",
+          "label": "Family",
+          "say": "Relationships with family",
+          "short": "family relationships"
+        },
+        {
+          "key": "rel_friends",
+          "label": "Friends",
+          "say": "Relationships with friends",
+          "short": "friends"
+        },
+        {
+          "key": "rel_coworkers",
+          "label": "Coworkers",
+          "say": "Relationships with coworkers",
+          "short": "coworkers"
+        },
+        {
+          "key": "rel_support_staff",
+          "label": "Support staff",
+          "say": "Relationships with support staff",
+          "short": "support staff"
+        }
+      ]
+    },
+    {
+      "id": "communication",
+      "title": "Communication",
+      "activities": [
+        {
+          "key": "expressive",
+          "label": "Expressive communication",
+          "say": "Expressing yourself, called expressive communication",
+          "short": "expressive communication"
+        },
+        {
+          "key": "receptive",
+          "label": "Receptive communication",
+          "say": "Understanding others, called receptive communication",
+          "short": "receptive communication"
+        },
+        {
+          "key": "sign_language",
+          "label": "Sign language",
+          "say": "Sign language",
+          "short": "sign language",
+          "optional": true
+        },
+        {
+          "key": "visual_gestural",
+          "label": "Visual or gestural",
+          "say": "Visual or gestural communication, such as pointing or pictures",
+          "short": "visual communication",
+          "optional": true
+        }
+      ]
+    }
+  ],
+  "digitTypes": [
+    "ssn",
+    "phone",
+    "routing",
+    "account",
+    "zip"
+  ],
+  "sensitiveTypes": [
+    "ssn",
+    "routing",
+    "account"
+  ],
+  "correct": {
+    "aliases": {
+      "first_name": [
+        "first name",
+        "my name",
+        "given name"
+      ],
+      "last_name": [
+        "last name",
+        "surname",
+        "family name"
+      ],
+      "date_of_birth": [
+        "date of birth",
+        "birthday",
+        "birth date",
+        "dob",
+        "when i was born"
+      ],
+      "birth_city": [
+        "city i was born",
+        "birth city",
+        "city of birth"
+      ],
+      "birth_state": [
+        "state i was born",
+        "birth state",
+        "state of birth"
+      ],
+      "birth_country": [
+        "country i was born",
+        "birth country",
+        "country of birth"
+      ],
+      "ssn": [
+        "social security number",
+        "social security",
+        "social",
+        "ssn",
+        "my number"
+      ],
+      "onset_date": [
+        "onset date",
+        "when my condition started",
+        "when it started",
+        "start of my condition"
+      ],
+      "wc_receives": [
+        "workers comp",
+        "workers' compensation",
+        "workmans comp",
+        "disability benefit"
+      ],
+      "wc_injury_date": [
+        "date of injury",
+        "injury date",
+        "when i was injured"
+      ],
+      "wc_claim_number": [
+        "workers comp claim number",
+        "workers' compensation claim number",
+        "claim number"
+      ],
+      "wc_settlement": [
+        "settlement",
+        "settlement agreement"
+      ],
+      "wc_source": [
+        "source of payment",
+        "who pays"
+      ],
+      "wc_amount": [
+        "payment amount",
+        "how much i get"
+      ],
+      "records_permission": [
+        "permission",
+        "medical records permission",
+        "release"
+      ],
+      "ref1_name": [
+        "first reference",
+        "reference one",
+        "first person",
+        "contact name"
+      ],
+      "ref1_phone": [
+        "first reference phone number",
+        "first reference phone",
+        "reference one phone",
+        "reference phone number",
+        "phone number",
+        "phone"
+      ],
+      "ref2_name": [
+        "second reference",
+        "reference two",
+        "second person"
+      ],
+      "ref2_phone": [
+        "second reference phone",
+        "reference two phone"
+      ],
+      "earnings_reviewed": [
+        "earnings record",
+        "earnings"
+      ],
+      "education_level": [
+        "education",
+        "education level",
+        "school level",
+        "highest grade"
+      ],
+      "education_year": [
+        "year i finished school",
+        "education year",
+        "graduation year"
+      ],
+      "education_school": [
+        "school",
+        "school name",
+        "institution"
+      ],
+      "special_ed": [
+        "special education",
+        "special ed"
+      ],
+      "special_ed_where": [
+        "where i had special education"
+      ],
+      "special_ed_year": [
+        "special education year"
+      ],
+      "rents": [
+        "rent",
+        "do i rent",
+        "renting"
+      ],
+      "landlord_name": [
+        "landlord",
+        "landlord name"
+      ],
+      "landlord_phone": [
+        "landlord phone number",
+        "landlord phone",
+        "landlord number",
+        "phone number",
+        "phone"
+      ],
+      "has_rental_contract": [
+        "rental contract",
+        "lease"
+      ],
+      "has_admission_agreement": [
+        "admission agreement"
+      ],
+      "recent_admission": [
+        "recent admission",
+        "hospital stay"
+      ],
+      "has_admit_papers": [
+        "admit papers",
+        "discharge papers"
+      ],
+      "routing_number": [
+        "routing number",
+        "routing",
+        "bank routing"
+      ],
+      "account_number": [
+        "account number",
+        "bank account",
+        "account"
+      ],
+      "forms": [
+        "form",
+        "forms",
+        "which form",
+        "which forms",
+        "form choice"
+      ],
+      "for_self": [
+        "for myself",
+        "filling it out for myself",
+        "who is filling this out"
+      ],
+      "helper_name": [
+        "my agency",
+        "agency",
+        "agency name",
+        "helper name",
+        "person completing"
+      ],
+      "helper_address": [
+        "my mailing address",
+        "agency address",
+        "helper address"
+      ],
+      "helper_phone": [
+        "my phone",
+        "agency phone",
+        "helper phone"
+      ],
+      "helper_fax": [
+        "fax",
+        "fax number"
+      ],
+      "helper_email": [
+        "agency email",
+        "helper email"
+      ],
+      "home_street": [
+        "street address",
+        "home address",
+        "address"
+      ],
+      "home_town": [
+        "town",
+        "city",
+        "town i live in",
+        "home town"
+      ],
+      "home_state": [
+        "state i live in",
+        "home state"
+      ],
+      "home_zip": [
+        "zip code",
+        "zip",
+        "postal code"
+      ],
+      "mailing_address": [
+        "mailing address"
+      ],
+      "applicant_phone": [
+        "my phone number",
+        "my phone",
+        "phone number",
+        "phone"
+      ],
+      "applicant_email": [
+        "my email",
+        "email address",
+        "email"
+      ],
+      "primary_language": [
+        "language",
+        "primary language"
+      ],
+      "deaf_hoh": [
+        "deaf",
+        "hard of hearing",
+        "hearing"
+      ],
+      "gender": [
+        "gender",
+        "sex"
+      ],
+      "mainecare_number": [
+        "mainecare",
+        "mainecare number",
+        "medicaid number"
+      ],
+      "marital_status": [
+        "marital status",
+        "married"
+      ],
+      "has_guardian": [
+        "guardian",
+        "power of attorney",
+        "do i have a guardian"
+      ],
+      "guardian_name": [
+        "guardian's name",
+        "guardian name"
+      ],
+      "guardian_relationship": [
+        "guardian's relationship",
+        "guardian relationship"
+      ],
+      "guardian_address": [
+        "guardian's address",
+        "guardian address"
+      ],
+      "guardian_city": [
+        "guardian's town",
+        "guardian's city"
+      ],
+      "guardian_county": [
+        "guardian's county"
+      ],
+      "guardian_zip": [
+        "guardian's zip",
+        "guardian's zip code"
+      ],
+      "guardian_phone": [
+        "guardian's phone number",
+        "guardian's phone",
+        "guardian phone"
+      ],
+      "guardian_email": [
+        "guardian's email",
+        "guardian email"
+      ],
+      "ec_same_as_guardian": [
+        "guardian as emergency contact"
+      ],
+      "ec_name": [
+        "emergency contact",
+        "emergency contact name",
+        "emergency"
+      ],
+      "ec_relationship": [
+        "emergency contact relationship"
+      ],
+      "ec_address": [
+        "emergency contact address"
+      ],
+      "ec_city": [
+        "emergency contact town",
+        "emergency contact city"
+      ],
+      "ec_county": [
+        "emergency contact county"
+      ],
+      "ec_zip": [
+        "emergency contact zip",
+        "emergency contact zip code"
+      ],
+      "ec_phone": [
+        "emergency contact phone number",
+        "emergency contact phone",
+        "emergency phone"
+      ],
+      "ec_email": [
+        "emergency contact email",
+        "emergency email"
+      ],
+      "medication_allergies": [
+        "medication allergies",
+        "drug allergies",
+        "allergies"
+      ],
+      "food_allergies": [
+        "food allergies"
+      ],
+      "environmental_allergies": [
+        "environmental allergies",
+        "pollen",
+        "seasonal allergies"
+      ],
+      "dietary_restrictions": [
+        "dietary restrictions",
+        "diet"
+      ],
+      "has_idd_dx": [
+        "developmental diagnosis",
+        "autism diagnosis",
+        "intellectual disability"
+      ],
+      "idd_dx_date": [
+        "date of diagnosis",
+        "diagnosis date",
+        "when i was diagnosed"
+      ],
+      "idd_age_at_dx": [
+        "age at diagnosis",
+        "how old i was when diagnosed"
+      ],
+      "currently_employed": [
+        "currently employed",
+        "working now",
+        "employed"
+      ],
+      "vr_involvement": [
+        "vocational rehabilitation",
+        "vr",
+        "voc rehab"
+      ],
+      "volunteer_experience": [
+        "volunteer",
+        "volunteering",
+        "volunteer work"
+      ],
+      "in_school": [
+        "in school",
+        "attending school",
+        "going to school"
+      ],
+      "graduation_date": [
+        "graduation",
+        "graduation date"
+      ],
+      "has_504_plan": [
+        "504",
+        "504 plan"
+      ],
+      "psychoed_eval": [
+        "psychoeducational evaluation",
+        "psychoeducational"
+      ],
+      "living_arrangement": [
+        "living arrangement",
+        "where i live"
+      ],
+      "has_comprehensive_eval": [
+        "comprehensive evaluation"
+      ],
+      "has_adaptive_test": [
+        "adaptive behavior test",
+        "adaptive test"
+      ],
+      "has_iq_test": [
+        "iq test",
+        "intelligence test"
+      ],
+      "has_other_assessments": [
+        "other assessments",
+        "iep",
+        "education plan"
+      ],
+      "eating_level": [
+        "eating",
+        "eating rating",
+        "eating answer",
+        "eating"
+      ],
+      "eating_explain": [
+        "eating explanation",
+        "explanation for eating",
+        "help with eating"
+      ],
+      "dressing_level": [
+        "dressing",
+        "dressing rating",
+        "dressing answer",
+        "dressing"
+      ],
+      "dressing_explain": [
+        "dressing explanation",
+        "explanation for dressing",
+        "help with dressing"
+      ],
+      "toileting_level": [
+        "toileting",
+        "toileting rating",
+        "toileting answer",
+        "toileting"
+      ],
+      "toileting_explain": [
+        "toileting explanation",
+        "explanation for toileting",
+        "help with toileting"
+      ],
+      "bathing_level": [
+        "bathing",
+        "bathing rating",
+        "bathing answer",
+        "bathing"
+      ],
+      "bathing_explain": [
+        "bathing explanation",
+        "explanation for bathing",
+        "help with bathing"
+      ],
+      "grooming_level": [
+        "grooming",
+        "grooming rating",
+        "grooming answer",
+        "grooming"
+      ],
+      "grooming_explain": [
+        "grooming explanation",
+        "explanation for grooming",
+        "help with grooming"
+      ],
+      "mobility_level": [
+        "mobility",
+        "mobility rating",
+        "mobility answer",
+        "mobility"
+      ],
+      "mobility_explain": [
+        "mobility explanation",
+        "explanation for mobility",
+        "help with mobility"
+      ],
+      "physical_danger_level": [
+        "physical danger",
+        "physical danger rating",
+        "physical danger answer",
+        "avoidance of physical danger"
+      ],
+      "physical_danger_explain": [
+        "physical danger explanation",
+        "explanation for physical danger",
+        "help with physical danger"
+      ],
+      "emotional_jeopardy_level": [
+        "emotional harm",
+        "emotional harm rating",
+        "emotional harm answer",
+        "avoidance of emotional jeopardy"
+      ],
+      "emotional_jeopardy_explain": [
+        "emotional harm explanation",
+        "explanation for emotional harm",
+        "help with emotional harm"
+      ],
+      "healthy_relationships_level": [
+        "healthy relationships",
+        "healthy relationships rating",
+        "healthy relationships answer",
+        "engagement in healthy relationships"
+      ],
+      "healthy_relationships_explain": [
+        "healthy relationships explanation",
+        "explanation for healthy relationships",
+        "help with healthy relationships"
+      ],
+      "judgment_level": [
+        "judgment",
+        "judgment rating",
+        "judgment answer",
+        "judgment regarding personal conduct"
+      ],
+      "judgment_explain": [
+        "judgment explanation",
+        "explanation for judgment",
+        "help with judgment"
+      ],
+      "cooking_level": [
+        "cooking",
+        "cooking rating",
+        "cooking answer",
+        "cooking"
+      ],
+      "cooking_explain": [
+        "cooking explanation",
+        "explanation for cooking",
+        "help with cooking"
+      ],
+      "laundry_level": [
+        "laundry",
+        "laundry rating",
+        "laundry answer",
+        "laundry"
+      ],
+      "laundry_explain": [
+        "laundry explanation",
+        "explanation for laundry",
+        "help with laundry"
+      ],
+      "shopping_level": [
+        "shopping",
+        "shopping rating",
+        "shopping answer",
+        "shopping"
+      ],
+      "shopping_explain": [
+        "shopping explanation",
+        "explanation for shopping",
+        "help with shopping"
+      ],
+      "transportation_level": [
+        "transportation",
+        "transportation rating",
+        "transportation answer",
+        "transportation"
+      ],
+      "transportation_explain": [
+        "transportation explanation",
+        "explanation for transportation",
+        "help with transportation"
+      ],
+      "banking_level": [
+        "banking",
+        "banking rating",
+        "banking answer",
+        "banking"
+      ],
+      "banking_explain": [
+        "banking explanation",
+        "explanation for banking",
+        "help with banking"
+      ],
+      "recreation_level": [
+        "recreation",
+        "recreation rating",
+        "recreation answer",
+        "recreation"
+      ],
+      "recreation_explain": [
+        "recreation explanation",
+        "explanation for recreation",
+        "help with recreation"
+      ],
+      "rel_family_level": [
+        "family relationships",
+        "family relationships rating",
+        "family relationships answer",
+        "family"
+      ],
+      "rel_family_explain": [
+        "family relationships explanation",
+        "explanation for family relationships",
+        "help with family relationships"
+      ],
+      "rel_friends_level": [
+        "friends",
+        "friends rating",
+        "friends answer",
+        "friends"
+      ],
+      "rel_friends_explain": [
+        "friends explanation",
+        "explanation for friends",
+        "help with friends"
+      ],
+      "rel_coworkers_level": [
+        "coworkers",
+        "coworkers rating",
+        "coworkers answer",
+        "coworkers"
+      ],
+      "rel_coworkers_explain": [
+        "coworkers explanation",
+        "explanation for coworkers",
+        "help with coworkers"
+      ],
+      "rel_support_staff_level": [
+        "support staff",
+        "support staff rating",
+        "support staff answer",
+        "support staff"
+      ],
+      "rel_support_staff_explain": [
+        "support staff explanation",
+        "explanation for support staff",
+        "help with support staff"
+      ],
+      "expressive_level": [
+        "expressive communication",
+        "expressive communication rating",
+        "expressive communication answer",
+        "expressive communication"
+      ],
+      "expressive_explain": [
+        "expressive communication explanation",
+        "explanation for expressive communication",
+        "help with expressive communication"
+      ],
+      "receptive_level": [
+        "receptive communication",
+        "receptive communication rating",
+        "receptive communication answer",
+        "receptive communication"
+      ],
+      "receptive_explain": [
+        "receptive communication explanation",
+        "explanation for receptive communication",
+        "help with receptive communication"
+      ],
+      "sign_language_level": [
+        "sign language",
+        "sign language rating",
+        "sign language answer",
+        "sign language"
+      ],
+      "sign_language_explain": [
+        "sign language explanation",
+        "explanation for sign language",
+        "help with sign language"
+      ],
+      "visual_gestural_level": [
+        "visual communication",
+        "visual communication rating",
+        "visual communication answer",
+        "visual or gestural"
+      ],
+      "visual_gestural_explain": [
+        "visual communication explanation",
+        "explanation for visual communication",
+        "help with visual communication"
+      ],
+      "name": [
+        "name"
+      ],
+      "employer": [
+        "employer",
+        "employer name",
+        "company",
+        "where i worked"
+      ],
+      "job_title": [
+        "job title",
+        "title",
+        "position"
+      ],
+      "business_type": [
+        "type of business",
+        "business type"
+      ],
+      "start": [
+        "start date",
+        "when i started"
+      ],
+      "end": [
+        "end date",
+        "when i left",
+        "when it ended"
+      ],
+      "hours_per_day": [
+        "hours",
+        "hours per day",
+        "hours a day"
+      ],
+      "days_per_week": [
+        "days",
+        "days per week",
+        "days a week"
+      ],
+      "pay_amount": [
+        "pay",
+        "pay rate",
+        "wage",
+        "salary",
+        "rate of pay"
+      ],
+      "pay_frequency": [
+        "pay frequency",
+        "how often i was paid",
+        "pay period"
+      ],
+      "address": [
+        "address"
+      ],
+      "phone": [
+        "phone",
+        "phone number",
+        "number"
+      ],
+      "first_seen": [
+        "first seen",
+        "first visit",
+        "admission date"
+      ],
+      "last_seen": [
+        "last seen",
+        "last visit",
+        "discharge date"
+      ],
+      "ordered_by": [
+        "ordered by",
+        "who ordered it"
+      ],
+      "reason": [
+        "reason",
+        "why i take it"
+      ],
+      "prescribed_by": [
+        "prescribed by",
+        "who prescribed it"
+      ],
+      "spouse_name": [
+        "spouse name",
+        "spouse",
+        "husband",
+        "wife"
+      ],
+      "spouse_ssn": [
+        "spouse's social security number",
+        "spouse social security"
+      ],
+      "spouse_dob": [
+        "spouse's date of birth",
+        "spouse birthday"
+      ],
+      "marriage_city": [
+        "city i got married",
+        "marriage city"
+      ],
+      "marriage_state": [
+        "state i got married",
+        "marriage state"
+      ],
+      "marriage_country": [
+        "country i got married",
+        "marriage country"
+      ],
+      "marriage_date": [
+        "marriage date",
+        "date i got married",
+        "wedding date"
+      ],
+      "still_active": [
+        "still married",
+        "marriage still active"
+      ],
+      "divorce_date": [
+        "divorce date",
+        "when i got divorced"
+      ],
+      "spouse_died": [
+        "spouse died",
+        "spouse passed away"
+      ],
+      "spouse_death_date": [
+        "date of death",
+        "when my spouse died"
+      ],
+      "kind": [
+        "type",
+        "kind"
+      ],
+      "monthly_amount": [
+        "monthly amount",
+        "how much a month"
+      ],
+      "has_documentation": [
+        "documentation"
+      ],
+      "value": [
+        "value",
+        "worth"
+      ],
+      "completed": [
+        "date completed",
+        "when i finished"
+      ],
+      "dob": [
+        "date of birth",
+        "birthday"
+      ]
+    },
+    "ratingAliases": {
+      "eating_level": [
+        "eating",
+        "eating rating",
+        "eating answer",
+        "eating"
+      ],
+      "eating_explain": [
+        "eating explanation",
+        "explanation for eating",
+        "help with eating"
+      ],
+      "dressing_level": [
+        "dressing",
+        "dressing rating",
+        "dressing answer",
+        "dressing"
+      ],
+      "dressing_explain": [
+        "dressing explanation",
+        "explanation for dressing",
+        "help with dressing"
+      ],
+      "toileting_level": [
+        "toileting",
+        "toileting rating",
+        "toileting answer",
+        "toileting"
+      ],
+      "toileting_explain": [
+        "toileting explanation",
+        "explanation for toileting",
+        "help with toileting"
+      ],
+      "bathing_level": [
+        "bathing",
+        "bathing rating",
+        "bathing answer",
+        "bathing"
+      ],
+      "bathing_explain": [
+        "bathing explanation",
+        "explanation for bathing",
+        "help with bathing"
+      ],
+      "grooming_level": [
+        "grooming",
+        "grooming rating",
+        "grooming answer",
+        "grooming"
+      ],
+      "grooming_explain": [
+        "grooming explanation",
+        "explanation for grooming",
+        "help with grooming"
+      ],
+      "mobility_level": [
+        "mobility",
+        "mobility rating",
+        "mobility answer",
+        "mobility"
+      ],
+      "mobility_explain": [
+        "mobility explanation",
+        "explanation for mobility",
+        "help with mobility"
+      ],
+      "physical_danger_level": [
+        "physical danger",
+        "physical danger rating",
+        "physical danger answer",
+        "avoidance of physical danger"
+      ],
+      "physical_danger_explain": [
+        "physical danger explanation",
+        "explanation for physical danger",
+        "help with physical danger"
+      ],
+      "emotional_jeopardy_level": [
+        "emotional harm",
+        "emotional harm rating",
+        "emotional harm answer",
+        "avoidance of emotional jeopardy"
+      ],
+      "emotional_jeopardy_explain": [
+        "emotional harm explanation",
+        "explanation for emotional harm",
+        "help with emotional harm"
+      ],
+      "healthy_relationships_level": [
+        "healthy relationships",
+        "healthy relationships rating",
+        "healthy relationships answer",
+        "engagement in healthy relationships"
+      ],
+      "healthy_relationships_explain": [
+        "healthy relationships explanation",
+        "explanation for healthy relationships",
+        "help with healthy relationships"
+      ],
+      "judgment_level": [
+        "judgment",
+        "judgment rating",
+        "judgment answer",
+        "judgment regarding personal conduct"
+      ],
+      "judgment_explain": [
+        "judgment explanation",
+        "explanation for judgment",
+        "help with judgment"
+      ],
+      "cooking_level": [
+        "cooking",
+        "cooking rating",
+        "cooking answer",
+        "cooking"
+      ],
+      "cooking_explain": [
+        "cooking explanation",
+        "explanation for cooking",
+        "help with cooking"
+      ],
+      "laundry_level": [
+        "laundry",
+        "laundry rating",
+        "laundry answer",
+        "laundry"
+      ],
+      "laundry_explain": [
+        "laundry explanation",
+        "explanation for laundry",
+        "help with laundry"
+      ],
+      "shopping_level": [
+        "shopping",
+        "shopping rating",
+        "shopping answer",
+        "shopping"
+      ],
+      "shopping_explain": [
+        "shopping explanation",
+        "explanation for shopping",
+        "help with shopping"
+      ],
+      "transportation_level": [
+        "transportation",
+        "transportation rating",
+        "transportation answer",
+        "transportation"
+      ],
+      "transportation_explain": [
+        "transportation explanation",
+        "explanation for transportation",
+        "help with transportation"
+      ],
+      "banking_level": [
+        "banking",
+        "banking rating",
+        "banking answer",
+        "banking"
+      ],
+      "banking_explain": [
+        "banking explanation",
+        "explanation for banking",
+        "help with banking"
+      ],
+      "recreation_level": [
+        "recreation",
+        "recreation rating",
+        "recreation answer",
+        "recreation"
+      ],
+      "recreation_explain": [
+        "recreation explanation",
+        "explanation for recreation",
+        "help with recreation"
+      ],
+      "rel_family_level": [
+        "family relationships",
+        "family relationships rating",
+        "family relationships answer",
+        "family"
+      ],
+      "rel_family_explain": [
+        "family relationships explanation",
+        "explanation for family relationships",
+        "help with family relationships"
+      ],
+      "rel_friends_level": [
+        "friends",
+        "friends rating",
+        "friends answer",
+        "friends"
+      ],
+      "rel_friends_explain": [
+        "friends explanation",
+        "explanation for friends",
+        "help with friends"
+      ],
+      "rel_coworkers_level": [
+        "coworkers",
+        "coworkers rating",
+        "coworkers answer",
+        "coworkers"
+      ],
+      "rel_coworkers_explain": [
+        "coworkers explanation",
+        "explanation for coworkers",
+        "help with coworkers"
+      ],
+      "rel_support_staff_level": [
+        "support staff",
+        "support staff rating",
+        "support staff answer",
+        "support staff"
+      ],
+      "rel_support_staff_explain": [
+        "support staff explanation",
+        "explanation for support staff",
+        "help with support staff"
+      ],
+      "expressive_level": [
+        "expressive communication",
+        "expressive communication rating",
+        "expressive communication answer",
+        "expressive communication"
+      ],
+      "expressive_explain": [
+        "expressive communication explanation",
+        "explanation for expressive communication",
+        "help with expressive communication"
+      ],
+      "receptive_level": [
+        "receptive communication",
+        "receptive communication rating",
+        "receptive communication answer",
+        "receptive communication"
+      ],
+      "receptive_explain": [
+        "receptive communication explanation",
+        "explanation for receptive communication",
+        "help with receptive communication"
+      ],
+      "sign_language_level": [
+        "sign language",
+        "sign language rating",
+        "sign language answer",
+        "sign language"
+      ],
+      "sign_language_explain": [
+        "sign language explanation",
+        "explanation for sign language",
+        "help with sign language"
+      ],
+      "visual_gestural_level": [
+        "visual communication",
+        "visual communication rating",
+        "visual communication answer",
+        "visual or gestural"
+      ],
+      "visual_gestural_explain": [
+        "visual communication explanation",
+        "explanation for visual communication",
+        "help with visual communication"
+      ]
+    },
+    "loopWords": {
+      "conditions": [
+        "condition",
+        "conditions",
+        "diagnosis",
+        "illness"
+      ],
+      "diagnoses": [
+        "diagnosis",
+        "diagnoses",
+        "condition",
+        "conditions"
+      ],
+      "idd_diagnoses": [
+        "confirmed diagnosis",
+        "confirmed diagnoses",
+        "evaluation diagnosis"
+      ],
+      "ds_jobs": [
+        "job",
+        "jobs",
+        "work",
+        "employer",
+        "employers",
+        "employment"
+      ],
+      "providers": [
+        "provider",
+        "providers",
+        "doctor",
+        "doctors",
+        "hospital",
+        "clinic",
+        "facility"
+      ],
+      "tests": [
+        "test",
+        "tests",
+        "lab",
+        "labs",
+        "scan"
+      ],
+      "medications": [
+        "medication",
+        "medications",
+        "medicine",
+        "medicines",
+        "drug",
+        "drugs",
+        "prescription"
+      ],
+      "jobs": [
+        "job",
+        "jobs",
+        "work",
+        "employer",
+        "employers",
+        "employment"
+      ],
+      "training": [
+        "training",
+        "training program",
+        "vocational",
+        "trade school"
+      ],
+      "marriages": [
+        "marriage",
+        "marriages",
+        "spouse",
+        "husband",
+        "wife",
+        "wedding"
+      ],
+      "children": [
+        "child",
+        "children",
+        "kid",
+        "kids",
+        "son",
+        "daughter"
+      ],
+      "household": [
+        "household",
+        "household member",
+        "roommate",
+        "who lives with me"
+      ],
+      "income_sources": [
+        "income",
+        "income source",
+        "paycheck",
+        "pension"
+      ],
+      "resources": [
+        "resource",
+        "resources",
+        "bank account",
+        "asset",
+        "assets"
+      ]
+    },
+    "ordinals": {
+      "first": 1,
+      "second": 2,
+      "third": 3,
+      "fourth": 4,
+      "fifth": 5,
+      "sixth": 6,
+      "seventh": 7,
+      "eighth": 8,
+      "ninth": 9,
+      "tenth": 10,
+      "1st": 1,
+      "2nd": 2,
+      "3rd": 3,
+      "4th": 4,
+      "5th": 5,
+      "6th": 6,
+      "7th": 7,
+      "8th": 8,
+      "9th": 9,
+      "10th": 10,
+      "one": 1,
+      "two": 2,
+      "three": 3,
+      "four": 4,
+      "five": 5,
+      "six": 6,
+      "seven": 7,
+      "eight": 8,
+      "nine": 9,
+      "ten": 10
+    },
+    "stop": [
+      "the",
+      "my",
+      "a",
+      "an",
+      "of",
+      "for",
+      "to",
+      "is",
+      "was",
+      "and",
+      "i",
+      "me",
+      "that",
+      "this",
+      "it"
+    ],
+    "maxLoopItems": 12
+  },
+  "labels": {
+    "first_name": "Legal first name",
+    "last_name": "Legal last name",
+    "date_of_birth": "Date of birth",
+    "birth_city": "City of birth",
+    "birth_state": "State or province of birth",
+    "birth_country": "Country of birth",
+    "ssn": "Social Security number",
+    "wc_receives": "Receives workers' compensation",
+    "wc_injury_date": "Date of injury",
+    "wc_claim_number": "Claim number",
+    "wc_settlement": "Settlement agreement",
+    "wc_source": "Source of payment",
+    "wc_amount": "Payment amount",
+    "records_permission": "Permission to request medical records",
+    "ref1_name": "Reference 1 — name",
+    "ref1_phone": "Reference 1 — phone",
+    "ref2_name": "Reference 2 — name",
+    "ref2_phone": "Reference 2 — phone",
+    "earnings_reviewed": "Earnings record reviewed",
+    "onset_date": "Date condition began limiting work",
+    "education_level": "Highest level of education completed",
+    "education_year": "Year completed",
+    "education_school": "School or institution",
+    "special_ed": "Received special education services",
+    "special_ed_where": "Special education — where",
+    "special_ed_year": "Special education — year completed",
+    "rents": "Rents home",
+    "landlord_name": "Landlord's name",
+    "landlord_phone": "Landlord's phone number",
+    "has_rental_contract": "Rental contract on file",
+    "has_admission_agreement": "Admission agreement on file",
+    "recent_admission": "Recent hospital or institution admission",
+    "has_admit_papers": "Admit or discharge papers on file",
+    "routing_number": "Bank's 9-digit routing number",
+    "account_number": "Bank account number",
+    "forms": "Forms being filled out",
+    "for_self": "Filling out the application for yourself",
+    "helper_name": "Person or agency completing the application",
+    "helper_address": "Their mailing address",
+    "helper_city": "Their town or city",
+    "helper_county": "Their county",
+    "helper_zip": "Their zip code",
+    "helper_phone": "Their phone number",
+    "helper_fax": "Their fax number",
+    "helper_email": "Their email address",
+    "home_street": "Street address",
+    "home_town": "Town or city",
+    "home_state": "State",
+    "home_zip": "Zip code",
+    "mailing_different": "Mailing address is different",
+    "mailing_address": "Mailing address",
+    "applicant_phone": "Phone number",
+    "applicant_email": "Email address",
+    "primary_language": "Primary language",
+    "deaf_hoh": "Deaf or hard of hearing",
+    "gender": "Gender",
+    "mainecare_number": "MaineCare number",
+    "marital_status": "Marital status",
+    "has_guardian": "Has a guardian or power of attorney",
+    "guardian_name": "Guardian's name",
+    "guardian_relationship": "Guardian's relationship",
+    "guardian_address": "Guardian's mailing address",
+    "guardian_city": "Guardian's town or city",
+    "guardian_county": "Guardian's county",
+    "guardian_zip": "Guardian's zip code",
+    "guardian_phone": "Guardian's phone number",
+    "guardian_email": "Guardian's email address",
+    "ec_same_as_guardian": "Guardian is the emergency contact",
+    "ec_name": "Emergency contact name",
+    "ec_relationship": "Emergency contact relationship",
+    "ec_address": "Emergency contact street address",
+    "ec_city": "Emergency contact town or city",
+    "ec_county": "Emergency contact county",
+    "ec_zip": "Emergency contact zip code",
+    "ec_phone": "Emergency contact phone number",
+    "ec_email": "Emergency contact email address",
+    "medication_allergies": "Medication allergies",
+    "food_allergies": "Food allergies",
+    "environmental_allergies": "Environmental allergies",
+    "dietary_restrictions": "Dietary restrictions",
+    "has_idd_dx": "Diagnosed with an intellectual or developmental disability, or autism",
+    "idd_dx_date": "Date of diagnosis",
+    "idd_age_at_dx": "Age at diagnosis",
+    "currently_employed": "Currently employed",
+    "vr_involvement": "Involvement with Vocational Rehabilitation",
+    "volunteer_experience": "Volunteer experience",
+    "in_school": "Currently attending school",
+    "graduation_date": "Expected graduation",
+    "has_504_plan": "Has had a 504 plan",
+    "psychoed_eval": "Has had a psychoeducational evaluation",
+    "living_arrangement": "Current living arrangement",
+    "has_comprehensive_eval": "Has a comprehensive evaluation",
+    "has_adaptive_test": "Has an adaptive behavior test",
+    "has_iq_test": "Has an intelligence test",
+    "has_other_assessments": "Has other assessments, such as an IEP",
+    "eating_level": "Eating",
+    "eating_explain": "Eating — explanation",
+    "dressing_level": "Dressing",
+    "dressing_explain": "Dressing — explanation",
+    "toileting_level": "Toileting",
+    "toileting_explain": "Toileting — explanation",
+    "bathing_level": "Bathing",
+    "bathing_explain": "Bathing — explanation",
+    "grooming_level": "Grooming",
+    "grooming_explain": "Grooming — explanation",
+    "mobility_level": "Mobility",
+    "mobility_explain": "Mobility — explanation",
+    "physical_danger_level": "Avoidance of physical danger",
+    "physical_danger_explain": "Avoidance of physical danger — explanation",
+    "emotional_jeopardy_level": "Avoidance of emotional jeopardy",
+    "emotional_jeopardy_explain": "Avoidance of emotional jeopardy — explanation",
+    "healthy_relationships_level": "Engagement in healthy relationships",
+    "healthy_relationships_explain": "Engagement in healthy relationships — explanation",
+    "judgment_level": "Judgment regarding personal conduct",
+    "judgment_explain": "Judgment regarding personal conduct — explanation",
+    "cooking_level": "Cooking",
+    "cooking_explain": "Cooking — explanation",
+    "laundry_level": "Laundry",
+    "laundry_explain": "Laundry — explanation",
+    "shopping_level": "Shopping",
+    "shopping_explain": "Shopping — explanation",
+    "transportation_level": "Transportation",
+    "transportation_explain": "Transportation — explanation",
+    "banking_level": "Banking",
+    "banking_explain": "Banking — explanation",
+    "recreation_level": "Recreation",
+    "recreation_explain": "Recreation — explanation",
+    "rel_family_level": "Family",
+    "rel_family_explain": "Family — explanation",
+    "rel_friends_level": "Friends",
+    "rel_friends_explain": "Friends — explanation",
+    "rel_coworkers_level": "Coworkers",
+    "rel_coworkers_explain": "Coworkers — explanation",
+    "rel_support_staff_level": "Support staff",
+    "rel_support_staff_explain": "Support staff — explanation",
+    "expressive_level": "Expressive communication",
+    "expressive_explain": "Expressive communication — explanation",
+    "receptive_level": "Receptive communication",
+    "receptive_explain": "Receptive communication — explanation",
+    "sign_language_level": "Sign language",
+    "sign_language_explain": "Sign language — explanation",
+    "visual_gestural_level": "Visual or gestural",
+    "visual_gestural_explain": "Visual or gestural — explanation",
+    "employer": "Employer's name",
+    "job_title": "Job title",
+    "business_type": "Type of business",
+    "start": "Start month and year",
+    "end": "End month and year",
+    "hours_per_day": "Average hours per day",
+    "days_per_week": "Days per week",
+    "pay_amount": "Rate of pay",
+    "pay_frequency": "Paid",
+    "ordered_by": "Ordered by",
+    "address": "Address",
+    "first_seen": "Date first seen or admission date",
+    "last_seen": "Date last seen or discharge date",
+    "reason": "Why you take it",
+    "prescribed_by": "Prescribed by",
+    "spouse_name": "Spouse's full name",
+    "spouse_ssn": "Spouse's Social Security number",
+    "spouse_dob": "Spouse's date of birth",
+    "marriage_city": "City of marriage",
+    "marriage_state": "State of marriage",
+    "marriage_country": "Country of marriage",
+    "marriage_date": "Date of marriage",
+    "still_active": "Marriage still active",
+    "divorce_date": "Date of divorce",
+    "spouse_died": "Spouse passed away",
+    "spouse_death_date": "Date of death",
+    "kind": "Type",
+    "monthly_amount": "Approximate monthly amount",
+    "has_documentation": "Documentation available",
+    "value": "Approximate value",
+    "completed": "Date completed",
+    "dob": "Date of birth",
+    "name": "Name",
+    "phone": "Phone number",
+    "date": "Date"
+  },
+  "phrases": {
+    "ALL_DONE": "All done. Your forms are ready to download.",
+    "ANSWER_AGAIN": "Go ahead. Say your answer again, or type it instead.",
+    "BOTH_DOWNLOADED": "Both forms have been downloaded. Check your downloads folder. If your browser asked whether to allow more than one download, choose allow, or download the second form with its own button.",
+    "DOWNLOADED": "Your form has been downloaded. Check your downloads folder.",
+    "DOWNLOAD_HINT": "Press a download button to save your filled form, or press read my answers to hear everything back.",
+    "ERRORS": {
+      "empty": "I did not hear anything. Please try again, or say skip.",
+      "unknown": "Something went wrong. Please try that answer again."
+    },
+    "FILL_IN_MISSING": "Let us fill in what is missing.",
+    "FORMS_CHANGED": "Your choice of forms changed, so there are new questions to answer. Let us do those now.",
+    "GOING_BACK": "Going back.",
+    "HELP": "You can say: repeat that, go back, skip this, where am I, read back my answers, change an answer, remove an entry, save and quit, or start over.",
+    "INTRO": {
+      "text": "Typing mode. I will ask a question, you type the answer and press Enter. The hold to talk button is still there whenever you would rather speak. You can type skip, back, or repeat at any time.",
+      "handsfree": "Hands free mode. I will ask a question, then start listening on my own. Just answer when you hear the tone. When I read an answer back, tap the space bar to keep it, or press N to answer again. You can type an answer instead at any point, and speaking still works afterwards. Say repeat, go back, or skip at any time.",
+      "voice": "Voice mode. Hold the space bar while you answer, and let go when you are done. When I read an answer back, tap the space bar to keep it, or press N to answer again. You can type an answer instead at any point, and speaking still works afterwards. Say repeat, go back, or skip at any time."
+    },
+    "LET_US_TRY_AGAIN": "Let us try again.",
+    "REASK": {
+      "generic": "I did not catch that. Could you say it again?",
+      "yesno": "Please answer yes or no. Is that correct?",
+      "nothingHeard": "I did not hear anything. Please try again, or say skip.",
+      "notRight": "That does not look right. Could you try again?",
+      "yesnoTranscript": "Please say yes to keep that, or no to answer again.",
+      "unsure": "I am not sure I heard that correctly. Could you say it again?"
+    },
+    "SAVED": "Saved. You can close this page and come back to finish later.",
+    "STARTING_OVER": "Starting over.",
+    "TRANSCRIPT_CHECK": "Is that right? Say yes to keep it, or no to answer again.",
+    "TYPING_LANE": "Typing. Press Escape when you want the space bar to talk again.",
+    "UNCHANGED": "That answer was left unchanged.",
+    "VOICE_LANE": "Voice. Hold the space bar to talk, or press T to type.",
+    "WHICH_FIELD": "Which answer would you like to change? You can name the field, for example, my phone number, or the second provider's address. You can add a new entry, by saying something like add another condition, or remove a whole entry, by saying remove that last provider. Say never mind to go back.",
+    "WORKSHEET_FALLBACK": "The official form could not be loaded, so I saved a plain worksheet with your answers instead."
+  }
+}

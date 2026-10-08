@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Device targeting for the llm_pack: only devices with >= 6 GB of RAM receive
+  the optional LLM pack. Everyone else gets the deterministic-only app, which
+  is a complete product by design. Wired into the bundle via
+  `bundle { deviceTargetingConfig = file("device_targeting_config.xml") }`.
+-->
+<device-targeting-config xmlns="http://schemas.android.com/apk/config">
+    <device-group name="llmCapable">
+        <device-selector ram-min-bytes="6442450944" />
+    </device-group>
+</device-targeting-config>

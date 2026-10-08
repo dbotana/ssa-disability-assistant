@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The walks and fillplans goldens are tens of megabytes of JSON, parsed into
+     trees in memory; the test process needs the large heap. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application android:largeHeap="true" />
+</manifest>

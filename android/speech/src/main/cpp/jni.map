@@ -1,0 +1,11 @@
+/*
+ * Only the JNI surface is exported from libwhisper_jni.so. Add JNI_OnLoad
+ * here when the library defines one: the NDK links with
+ * --no-undefined-version, so the script may only name symbols that exist.
+ */
+{
+  global:
+    Java_*;
+  local:
+    *;
+};

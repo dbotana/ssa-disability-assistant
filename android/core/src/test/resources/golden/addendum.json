@@ -1,0 +1,2104 @@
+{
+  "ssa": {
+    "pages": [
+      [
+        {
+          "op": "text",
+          "x": 54,
+          "y": 736,
+          "text": "Additional information for your Adult Disability",
+          "size": 20,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 710,
+          "text": "Starter Kit",
+          "size": 20,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 678,
+          "text": "These pages were added to the Starter Kit worksheet. They hold the rest of the information the checklist asks you",
+          "size": 10,
+          "font": "regular",
+          "color": "muted"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 664,
+          "text": "to have ready, and any rows that did not fit on the worksheet. Have them with you when you apply online at",
+          "size": 10,
+          "font": "regular",
+          "color": "muted"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 650,
+          "text": "www.ssa.gov/apply or at your appointment. Do not mail them to Social Security.",
+          "size": 10,
+          "font": "regular",
+          "color": "muted"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 636,
+          "text": "HANDLE WITH CARE: these pages may contain your Social Security number and bank account numbers. Store",
+          "size": 10,
+          "font": "regular",
+          "color": "muted"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 622,
+          "text": "them somewhere safe.",
+          "size": 10,
+          "font": "regular",
+          "color": "muted"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 594,
+          "text": "Basic information about you",
+          "size": 14,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "rule",
+          "x": 54,
+          "y": 588,
+          "width": 504,
+          "thickness": 1
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 572,
+          "text": "Legal first name",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 572,
+          "text": "Ada",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 553,
+          "text": "Legal last name",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 553,
+          "text": "Lovelace",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 534,
+          "text": "Date of birth",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 534,
+          "text": "December 10, 1995",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 515,
+          "text": "City of birth",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 515,
+          "text": "Bangor",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 496,
+          "text": "State or province of birth",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 496,
+          "text": "Maine",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 477,
+          "text": "Country of birth",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 477,
+          "text": "United States",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 458,
+          "text": "Social Security number",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 458,
+          "text": "123-45-6789",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 425,
+          "text": "Your medical conditions",
+          "size": 14,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "rule",
+          "x": 54,
+          "y": 419,
+          "width": 504,
+          "thickness": 1
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 403,
+          "text": "Date condition began limiting work",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 403,
+          "text": "March 2021",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 370,
+          "text": "Workers' compensation",
+          "size": 14,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "rule",
+          "x": 54,
+          "y": 364,
+          "width": 504,
+          "thickness": 1
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 348,
+          "text": "Receives workers' compensation",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 348,
+          "text": "No",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 315,
+          "text": "Permission to request your medical records",
+          "size": 14,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "rule",
+          "x": 54,
+          "y": 309,
+          "width": 504,
+          "thickness": 1
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 293,
+          "text": "Permission to request medical",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 293,
+          "text": "Yes",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 278,
+          "text": "records",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 245,
+          "text": "People who know about your condition",
+          "size": 14,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "rule",
+          "x": 54,
+          "y": 239,
+          "width": 504,
+          "thickness": 1
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 223,
+          "text": "Reference 1 — name",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 223,
+          "text": "Charles Babbage",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 204,
+          "text": "Reference 1 — phone",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 204,
+          "text": "207-555-0144",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 185,
+          "text": "Reference 2 — name",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 185,
+          "text": "—",
+          "size": 11,
+          "font": "regular",
+          "color": "muted"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 152,
+          "text": "Your earnings record",
+          "size": 14,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "rule",
+          "x": 54,
+          "y": 146,
+          "width": 504,
+          "thickness": 1
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 130,
+          "text": "Earnings record reviewed",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 130,
+          "text": "—",
+          "size": 11,
+          "font": "regular",
+          "color": "muted"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 97,
+          "text": "Your work history",
+          "size": 14,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "rule",
+          "x": 54,
+          "y": 91,
+          "width": 504,
+          "thickness": 1
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 32,
+          "text": "Starter Kit additional information — page 1 of 4",
+          "size": 8,
+          "font": "regular",
+          "color": "muted"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 21,
+          "text": "Not an application. Prepared on the applicant's own device.",
+          "size": 8,
+          "font": "regular",
+          "color": "muted"
+        }
+      ],
+      [
+        {
+          "op": "text",
+          "x": 54,
+          "y": 736,
+          "text": "Job 1",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 719,
+          "text": "Employer's name",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 719,
+          "text": "Employer 1",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 700,
+          "text": "Job title",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 700,
+          "text": "Title 1",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 681,
+          "text": "Type of business",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 681,
+          "text": "Restaurant",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 662,
+          "text": "Start month and year",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 662,
+          "text": "January 2018",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 643,
+          "text": "End month and year",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 643,
+          "text": "Present",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 624,
+          "text": "Average hours per day",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 624,
+          "text": "8",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 605,
+          "text": "Days per week",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 605,
+          "text": "5",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 586,
+          "text": "Rate of pay",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 586,
+          "text": "$15",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 567,
+          "text": "Paid",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 567,
+          "text": "Per hour",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 544,
+          "text": "Job 2",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 527,
+          "text": "Employer's name",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 527,
+          "text": "Employer 2",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 508,
+          "text": "Job title",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 508,
+          "text": "Title 2",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 489,
+          "text": "Type of business",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 489,
+          "text": "Restaurant",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 470,
+          "text": "Start month and year",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 470,
+          "text": "January 2018",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 451,
+          "text": "End month and year",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 451,
+          "text": "June 2019",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 432,
+          "text": "Average hours per day",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 432,
+          "text": "8",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 413,
+          "text": "Days per week",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 413,
+          "text": "5",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 394,
+          "text": "Rate of pay",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 394,
+          "text": "$15",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 375,
+          "text": "Paid",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 375,
+          "text": "Per hour",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 352,
+          "text": "Job 3",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 335,
+          "text": "Employer's name",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 335,
+          "text": "Employer 3",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 316,
+          "text": "Job title",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 316,
+          "text": "Title 3",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 297,
+          "text": "Type of business",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 297,
+          "text": "Restaurant",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 278,
+          "text": "Start month and year",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 278,
+          "text": "January 2018",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 259,
+          "text": "End month and year",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 259,
+          "text": "June 2019",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 240,
+          "text": "Average hours per day",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 240,
+          "text": "8",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 221,
+          "text": "Days per week",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 221,
+          "text": "5",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 202,
+          "text": "Rate of pay",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 202,
+          "text": "$15",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 183,
+          "text": "Paid",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 183,
+          "text": "Per hour",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 160,
+          "text": "Job 4",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 143,
+          "text": "Employer's name",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 143,
+          "text": "Employer 4",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 124,
+          "text": "Job title",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 124,
+          "text": "Title 4",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 105,
+          "text": "Type of business",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 105,
+          "text": "Restaurant",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 86,
+          "text": "Start month and year",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 86,
+          "text": "January 2018",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 32,
+          "text": "Starter Kit additional information — page 2 of 4",
+          "size": 8,
+          "font": "regular",
+          "color": "muted"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 21,
+          "text": "Not an application. Prepared on the applicant's own device.",
+          "size": 8,
+          "font": "regular",
+          "color": "muted"
+        }
+      ],
+      [
+        {
+          "op": "text",
+          "x": 54,
+          "y": 736,
+          "text": "End month and year",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 736,
+          "text": "June 2019",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 717,
+          "text": "Average hours per day",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 717,
+          "text": "8",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 698,
+          "text": "Days per week",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 698,
+          "text": "5",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 679,
+          "text": "Rate of pay",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 679,
+          "text": "$15",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 660,
+          "text": "Paid",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 660,
+          "text": "Per hour",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 637,
+          "text": "Job 5",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 620,
+          "text": "Employer's name",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 620,
+          "text": "Employer 5",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 601,
+          "text": "Job title",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 601,
+          "text": "Title 5",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 582,
+          "text": "Type of business",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 582,
+          "text": "Restaurant",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 563,
+          "text": "Start month and year",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 563,
+          "text": "January 2018",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 544,
+          "text": "End month and year",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 544,
+          "text": "June 2019",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 525,
+          "text": "Average hours per day",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 525,
+          "text": "8",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 506,
+          "text": "Days per week",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 506,
+          "text": "5",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 487,
+          "text": "Rate of pay",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 487,
+          "text": "$15",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 468,
+          "text": "Paid",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 468,
+          "text": "Per hour",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 431,
+          "text": "Your education",
+          "size": 14,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "rule",
+          "x": 54,
+          "y": 425,
+          "width": 504,
+          "thickness": 1
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 409,
+          "text": "Highest level of education",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 409,
+          "text": "12th grade",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 394,
+          "text": "completed",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 375,
+          "text": "Year completed",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 375,
+          "text": "—",
+          "size": 11,
+          "font": "regular",
+          "color": "muted"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 356,
+          "text": "School or institution",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 356,
+          "text": "Deering High",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 337,
+          "text": "Received special education",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 337,
+          "text": "Yes",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 322,
+          "text": "services",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 303,
+          "text": "Special education — where",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 303,
+          "text": "—",
+          "size": 11,
+          "font": "regular",
+          "color": "muted"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 284,
+          "text": "Special education — year",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 284,
+          "text": "—",
+          "size": 11,
+          "font": "regular",
+          "color": "muted"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 269,
+          "text": "completed",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 236,
+          "text": "Job, trade, or vocational training",
+          "size": 14,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "rule",
+          "x": 54,
+          "y": 230,
+          "width": 504,
+          "thickness": 1
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 214,
+          "text": "No training program recorded.",
+          "size": 10,
+          "font": "regular",
+          "color": "muted"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 182,
+          "text": "Current and past marriages",
+          "size": 14,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "rule",
+          "x": 54,
+          "y": 176,
+          "width": 504,
+          "thickness": 1
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 160,
+          "text": "No marriage recorded.",
+          "size": 10,
+          "font": "regular",
+          "color": "muted"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 128,
+          "text": "Your children",
+          "size": 14,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "rule",
+          "x": 54,
+          "y": 122,
+          "width": 504,
+          "thickness": 1
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 106,
+          "text": "No child recorded.",
+          "size": 10,
+          "font": "regular",
+          "color": "muted"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 32,
+          "text": "Starter Kit additional information — page 3 of 4",
+          "size": 8,
+          "font": "regular",
+          "color": "muted"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 21,
+          "text": "Not an application. Prepared on the applicant's own device.",
+          "size": 8,
+          "font": "regular",
+          "color": "muted"
+        }
+      ],
+      [
+        {
+          "op": "text",
+          "x": 54,
+          "y": 722,
+          "text": "People who live with you",
+          "size": 14,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "rule",
+          "x": 54,
+          "y": 716,
+          "width": 504,
+          "thickness": 1
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 700,
+          "text": "Name",
+          "size": 9,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 306,
+          "y": 700,
+          "text": "Date of birth",
+          "size": 9,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "rule",
+          "x": 54,
+          "y": 685,
+          "width": 504,
+          "thickness": 0.75
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 675,
+          "text": "Anne Byron",
+          "size": 10,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 306,
+          "y": 675,
+          "text": "—",
+          "size": 10,
+          "font": "regular",
+          "color": "muted"
+        },
+        {
+          "op": "rule",
+          "x": 54,
+          "y": 660,
+          "width": 504,
+          "thickness": 0.4
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 650,
+          "text": "Tom Byron",
+          "size": 10,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 306,
+          "y": 650,
+          "text": "—",
+          "size": 10,
+          "font": "regular",
+          "color": "muted"
+        },
+        {
+          "op": "rule",
+          "x": 54,
+          "y": 635,
+          "width": 504,
+          "thickness": 0.4
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 605,
+          "text": "Your home",
+          "size": 14,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "rule",
+          "x": 54,
+          "y": 599,
+          "width": 504,
+          "thickness": 1
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 583,
+          "text": "Rents home",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 583,
+          "text": "—",
+          "size": 11,
+          "font": "regular",
+          "color": "muted"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 564,
+          "text": "Admission agreement on file",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 564,
+          "text": "—",
+          "size": 11,
+          "font": "regular",
+          "color": "muted"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 545,
+          "text": "Recent hospital or institution",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 545,
+          "text": "—",
+          "size": 11,
+          "font": "regular",
+          "color": "muted"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 530,
+          "text": "admission",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 497,
+          "text": "Your current income",
+          "size": 14,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "rule",
+          "x": 54,
+          "y": 491,
+          "width": 504,
+          "thickness": 1
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 475,
+          "text": "No income source recorded.",
+          "size": 10,
+          "font": "regular",
+          "color": "muted"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 443,
+          "text": "Other financial resources",
+          "size": 14,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "rule",
+          "x": 54,
+          "y": 437,
+          "width": 504,
+          "thickness": 1
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 421,
+          "text": "No resource recorded.",
+          "size": 10,
+          "font": "regular",
+          "color": "muted"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 389,
+          "text": "Direct deposit for benefit payments",
+          "size": 14,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "rule",
+          "x": 54,
+          "y": 383,
+          "width": 504,
+          "thickness": 1
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 367,
+          "text": "Bank's 9-digit routing number",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 367,
+          "text": "021000021",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 348,
+          "text": "Bank account number",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 348,
+          "text": "5544332211",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 32,
+          "text": "Starter Kit additional information — page 4 of 4",
+          "size": 8,
+          "font": "regular",
+          "color": "muted"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 21,
+          "text": "Not an application. Prepared on the applicant's own device.",
+          "size": 8,
+          "font": "regular",
+          "color": "muted"
+        }
+      ]
+    ]
+  },
+  "ds": {
+    "pages": [
+      [
+        {
+          "op": "text",
+          "x": 54,
+          "y": 736,
+          "text": "Developmental Services Intake Application:",
+          "size": 20,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 710,
+          "text": "continued",
+          "size": 20,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 678,
+          "text": "Some answers did not fit in the boxes on the application. They are written out in full here. Send this page along",
+          "size": 10,
+          "font": "regular",
+          "color": "muted"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 664,
+          "text": "with the application.",
+          "size": 10,
+          "font": "regular",
+          "color": "muted"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 636,
+          "text": "Continued from the form",
+          "size": 14,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "rule",
+          "x": 54,
+          "y": 630,
+          "width": 504,
+          "thickness": 1
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 614,
+          "text": "Current diagnoses",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 614,
+          "text": "A fairly long diagnosis name number 0; A fairly long diagnosis",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 599,
+          "text": "name number 1; A fairly long diagnosis name number 2; A",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 584,
+          "text": "fairly long diagnosis name number 3; A fairly long diagnosis",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 569,
+          "text": "name number 4; A fairly long diagnosis name number 5; A",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 554,
+          "text": "fairly long diagnosis name number 6; A fairly long diagnosis",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 539,
+          "text": "name number 7; A fairly long diagnosis name number 8; A",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 524,
+          "text": "fairly long diagnosis name number 9; A fairly long diagnosis",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 509,
+          "text": "name number 10; A fairly long diagnosis name number 11; A",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 494,
+          "text": "fairly long diagnosis name number 12; A fairly long diagnosis",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 479,
+          "text": "name number 13; Autism spectrum disorder; Mild intellectual",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 464,
+          "text": "disability; ADHD",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 445,
+          "text": "Employment history",
+          "size": 11,
+          "font": "bold",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 445,
+          "text": "Title 1, Employer 1 (01/2018 to Present); Title 2, Employer 2",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 430,
+          "text": "(01/2018 to 06/2019); Title 3, Employer 3 (01/2018 to",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 415,
+          "text": "06/2019); Title 4, Employer 4 (01/2018 to 06/2019); Title 5,",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 254,
+          "y": 400,
+          "text": "Employer 5 (01/2018 to 06/2019)",
+          "size": 11,
+          "font": "regular",
+          "color": "ink"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 32,
+          "text": "DS Intake Application, continued — page 1 of 1",
+          "size": 8,
+          "font": "regular",
+          "color": "muted"
+        },
+        {
+          "op": "text",
+          "x": 54,
+          "y": 21,
+          "text": "Prepared on the applicant's own device.",
+          "size": 8,
+          "font": "regular",
+          "color": "muted"
+        }
+      ]
+    ]
+  }
+}

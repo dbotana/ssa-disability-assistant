@@ -1,0 +1,146 @@
+name: Android
+
+# The app is offline by construction, so CI checks more than the build:
+#   - the goldens the Kotlin port is pinned to are fresh, and pass on the JVM
+#     and under Android's ICU (an emulator, including a 16 KB page-size image);
+#   - no INTERNET or ACCESS_NETWORK_STATE in any merged manifest, APK or AAB
+#     module, with canaries that prove each audit path fires;
+#   - every native library is 16 KB-aligned and exports only JNI symbols.
+#
+# The goldens are generated from the JS reference, so a change under src/ or
+# tests/fixtures/ can make them stale without touching android/ at all.
+
+on:
+  push:
+    paths:
+      - android/**
+      - src/**
+      - tests/fixtures/**
+      - tools/**
+      - forms/**
+      - audio/**
+      - vendor/**
+      - .github/workflows/android.yml
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # The goldens are generated in UTC; so is everything else here.
+  TZ: UTC
+  BUNDLETOOL_VERSION: 1.17.2
+  BUNDLETOOL_SHA256: 2d4ad908faea64047c1cc9cb747e6aa667c6ab192e09607bd16b67246a8cd6ae
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # First: every check after this one is only as good as the goldens.
+      # Fails on a changed golden and on one never committed.
+      - name: Golden freshness (the JS fixtures the Kotlin port is pinned to)
+        run: node tools/golden/check.mjs
+
+      - name: JVM tests (core goldens)
+        working-directory: android
+        run: ./gradlew :core:test --stacktrace
+
+      # assemble*/bundle* run verify<Variant>NoNetworkPermissions on the merged
+      # manifests first; the canary is built to be audited, never shipped.
+      - name: Build debug and release artifacts, and the canary
+        working-directory: android
+        run: ./gradlew assembleDebug assembleRelease bundleRelease :canary:assembleDebug :canary:bundleDebug --stacktrace
+
+      - name: Fetch bundletool (pinned, checksum-verified)
+        run: |
+          curl -sSfL -o "$RUNNER_TEMP/bundletool.jar" \
+            "https://github.com/google/bundletool/releases/download/${BUNDLETOOL_VERSION}/bundletool-all-${BUNDLETOOL_VERSION}.jar"
+          echo "${BUNDLETOOL_SHA256}  $RUNNER_TEMP/bundletool.jar" | sha256sum -c -
+          echo "BUNDLETOOL=$RUNNER_TEMP/bundletool.jar" >> "$GITHUB_ENV"
+
+      - name: Permission audit on every APK, AAB module and merged manifest
+        working-directory: android
+        run: |
+          shopt -s globstar nullglob
+          ./tools/audit-permissions.sh \
+            app/build/outputs/**/*.apk \
+            app/build/outputs/**/*.aab \
+            app/build/intermediates/merged_manifest/**/AndroidManifest.xml
+
+      # The canary requests INTERNET. The audit must FAIL (exit 1) on its APK,
+      # its AAB and its manifest; anything else means a path is blind.
+      - name: Permission audit canary
+        working-directory: android
+        run: |
+          for a in canary/build/outputs/apk/debug/canary-debug.apk \
+                   canary/build/outputs/bundle/debug/canary-debug.aab \
+                   canary/src/main/AndroidManifest.xml; do
+            set +e; ./tools/audit-permissions.sh "$a"; rc=$?; set -e
+            if [ "$rc" -ne 1 ]; then
+              echo "CANARY FAILED: the audit returned $rc on $a, not 1" >&2
+              exit 1
+            fi
+            echo "canary fired as intended on $a"
+          done
+
+      - name: Native audit (16 KB alignment, zip alignment, JNI-only exports)
+        working-directory: android
+        run: |
+          shopt -s globstar nullglob
+          ./tools/audit-native.sh app/build/outputs/apk/**/*.apk
+
+  # The same goldens and unit tests as :core:test, compiled into an
+  # instrumented APK (:core-device) and run on Android, where java.util.regex
+  # is ICU. The ps16k image boots with 16 KB pages.
+  device-tests:
+    name: Goldens on Android (API ${{ matrix.api }}, ${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - api: 35
+            target: google_apis
+          - api: 35
+            target: google_apis_ps16k
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Instrumented goldens
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          target: ${{ matrix.target }}
+          arch: x86_64
+          disable-animations: true
+          working-directory: android
+          script: ./gradlew :core-device:connectedDebugAndroidTest --stacktrace

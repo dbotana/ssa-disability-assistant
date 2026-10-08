@@ -158,6 +158,9 @@ const blob = (bytes = 8) => new Blob([new Uint8Array(bytes)], { type: 'audio/web
     ['Yes. [BLANK_AUDIO]', 'Yes.'],
     ['(coughs) 987-65-4321', '987-65-4321'],
     ['  Maine   Medical Center ', 'Maine Medical Center'],
+    // A parenthetical holding digits is a spoken number, not an annotation.
+    ['(207) 555-0142', '(207) 555-0142'],
+    ['call (888) 555-0100 please', 'call (888) 555-0100 please'],
     [null, '']
   ];
   for (const [input, want] of cases) {

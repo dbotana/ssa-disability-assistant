@@ -19,9 +19,10 @@
 //   'entry'  asking entryPrompt / repeatPrompt
 //   'field'  walking fields of the current loop item
 
-import { flatten, SECTIONS, SCHEMA_VERSION, nodeActive, sectionActive, formsChosen } from './schema.js';
+import { flatten, SECTIONS, SCHEMA_VERSION, nodeActive, sectionActive, formsChosen, evalRule } from './schema.js';
 
-export function createEngine(sections = SECTIONS, savedState = null) {
+export function createEngine(sections = SECTIONS, savedState = null, { now = null } = {}) {
+  const clock = now ?? (() => Date.now() / 1000);
   const nodes = flatten(sections);
 
   const state = savedState
@@ -59,11 +60,15 @@ export function createEngine(sections = SECTIONS, savedState = null) {
     return Array.isArray(items) ? items[state.cursor.loopIndex] ?? null : null;
   }
 
-  /** askIf for a loop field, evaluated against its own item. */
+  /**
+   * askIf for a loop field, evaluated against its own item — an empty one
+   * when there is none yet, so the rule still reads item scope and never the
+   * answer set by accident.
+   */
   function shouldAsk(q, scope) {
-    if (typeof q.askIf !== 'function') return true;
+    if (q.askIf == null) return true;
     try {
-      return !!q.askIf(scope);
+      return !!evalRule(q.askIf, { answers: state.answers, item: scope ?? {} });
     } catch {
       return true; // a throwing predicate must never strand the interview
     }
@@ -84,7 +89,8 @@ export function createEngine(sections = SECTIONS, savedState = null) {
 
   const IDLE_CUTOFF = 180; // seconds; longer than this is a break, not thinking
   const PACE_WINDOW = 12;  // samples kept; recent pace beats lifetime average
-  const now = () => Date.now() / 1000;
+  // Injected so goldens can pin pace samples to fixed timestamps.
+  const secondsNow = () => clock();
 
   // Not part of `state`: a resumed interview starts timing fresh rather than
   // counting the hours the page was closed as one very slow answer.
@@ -92,13 +98,13 @@ export function createEngine(sections = SECTIONS, savedState = null) {
 
   /** Called when a question is handed to the caller, to start its clock. */
   function markAsked() {
-    lastAskedAt = now();
+    lastAskedAt = secondsNow();
   }
 
   /** Called when an answer arrives, to close the clock opened by markAsked. */
   function recordPace() {
     if (lastAskedAt == null) return;
-    const elapsed = now() - lastAskedAt;
+    const elapsed = secondsNow() - lastAskedAt;
     lastAskedAt = null;
     if (!(elapsed > 0) || elapsed > IDLE_CUTOFF) return;
     state.pace.samples.push(elapsed);
@@ -268,6 +274,8 @@ export function createEngine(sections = SECTIONS, savedState = null) {
         hint: node.hint,
         options: node.options,
         allowFuture: !!node.allowFuture,
+        per: node.per ?? null,
+        kind: node.kind ?? null,
         section: node.section,
         sectionTitle: node.sectionTitle,
         path: [node.id]
@@ -293,6 +301,8 @@ export function createEngine(sections = SECTIONS, savedState = null) {
           hint: f.hint,
           options: f.options,
           allowFuture: !!f.allowFuture,
+          per: f.per ?? null,
+          kind: f.kind ?? null,
           section: node.section,
           sectionTitle: node.sectionTitle,
           loopId: node.id,
@@ -330,6 +340,8 @@ export function createEngine(sections = SECTIONS, savedState = null) {
       hint: f.hint,
       options: f.options,
       allowFuture: !!f.allowFuture,
+      per: f.per ?? null,
+      kind: f.kind ?? null,
       section: node.section,
       sectionTitle: node.sectionTitle,
       loopId: node.id,

@@ -1,0 +1,14 @@
+# Machine and build state. None of it belongs in the repository, and some of
+# it names this machine: local.properties holds the SDK path, and the CMake
+# caches under .cxx/ are full of absolute paths.
+local.properties
+.gradle/
+.kotlin/
+build/
+.cxx/
+captures/
+.externalNativeBuild/
+
+# IDE state.
+.idea/
+*.iml

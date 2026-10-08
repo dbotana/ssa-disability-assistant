@@ -70,7 +70,7 @@ export function buildReport(answers, { form = null } = {}) {
  * "City were you born in", which is fine to hear but wrong to read on a
  * document someone hands to a caseworker.
  */
-const LABELS = {
+export const LABELS = {
   first_name: 'Legal first name',
   last_name: 'Legal last name',
   date_of_birth: 'Date of birth',

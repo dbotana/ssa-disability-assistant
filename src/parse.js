@@ -139,6 +139,10 @@ function spokenNumbers(text) {
 /** "Still working there" on an end date. The schema prompts for this wording. */
 const PRESENT = /\b(still|ongoing|present|current(ly)?|to this day|up to now|continu\w*)\b/i;
 
+// The clock. Injected, never read from Date directly: golden fixtures pin
+// Dec 31, Jan 1 and Feb 29, which a live clock could never produce twice.
+const defaultNow = () => new Date();
+
 /**
  * Interpret a transcript locally.
  *
@@ -148,14 +152,18 @@ const PRESENT = /\b(still|ongoing|present|current(ly)?|to this day|up to now|con
  * text it rewrites the user's own capitals and full stops — "de la Cruz",
  * "iPhone", "Jr." — on a form where names have to be exact.
  *
+ * `now` supplies the current date (expandYear's century window and the
+ * future-date check); it defaults to the real clock and is overridden by
+ * tests and the golden generator.
+ *
  * @returns {{command:null, value:*, confidence:number, needsClarification:false,
  *            clarifyPrompt:null}|null} null when the answer should be asked again.
  */
-export function parseLocal(question, transcript, { typed = false } = {}) {
+export function parseLocal(question, transcript, { typed = false, now = defaultNow } = {}) {
   const raw = String(transcript ?? '').trim();
   if (!raw) return null;
 
-  const value = parseByType(question, raw, typed);
+  const value = parseByType(question, raw, typed, now);
   if (value === null) return null;
 
   return {
@@ -167,23 +175,62 @@ export function parseLocal(question, transcript, { typed = false } = {}) {
   };
 }
 
-function parseByType(question, raw, typed) {
+function parseByType(question, raw, typed, now) {
+  // A speaker echoes the question back: "My date of birth is March 14th,
+  // 1979." The echo carries no information and must not become part of the
+  // answer. Typed free text is exempt — it is taken exactly as written, and
+  // the default branch below returns null for it — but a structured answer
+  // typed with an echo still parses.
+  //
+  // That includes the sensitive digits, deliberately: "My Social Security
+  // number is 123 45 6789" parses, where "my social is 123 45 6789" (no
+  // echo, just a real word in front) still defers. The echo is the
+  // question's own words, so nothing the user said is being guessed at, and
+  // the digit-by-digit read-back still stands between the parse and the form.
+  const s = stripEcho(raw, question);
   switch (question.type) {
-    case 'yesno': return parseYesNo(raw);
+    case 'yesno': return parseYesNo(s);
     case 'ssn':
     case 'routing':
-    case 'account': return parseSensitiveDigits(raw);
-    case 'phone': return parsePhone(raw);
-    case 'zip': return parseZip(raw);
-    case 'email': return parseEmail(raw);
-    case 'choice': return parseChoice(raw, question);
-    case 'date': return parseDate(raw, question);
-    case 'monthyear': return parseMonthYear(raw, question);
+    case 'account': return parseSensitiveDigits(s);
+    case 'phone': return parsePhone(s);
+    case 'zip': return parseZip(s);
+    case 'email': return parseEmail(s);
+    case 'choice': return parseChoice(s, question);
+    case 'date': return parseDate(s, question, now);
+    case 'monthyear': return parseMonthYear(s, question, now);
     case 'money':
-    case 'number': return parseNumber(raw);
-    default: return typed ? null : parseText(raw);
+    case 'number': return parseNumber(s, question);
+    default: return typed ? null : parseText(s);
   }
 }
+
+/**
+ * Strip a leading clause that echoes the question.
+ *
+ * "What is your date of birth?" prompts "my date of birth is …" back, and
+ * that lead-in used to become the answer itself. The subject of the prompt
+ * (between the question word and any trailing clause), with "your" read as
+ * "my", is matched at the head of the transcript followed by a copula, and
+ * removed. Nothing is stripped unless a clear "X is …" shape is present, so
+ * a question whose answer really is those words is never eaten.
+ */
+function stripEcho(raw, question) {
+  const prompt = String(question?.prompt ?? '').toLowerCase();
+  let subject = prompt.replace(/\?.*$/, '').trim();
+  subject = subject.replace(
+    /^(what is|what was|what are|which|who is|who was|when is|when was|where is|where was|where are|how many|how much|how often|how old|what|who|when|where|how)\b[ ,]*/i, '');
+  subject = subject.replace(/\byour\b/g, 'my').trim();
+  subject = subject.replace(/^my\s+/, '');
+  if (!subject) return raw;
+  const re = new RegExp(`^(?:my |the |our )?${escapeRe(subject)} (?:is|was|are|were)[, ]+`, 'i');
+  const m = String(raw).match(re);
+  if (!m) return raw;
+  const rest = String(raw).slice(m[0].length).trim();
+  return rest ? rest : raw;
+}
+
+const escapeRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // -- free text -------------------------------------------------------------
 
@@ -216,14 +263,32 @@ function parseText(raw) {
 
 // -- yes / no --------------------------------------------------------------
 
+// A yes or no said as a full clause: "yes I do", "no she doesn't". The
+// subject and auxiliary are part of the answer, and the polarity is the word
+// at the head — the auxiliary alone would not settle it ("I do not" is not
+// "yes I do").
+//
+// Both are anchored at the end. The clause has to be the whole answer: "yes
+// I do not", "yes I did but not anymore" and "yes I do, no wait" all carry a
+// second polarity after the first, and a read-back that hears "yes" in them
+// would commit a Social Security number the user just rejected.
+const YES_PHRASE = /^(yes|yeah|yep|yup)\b[ ,]+(i|you|he|she|we|they|it)\s+(do|does|did|am|are|is|was|were|have|has|had|would|will|can|could|should)$/i;
+const NO_PHRASE = /^(no|nope|nah)\b[ ,]+(i|you|he|she|we|they|it)\s+(do not|don'?t|does not|doesn'?t|did not|didn'?t|am not|are not|aren'?t|is not|isn'?t|was not|wasn'?t|were not|weren'?t|have not|haven'?t|has not|hasn'?t|had not|hadn'?t|would not|wouldn'?t|will not|won'?t|can not|cannot|can'?t|could not|couldn'?t|should not|shouldn'?t)$/i;
+
 function parseYesNo(raw) {
   // Checked against the unstripped text: "uh huh" and "uh uh" begin with a
-  // filler word that is part of the answer itself.
-  const bare = String(raw ?? '').toLowerCase().replace(/\s+/g, ' ').trim().replace(/[.!?,]+$/, '');
+  // filler word that is part of the answer itself. A transcriber's curly
+  // apostrophe ("doesn’t", "that’s right") reads as the straight one.
+  const bare = String(raw ?? '').toLowerCase().replace(/’/g, "'")
+    .replace(/\s+/g, ' ').trim().replace(/[.!?,]+$/, '');
   if (YES.test(bare)) return { value: true, confidence: 1 };
   if (NO.test(bare)) return { value: false, confidence: 1 };
 
-  const s = clean(raw).replace(/[.!?,]+$/, '');
+  // The full-clause forms, checked before lead filler is stripped.
+  if (YES_PHRASE.test(bare)) return { value: true, confidence: 1 };
+  if (NO_PHRASE.test(bare)) return { value: false, confidence: 1 };
+
+  const s = clean(raw).replace(/’/g, "'").replace(/[.!?,]+$/, '');
 
   const yes = YES.test(s);
   const no = NO.test(s);
@@ -283,12 +348,13 @@ function parsePhone(raw) {
  * Digits from a transcript, or null if anything ambiguous is present.
  *
  * Accepts written digits, spoken digit words, and the separators people say
- * out loud ("dash", "and"). Rejects any other word, and rejects the
- * multiplier forms that have two readings.
+ * out loud ("dash", "and"), plus the commas and periods a transcriber drops
+ * between spoken digit groups ("9, 8, 7, …"). Rejects any other word, and
+ * rejects the multiplier forms that have two readings.
  */
 function digitsFrom(raw) {
   let s = clean(raw)
-    .replace(/[.,!?]+$/, '')
+    .replace(/[.,!?]+/g, ' ')
     .replace(/[-–—()+]/g, ' ')
     .replace(/\bdash\b|\bhyphen\b|\band\b/g, ' ');
 
@@ -301,8 +367,10 @@ function digitsFrom(raw) {
   let out = '';
   for (const token of tokens) {
     if (/^\d+$/.test(token)) { out += token; continue; }
+    // Own keys only: a bare lookup finds "constructor" on the prototype, and
+    // "1234 constructor" would read as an account number.
+    if (!Object.prototype.hasOwnProperty.call(DIGIT_WORDS, token)) return null;   // a real word
     const word = DIGIT_WORDS[token];
-    if (word === undefined) return null;   // a real word: not a pure digit string
     out += word;
   }
   return out || null;
@@ -338,15 +406,156 @@ const EMAIL = /^[a-z0-9._%+-]+@[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}$/;
 
 // -- numbers and money -----------------------------------------------------
 
-function parseNumber(raw) {
-  const s = clean(raw)
+const UNIT_WORDS = {
+  one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9
+};
+const TEEN_WORDS = {
+  ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15,
+  sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19
+};
+
+/**
+ * Number words to a value, or null unless they are one number said the way a
+ * number is said.
+ *
+ * "twelve hundred", "two thousand five", "two thousand five hundred thirty",
+ * "a hundred and five", "eighty five hundred". The grammar is the spoken one:
+ * below a hundred is a unit, a teen, or a tens word with at most one unit
+ * after it; "hundred" multiplies a number below a hundred (or "a") in front
+ * of it; "thousand" multiplies a number below a thousand. Anything else is
+ * not one number, and summing it would invent one: "nineteen ninety eight"
+ * is a year, not 117; "three fifty" is $3.50 or 350, not 53; "one two three"
+ * is digits. Those defer. An "and" is only part of the number right after a
+ * scale word — "five and six" is two numbers, not 56.
+ */
+function wordsToNumber(s) {
+  const tokens = String(s).split(/[\s-]+/).filter(Boolean);
+  let i = 0;
+
+  // Own keys only: `in` would also find "constructor" on the prototype.
+  const has = (table, t) => t != null && Object.prototype.hasOwnProperty.call(table, t);
+
+  // 1–99, or null without consuming anything.
+  const belowHundred = () => {
+    const t = tokens[i];
+    if (has(UNIT_WORDS, t)) { i++; return UNIT_WORDS[t]; }
+    if (has(TEEN_WORDS, t)) { i++; return TEEN_WORDS[t]; }
+    if (has(TENS_NUMBERS, t)) {
+      i++;
+      if (has(UNIT_WORDS, tokens[i])) return TENS_NUMBERS[t] + UNIT_WORDS[tokens[i++]];
+      return TENS_NUMBERS[t];
+    }
+    return null;
+  };
+
+  // A run below a scale word: "five", "twelve hundred", "a hundred and five".
+  // Returns the value, or null when the words do not form one.
+  const group = () => {
+    let lead;
+    if (tokens[i] === 'a' && (tokens[i + 1] === 'hundred' || tokens[i + 1] === 'thousand')) {
+      i++;
+      lead = 1;
+    } else {
+      lead = belowHundred();
+      if (lead === null) return null;
+    }
+    if (tokens[i] !== 'hundred') return lead;
+    i++;
+    let value = lead * 100;
+    if (tokens[i] === 'and') {
+      i++;
+      const rest = belowHundred();
+      if (rest === null) return null;   // "a hundred and" says nothing more
+      value += rest;
+    } else if (i < tokens.length && tokens[i] !== 'thousand') {
+      const rest = belowHundred();
+      if (rest === null) return null;
+      value += rest;
+    }
+    return value;
+  };
+
+  if (!tokens.length) return null;
+  let total = group();
+  if (total === null) return null;
+  if (tokens[i] === 'thousand') {
+    // "twelve hundred thousand" is not how anyone says 1.2 million.
+    if (total >= 1000) return null;
+    i++;
+    total *= 1000;
+    if (i < tokens.length) {
+      if (tokens[i] === 'and') i++;
+      const rest = group();
+      if (rest === null || rest >= 1000) return null;
+      total += rest;
+    }
+  }
+  return i === tokens.length ? total : null;
+}
+
+/**
+ * The pay periods a speaker attaches to an amount, and the period each names.
+ * Longer phrases first: "every two weeks" is not "a week", and "twice a
+ * month" is not "a month".
+ */
+const PERIOD_PHRASES = [
+  [/\bevery (?:two|2|other) weeks?\b|\bbi ?weekly\b/g, 'biweekly'],
+  [/\btwice (?:a|per) month\b|\bsemi ?monthly\b/g, 'twice_month'],
+  [/\b(?:an?|per|each|every) hour\b|\bhourly\b|\bby the hour\b/g, 'hour'],
+  [/\b(?:an?|per|each|every) day\b|\bdaily\b/g, 'day'],
+  [/\b(?:an?|per|each|every) week\b|\bweekly\b/g, 'week'],
+  [/\b(?:an?|per|each|every) month\b|\bmonthly\b/g, 'month'],
+  [/\b(?:an?|per|each|every) year\b|\byearly\b|\bannually\b|\bper annum\b/g, 'year'],
+  [/\b(?:an?|per|each) paycheck\b/g, 'paycheck']
+];
+
+/**
+ * A number, or null.
+ *
+ * A period said with the amount ("$20 an hour", "twelve hundred a month") is
+ * checked against the question rather than thrown away. The schema's `per`
+ * says what the question asks for: `'any'` where the next question asks for
+ * the period itself (a job's pay), a period name where the question already
+ * fixes one ("What is the approximate monthly amount?"). A period that
+ * contradicts the question defers — "$20 an hour" is not a monthly income —
+ * and so does any period on a question that has none.
+ *
+ * `kind: 'year'` marks a number question that asks for a year, where
+ * "nineteen ninety eight" is 1998 rather than an ambiguous run of words.
+ */
+function parseNumber(raw, question) {
+  let s = clean(raw)
     .replace(/[.,!?]+$/, '')
-    .replace(/\bdollars?\b|\bbucks?\b|\bper month\b|\ba month\b|\bmonthly\b|\bapprox\w*\b|\babout\b|\baround\b/g, ' ')
+    .replace(/\bdollars?\b|\bbucks?\b/g, ' ')
     .replace(/[$,]/g, '')
     .trim();
 
+  const periods = new Set();
+  for (const [re, period] of PERIOD_PHRASES) {
+    s = s.replace(re, () => { periods.add(period); return ' '; });
+  }
+  if (periods.size) {
+    const per = question?.per;
+    if (per !== 'any' && !(periods.size === 1 && periods.has(per))) return null;
+  }
+
+  s = s.replace(/\b(approx\w*|about|around|roughly)\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!s) return null;
+
   // A range or a list has no single value. "Eight hundred to a thousand" is a
-  // question for the user, not a number to pick from.
+  // question for the user, not a number to pick from. "Two thousand and five"
+  // is not a range — wordsToNumber settles that below, so only the digit path
+  // needs the guard.
+  const wordValue = wordsToNumber(s);
+  if (wordValue !== null) return { value: wordValue, confidence: 1 };
+
+  if (question?.kind === 'year') {
+    const year = spokenNumbers(s).trim();
+    if (/^\d{4}$/.test(year)) return { value: Number(year), confidence: 1 };
+  }
+
   if (/\b(to|or|between|and)\b/.test(s)) return null;
 
   const numeric = s.match(/-?\d+(\.\d+)?/g);
@@ -360,15 +569,15 @@ function parseNumber(raw) {
 
 // -- dates -----------------------------------------------------------------
 
-function parseDate(raw, question) {
+function parseDate(raw, question, now) {
   const s = spokenNumbers(clean(raw));
 
   let m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
-  if (m) return dated(+m[1], +m[2], +m[3], 1, question);
+  if (m) return dated(+m[1], +m[2], +m[3], 1, question, now);
 
   // 3/14/79, 03-14-1979
   m = /^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2}|\d{4})$/.exec(s);
-  if (m) return dated(expandYear(+m[3], m[3].length, question), +m[1], +m[2], 1, question);
+  if (m) return dated(expandYear(+m[3], m[3].length, question, now), +m[1], +m[2], 1, question, now);
 
   // March 14th 1979 · the 14th of March, 1979 · March 14 1979
   const month = findMonth(s);
@@ -391,10 +600,10 @@ function parseDate(raw, question) {
   else return null;   // "3 14" with no century — ambiguous, defer
 
   const confidence = yearRaw.length === 4 ? 1 : 0.8;
-  return dated(expandYear(+yearRaw, yearRaw.length, question), month, +day, confidence, question);
+  return dated(expandYear(+yearRaw, yearRaw.length, question, now), month, +day, confidence, question, now);
 }
 
-function parseMonthYear(raw, question) {
+function parseMonthYear(raw, question, now) {
   const s = spokenNumbers(clean(raw));
 
   if (PRESENT.test(s) && !/\b(19|20)\d{2}\b/.test(s)) {
@@ -402,11 +611,11 @@ function parseMonthYear(raw, question) {
   }
 
   let m = /^(\d{4})-(\d{2})$/.exec(s);
-  if (m) return monthYear(+m[1], +m[2], 1, question);
+  if (m) return monthYear(+m[1], +m[2], 1, question, now);
 
   // 3/79, 03/1979
   m = /^(\d{1,2})[/\-.](\d{2}|\d{4})$/.exec(s);
-  if (m) return monthYear(expandYear(+m[2], m[2].length, question), +m[1], m[2].length === 4 ? 1 : 0.8, question);
+  if (m) return monthYear(expandYear(+m[2], m[2].length, question, now), +m[1], m[2].length === 4 ? 1 : 0.8, question, now);
 
   const month = findMonth(s);
   if (month === null) return null;
@@ -414,7 +623,7 @@ function parseMonthYear(raw, question) {
   if (nums.length !== 1) return null;
 
   const yearRaw = nums[0];
-  return monthYear(expandYear(+yearRaw, yearRaw.length, question), month, yearRaw.length === 4 ? 1 : 0.8, question);
+  return monthYear(expandYear(+yearRaw, yearRaw.length, question, now), month, yearRaw.length === 4 ? 1 : 0.8, question, now);
 }
 
 function findMonth(s) {
@@ -433,26 +642,26 @@ function findMonth(s) {
  * dates (an expected graduation) reads a near-future year as itself, so
  * "June 28" is not taken to mean 1928.
  */
-function expandYear(year, digits, question) {
+function expandYear(year, digits, question, now) {
   if (digits === 4) return year;
-  const now = new Date().getFullYear();
-  const century = Math.floor(now / 100) * 100;
+  const current = now().getFullYear();
+  const century = Math.floor(current / 100) * 100;
   const candidate = century + year;
-  if (candidate <= now) return candidate;
-  if (allowsFuture(question) && candidate <= now + 20) return candidate;
+  if (candidate <= current) return candidate;
+  if (allowsFuture(question) && candidate <= current + 20) return candidate;
   return candidate - 100;
 }
 
-function dated(year, month, day, confidence, question) {
+function dated(year, month, day, confidence, question, now) {
   if (!validYmd(year, month, day)) return null;
-  if (isFuture(year, month, day) && !allowsFuture(question)) return null;
+  if (isFuture(year, month, day, now) && !allowsFuture(question)) return null;
   const iso = `${pad4(year)}-${pad2(month)}-${pad2(day)}`;
   return { value: iso, confidence };
 }
 
-function monthYear(year, month, confidence, question) {
+function monthYear(year, month, confidence, question, now) {
   if (!validYmd(year, month, 1)) return null;
-  if (isFuture(year, month, 1) && !allowsFuture(question)) return null;
+  if (isFuture(year, month, 1, now) && !allowsFuture(question)) return null;
   return { value: `${pad4(year)}-${pad2(month)}`, confidence };
 }
 
@@ -464,8 +673,8 @@ function validYmd(year, month, day) {
   return day <= new Date(year, month, 0).getDate();
 }
 
-function isFuture(year, month, day) {
-  const today = new Date();
+function isFuture(year, month, day, now) {
+  const today = now();
   today.setHours(0, 0, 0, 0);
   return new Date(year, month - 1, day) > today;
 }
