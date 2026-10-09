@@ -60,14 +60,25 @@ if (new Date(Date.UTC(2026, 0, 1)).getTimezoneOffset() !== 0) {
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const DEST = join(REPO, 'android', 'core', 'src', 'test', 'resources', 'golden');
+// The goldens the app itself reads at runtime (the Helvetica metrics and the
+// template manifests — box sizes never come from PDFBox), shipped as :core
+// main resources rather than test fixtures.
+const MAIN_DEST = join(REPO, 'android', 'core', 'src', 'main', 'resources', 'golden');
 mkdirSync(DEST, { recursive: true });
+mkdirSync(MAIN_DEST, { recursive: true });
 
 const require = createRequire(import.meta.url);
 const PDFLib = require(join(REPO, 'vendor', 'pdf-lib.min.js'));
 
-const write = (name, value) => {
-  writeFileSync(join(DEST, `${name}.json`), JSON.stringify(value, null, 2) + '\n');
-  console.log(`golden ${name}.json (${JSON.stringify(value).length} bytes)`);
+// Goldens are compared as parsed JSON trees, never as text, and git keeps
+// every committed version — so the two largest (walks, fillplans) are written
+// compact rather than pretty-printed. That roughly halves them; the pretty
+// diff was only ever a convenience for humans, who still get it for the rest.
+const write = (name, value, { compact = false, main = false } = {}) => {
+  const text = compact ? JSON.stringify(value) : JSON.stringify(value, null, 2);
+  writeFileSync(join(DEST, `${name}.json`), text + '\n');
+  if (main) writeFileSync(join(MAIN_DEST, `${name}.json`), text + '\n');
+  console.log(`golden ${name}.json (${text.length} bytes)${main ? ' (+ main copy)' : ''}`);
 };
 
 /** Deterministic PRNG: same seed, same sequence, on every machine. */
@@ -415,7 +426,7 @@ async function goldenWalks() {
     walks.push({ seed, actions });
   }
 
-  write('walks', { walks });
+  write('walks', { walks }, { compact: true });
 }
 
 // ---------------------------------------------------------------------------
@@ -447,10 +458,34 @@ async function goldenPdf() {
     XHeight: f.embedder.font.XHeight,
     FontBBox: f.embedder.font.FontBBox
   });
+  // Probes pin the Kotlin HelveticaMetrics against pdf-lib directly: for
+  // known texts and sizes, the width (over the WinAnsi text, as every caller
+  // measures it) and the height. The `ansi` string is recorded, so the Kotlin
+  // side measures exactly what pdf-lib measured without needing toWinAnsi to
+  // agree first.
+  const probes = [];
+  const probeTexts = [
+    '', 'A', 'Ada', 'Portland', '123456789', 'Maine Medical Center',
+    'A very long answer that will not fit in any box on the form at all, no matter how small it gets',
+    'José Ñúñez', 'Łukasz Wałęsa', 'x'.repeat(300)
+  ];
+  for (const size of [7, 8, 9, 10, 11, 14, 20]) {
+    for (const text of probeTexts) {
+      const ansi = toWinAnsi(text);
+      for (const [name, f] of [['helvetica', fonts.regular], ['helveticaBold', fonts.bold]]) {
+        probes.push({
+          font: name, text, ansi, size,
+          width: f.widthOfTextAtSize(ansi, size),
+          height: f.heightAtSize(size)
+        });
+      }
+    }
+  }
   write('metrics', {
     helvetica: dumpMetrics(fonts.regular),
-    helveticaBold: dumpMetrics(fonts.bold)
-  });
+    helveticaBold: dumpMetrics(fonts.bold),
+    probes
+  }, { main: true });
 
   // -- templateManifest -------------------------------------------------------
   const manifests = {};
@@ -459,7 +494,7 @@ async function goldenPdf() {
     const doc = await PDFLib.PDFDocument.load(bytes);
     manifests[formId] = buildManifest(doc.getForm(), PDFLib);
   }
-  write('templateManifest', manifests);
+  write('templateManifest', manifests, { main: true });
 
   // -- fillplans ---------------------------------------------------------------
   const plans = [];
@@ -511,7 +546,7 @@ async function goldenPdf() {
       plans.push({ fixture: `random-${i}`, form: formId, answers, plan: planFor(formId, answers) });
     }
   }
-  write('fillplans', { plans });
+  write('fillplans', { plans }, { compact: true });
 
   // -- fits: every box x ~40 values ---------------------------------------------
   const fits = [];
@@ -537,23 +572,27 @@ async function goldenPdf() {
   write('fits', { fits });
 
   // -- addendum draw lists -------------------------------------------------------
+  // The content layoutAddendum was called with is recorded alongside the pages,
+  // so the Kotlin AddendumLayout replays the same input rather than rebuilding
+  // it through the form specs (which the fillplans golden already pins).
   const addendum = {};
   const overflowBoth = { ...fixture('both'), conditions: Array.from({ length: 14 }, (_, i) => ({ name: `A fairly long diagnosis name number ${i}` })) };
   for (const [formId, spec] of Object.entries({ ssa: ssaKit, ds: dsIntake })) {
     const mapping = spec.map(formId === 'ssa' ? fixture('both') : overflowBoth, { today: NOW() });
     const plan = planFill(mapping, manifests[formId], metricsOf(fonts.regular));
-    const drawList = layoutAddendum({
+    const content = {
       title: spec.ADDENDUM.title,
-      intro: spec.ADDENDUM.intro,
+      intro: spec.ADDENDUM.intro ?? [],
       overflowText: plan.overflowText,
       tables: plan.tables,
       sections: plan.sections,
-      footer: spec.ADDENDUM.footer
-    }, {
+      footer: spec.ADDENDUM.footer ?? []
+    };
+    const drawList = layoutAddendum(content, {
       regular: metricsOf(fonts.regular),
       bold: metricsOf(fonts.bold)
     });
-    addendum[formId] = drawList;
+    addendum[formId] = { pages: drawList.pages, content };
   }
   write('addendum', addendum);
 }
@@ -589,18 +628,23 @@ async function goldenImport() {
   const v3 = { version: 3, savedAt: '2026-01-01T10:00:00.000Z', answers: both, state: engine.getState() };
 
   const results = {};
+  const inputs = {};
   for (const [name, file] of Object.entries({ v1, v2, v3 })) {
-    const r = parseExport(JSON.stringify(file));
+    const text = JSON.stringify(file);
+    inputs[name] = text;
+    const r = parseExport(text);
     results[name] = { state: r.state, savedAt: r.savedAt, rebuiltCursor: r.rebuiltCursor };
   }
 
-  // A broken file: not JSON, no answers, wrong types.
+  // A broken file: not JSON, no answers, wrong types. The inputs are recorded
+  // so the Kotlin importer parses the same bytes.
   const broken = {};
-  for (const [name, text] of Object.entries({
+  const brokenInputs = {
     notJson: 'not json at all',
     empty: '{"version":3,"answers":{}}',
     badAnswers: '{"version":3,"answers":{"first_name":42,"forms":"weird"}}'
-  })) {
+  };
+  for (const [name, text] of Object.entries(brokenInputs)) {
     try {
       parseExport(text);
       broken[name] = 'accepted (bad)';
@@ -609,7 +653,7 @@ async function goldenImport() {
     }
   }
 
-  write('import', { results, broken });
+  write('import', { results, broken, inputs: { ...inputs, ...brokenInputs } });
 }
 
 // ---------------------------------------------------------------------------

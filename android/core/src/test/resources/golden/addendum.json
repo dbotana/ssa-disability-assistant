@@ -1870,7 +1870,678 @@
           "color": "muted"
         }
       ]
-    ]
+    ],
+    "content": {
+      "title": "Additional information for your Adult Disability Starter Kit",
+      "intro": [
+        "These pages were added to the Starter Kit worksheet. They hold the rest of the information the checklist asks you to have ready, and any rows that did not fit on the worksheet. Have them with you when you apply online at www.ssa.gov/apply or at your appointment. Do not mail them to Social Security.",
+        "HANDLE WITH CARE: these pages may contain your Social Security number and bank account numbers. Store them somewhere safe."
+      ],
+      "overflowText": [],
+      "tables": [],
+      "sections": [
+        {
+          "id": "identity",
+          "title": "Basic information about you",
+          "blocks": [
+            {
+              "kind": "field",
+              "id": "first_name",
+              "label": "Legal first name",
+              "type": "text",
+              "value": "Ada",
+              "answered": true
+            },
+            {
+              "kind": "field",
+              "id": "last_name",
+              "label": "Legal last name",
+              "type": "text",
+              "value": "Lovelace",
+              "answered": true
+            },
+            {
+              "kind": "field",
+              "id": "date_of_birth",
+              "label": "Date of birth",
+              "type": "date",
+              "value": "December 10, 1995",
+              "answered": true
+            },
+            {
+              "kind": "field",
+              "id": "birth_city",
+              "label": "City of birth",
+              "type": "text",
+              "value": "Bangor",
+              "answered": true
+            },
+            {
+              "kind": "field",
+              "id": "birth_state",
+              "label": "State or province of birth",
+              "type": "text",
+              "value": "Maine",
+              "answered": true
+            },
+            {
+              "kind": "field",
+              "id": "birth_country",
+              "label": "Country of birth",
+              "type": "text",
+              "value": "United States",
+              "answered": true
+            },
+            {
+              "kind": "field",
+              "id": "ssn",
+              "label": "Social Security number",
+              "type": "ssn",
+              "value": "123-45-6789",
+              "answered": true
+            }
+          ]
+        },
+        {
+          "id": "conditions",
+          "title": "Your medical conditions",
+          "blocks": [
+            {
+              "kind": "field",
+              "id": "onset_date",
+              "label": "Date condition began limiting work",
+              "type": "monthyear",
+              "value": "March 2021",
+              "answered": true
+            }
+          ]
+        },
+        {
+          "id": "workers_comp",
+          "title": "Workers' compensation",
+          "blocks": [
+            {
+              "kind": "field",
+              "id": "wc_receives",
+              "label": "Receives workers' compensation",
+              "type": "yesno",
+              "value": "No",
+              "answered": true
+            }
+          ]
+        },
+        {
+          "id": "records_permission",
+          "title": "Permission to request your medical records",
+          "blocks": [
+            {
+              "kind": "field",
+              "id": "records_permission",
+              "label": "Permission to request medical records",
+              "type": "yesno",
+              "value": "Yes",
+              "answered": true
+            }
+          ]
+        },
+        {
+          "id": "references",
+          "title": "People who know about your condition",
+          "blocks": [
+            {
+              "kind": "field",
+              "id": "ref1_name",
+              "label": "Reference 1 — name",
+              "type": "text",
+              "value": "Charles Babbage",
+              "answered": true
+            },
+            {
+              "kind": "field",
+              "id": "ref1_phone",
+              "label": "Reference 1 — phone",
+              "type": "phone",
+              "value": "207-555-0144",
+              "answered": true
+            },
+            {
+              "kind": "field",
+              "id": "ref2_name",
+              "label": "Reference 2 — name",
+              "type": "text",
+              "value": "",
+              "answered": false
+            }
+          ]
+        },
+        {
+          "id": "earnings",
+          "title": "Your earnings record",
+          "blocks": [
+            {
+              "kind": "field",
+              "id": "earnings_reviewed",
+              "label": "Earnings record reviewed",
+              "type": "yesno",
+              "value": "",
+              "answered": false
+            }
+          ]
+        },
+        {
+          "id": "employment",
+          "title": "Your work history",
+          "blocks": [
+            {
+              "kind": "table",
+              "id": "jobs",
+              "label": "job",
+              "columns": [
+                {
+                  "id": "employer",
+                  "label": "Employer's name",
+                  "type": "text"
+                },
+                {
+                  "id": "job_title",
+                  "label": "Job title",
+                  "type": "text"
+                },
+                {
+                  "id": "business_type",
+                  "label": "Type of business",
+                  "type": "text"
+                },
+                {
+                  "id": "start",
+                  "label": "Start month and year",
+                  "type": "monthyear"
+                },
+                {
+                  "id": "end",
+                  "label": "End month and year",
+                  "type": "monthyear"
+                },
+                {
+                  "id": "hours_per_day",
+                  "label": "Average hours per day",
+                  "type": "number"
+                },
+                {
+                  "id": "days_per_week",
+                  "label": "Days per week",
+                  "type": "number"
+                },
+                {
+                  "id": "pay_amount",
+                  "label": "Rate of pay",
+                  "type": "money"
+                },
+                {
+                  "id": "pay_frequency",
+                  "label": "Paid",
+                  "type": "choice",
+                  "options": [
+                    {
+                      "value": "hour",
+                      "label": "Per hour",
+                      "aliases": [
+                        "hour",
+                        "hourly",
+                        "an hour",
+                        "per hour",
+                        "by the hour"
+                      ]
+                    },
+                    {
+                      "value": "day",
+                      "label": "Per day",
+                      "aliases": [
+                        "day",
+                        "daily",
+                        "a day",
+                        "per day"
+                      ]
+                    },
+                    {
+                      "value": "week",
+                      "label": "Per week",
+                      "aliases": [
+                        "week",
+                        "weekly",
+                        "a week",
+                        "per week"
+                      ]
+                    },
+                    {
+                      "value": "biweekly",
+                      "label": "Every two weeks",
+                      "aliases": [
+                        "every two weeks",
+                        "every 2 weeks",
+                        "biweekly",
+                        "bi weekly",
+                        "every other week"
+                      ]
+                    },
+                    {
+                      "value": "twice_month",
+                      "label": "Twice a month",
+                      "aliases": [
+                        "twice a month",
+                        "twice monthly",
+                        "semimonthly",
+                        "semi monthly"
+                      ]
+                    },
+                    {
+                      "value": "month",
+                      "label": "Per month",
+                      "aliases": [
+                        "month",
+                        "monthly",
+                        "a month",
+                        "per month"
+                      ]
+                    },
+                    {
+                      "value": "year",
+                      "label": "Per year",
+                      "aliases": [
+                        "year",
+                        "yearly",
+                        "annually",
+                        "annual",
+                        "a year",
+                        "per year",
+                        "salary"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "rows": [
+                [
+                  "Employer 1",
+                  "Title 1",
+                  "Restaurant",
+                  "January 2018",
+                  "Present",
+                  "8",
+                  "5",
+                  "$15",
+                  "Per hour"
+                ],
+                [
+                  "Employer 2",
+                  "Title 2",
+                  "Restaurant",
+                  "January 2018",
+                  "June 2019",
+                  "8",
+                  "5",
+                  "$15",
+                  "Per hour"
+                ],
+                [
+                  "Employer 3",
+                  "Title 3",
+                  "Restaurant",
+                  "January 2018",
+                  "June 2019",
+                  "8",
+                  "5",
+                  "$15",
+                  "Per hour"
+                ],
+                [
+                  "Employer 4",
+                  "Title 4",
+                  "Restaurant",
+                  "January 2018",
+                  "June 2019",
+                  "8",
+                  "5",
+                  "$15",
+                  "Per hour"
+                ],
+                [
+                  "Employer 5",
+                  "Title 5",
+                  "Restaurant",
+                  "January 2018",
+                  "June 2019",
+                  "8",
+                  "5",
+                  "$15",
+                  "Per hour"
+                ]
+              ],
+              "empty": false
+            }
+          ]
+        },
+        {
+          "id": "education",
+          "title": "Your education",
+          "blocks": [
+            {
+              "kind": "field",
+              "id": "education_level",
+              "label": "Highest level of education completed",
+              "type": "text",
+              "value": "12th grade",
+              "answered": true
+            },
+            {
+              "kind": "field",
+              "id": "education_year",
+              "label": "Year completed",
+              "type": "number",
+              "value": "",
+              "answered": false
+            },
+            {
+              "kind": "field",
+              "id": "education_school",
+              "label": "School or institution",
+              "type": "text",
+              "value": "Deering High",
+              "answered": true
+            },
+            {
+              "kind": "field",
+              "id": "special_ed",
+              "label": "Received special education services",
+              "type": "yesno",
+              "value": "Yes",
+              "answered": true
+            },
+            {
+              "kind": "field",
+              "id": "special_ed_where",
+              "label": "Special education — where",
+              "type": "text",
+              "value": "",
+              "answered": false
+            },
+            {
+              "kind": "field",
+              "id": "special_ed_year",
+              "label": "Special education — year completed",
+              "type": "number",
+              "value": "",
+              "answered": false
+            }
+          ]
+        },
+        {
+          "id": "vocational",
+          "title": "Job, trade, or vocational training",
+          "blocks": [
+            {
+              "kind": "table",
+              "id": "training",
+              "label": "training program",
+              "columns": [
+                {
+                  "id": "name",
+                  "label": "Name",
+                  "type": "text"
+                },
+                {
+                  "id": "completed",
+                  "label": "Date completed",
+                  "type": "monthyear"
+                }
+              ],
+              "rows": [],
+              "empty": true
+            }
+          ]
+        },
+        {
+          "id": "marriages",
+          "title": "Current and past marriages",
+          "blocks": [
+            {
+              "kind": "table",
+              "id": "marriages",
+              "label": "marriage",
+              "columns": [
+                {
+                  "id": "spouse_name",
+                  "label": "Spouse's full name",
+                  "type": "text"
+                },
+                {
+                  "id": "spouse_ssn",
+                  "label": "Spouse's Social Security number",
+                  "type": "ssn"
+                },
+                {
+                  "id": "spouse_dob",
+                  "label": "Spouse's date of birth",
+                  "type": "date"
+                },
+                {
+                  "id": "marriage_city",
+                  "label": "City of marriage",
+                  "type": "text"
+                },
+                {
+                  "id": "marriage_state",
+                  "label": "State of marriage",
+                  "type": "text"
+                },
+                {
+                  "id": "marriage_country",
+                  "label": "Country of marriage",
+                  "type": "text"
+                },
+                {
+                  "id": "marriage_date",
+                  "label": "Date of marriage",
+                  "type": "date"
+                },
+                {
+                  "id": "still_active",
+                  "label": "Marriage still active",
+                  "type": "yesno"
+                },
+                {
+                  "id": "divorce_date",
+                  "label": "Date of divorce",
+                  "type": "date"
+                },
+                {
+                  "id": "spouse_died",
+                  "label": "Spouse passed away",
+                  "type": "yesno"
+                },
+                {
+                  "id": "spouse_death_date",
+                  "label": "Date of death",
+                  "type": "date"
+                }
+              ],
+              "rows": [],
+              "empty": true
+            }
+          ]
+        },
+        {
+          "id": "children",
+          "title": "Your children",
+          "blocks": [
+            {
+              "kind": "table",
+              "id": "children",
+              "label": "child",
+              "columns": [
+                {
+                  "id": "first_name",
+                  "label": "Legal first name",
+                  "type": "text"
+                },
+                {
+                  "id": "last_name",
+                  "label": "Legal last name",
+                  "type": "text"
+                }
+              ],
+              "rows": [],
+              "empty": true
+            }
+          ]
+        },
+        {
+          "id": "household",
+          "title": "People who live with you",
+          "blocks": [
+            {
+              "kind": "table",
+              "id": "household",
+              "label": "household member",
+              "columns": [
+                {
+                  "id": "name",
+                  "label": "Name",
+                  "type": "text"
+                },
+                {
+                  "id": "dob",
+                  "label": "Date of birth",
+                  "type": "date"
+                }
+              ],
+              "rows": [
+                [
+                  "Anne Byron",
+                  ""
+                ],
+                [
+                  "Tom Byron",
+                  ""
+                ]
+              ],
+              "empty": false
+            }
+          ]
+        },
+        {
+          "id": "housing",
+          "title": "Your home",
+          "blocks": [
+            {
+              "kind": "field",
+              "id": "rents",
+              "label": "Rents home",
+              "type": "yesno",
+              "value": "",
+              "answered": false
+            },
+            {
+              "kind": "field",
+              "id": "has_admission_agreement",
+              "label": "Admission agreement on file",
+              "type": "yesno",
+              "value": "",
+              "answered": false
+            },
+            {
+              "kind": "field",
+              "id": "recent_admission",
+              "label": "Recent hospital or institution admission",
+              "type": "yesno",
+              "value": "",
+              "answered": false
+            }
+          ]
+        },
+        {
+          "id": "income",
+          "title": "Your current income",
+          "blocks": [
+            {
+              "kind": "table",
+              "id": "income_sources",
+              "label": "income source",
+              "columns": [
+                {
+                  "id": "kind",
+                  "label": "Type",
+                  "type": "text"
+                },
+                {
+                  "id": "monthly_amount",
+                  "label": "Approximate monthly amount",
+                  "type": "money"
+                },
+                {
+                  "id": "has_documentation",
+                  "label": "Documentation available",
+                  "type": "yesno"
+                }
+              ],
+              "rows": [],
+              "empty": true
+            }
+          ]
+        },
+        {
+          "id": "resources",
+          "title": "Other financial resources",
+          "blocks": [
+            {
+              "kind": "table",
+              "id": "resources",
+              "label": "resource",
+              "columns": [
+                {
+                  "id": "kind",
+                  "label": "Type",
+                  "type": "text"
+                },
+                {
+                  "id": "value",
+                  "label": "Approximate value",
+                  "type": "money"
+                }
+              ],
+              "rows": [],
+              "empty": true
+            }
+          ]
+        },
+        {
+          "id": "direct_deposit",
+          "title": "Direct deposit for benefit payments",
+          "blocks": [
+            {
+              "kind": "field",
+              "id": "routing_number",
+              "label": "Bank's 9-digit routing number",
+              "type": "routing",
+              "value": "021000021",
+              "answered": true
+            },
+            {
+              "kind": "field",
+              "id": "account_number",
+              "label": "Bank account number",
+              "type": "account",
+              "value": "5544332211",
+              "answered": true
+            }
+          ]
+        }
+      ],
+      "footer": [
+        "Starter Kit additional information",
+        "Not an application. Prepared on the applicant's own device."
+      ]
+    }
   },
   "ds": {
     "pages": [
@@ -2099,6 +2770,28 @@
           "color": "muted"
         }
       ]
-    ]
+    ],
+    "content": {
+      "title": "Developmental Services Intake Application: continued",
+      "intro": [
+        "Some answers did not fit in the boxes on the application. They are written out in full here. Send this page along with the application."
+      ],
+      "overflowText": [
+        {
+          "label": "Current diagnoses",
+          "value": "A fairly long diagnosis name number 0; A fairly long diagnosis name number 1; A fairly long diagnosis name number 2; A fairly long diagnosis name number 3; A fairly long diagnosis name number 4; A fairly long diagnosis name number 5; A fairly long diagnosis name number 6; A fairly long diagnosis name number 7; A fairly long diagnosis name number 8; A fairly long diagnosis name number 9; A fairly long diagnosis name number 10; A fairly long diagnosis name number 11; A fairly long diagnosis name number 12; A fairly long diagnosis name number 13; Autism spectrum disorder; Mild intellectual disability; ADHD"
+        },
+        {
+          "label": "Employment history",
+          "value": "Title 1, Employer 1 (01/2018 to Present); Title 2, Employer 2 (01/2018 to 06/2019); Title 3, Employer 3 (01/2018 to 06/2019); Title 4, Employer 4 (01/2018 to 06/2019); Title 5, Employer 5 (01/2018 to 06/2019)"
+        }
+      ],
+      "tables": [],
+      "sections": [],
+      "footer": [
+        "DS Intake Application, continued",
+        "Prepared on the applicant's own device."
+      ]
+    }
   }
 }

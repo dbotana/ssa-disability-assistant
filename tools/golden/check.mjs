@@ -16,7 +16,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const PATHS = 'android/core/src/test/resources/golden tools/schema.json';
+const PATHS = 'android/core/src/test/resources/golden android/core/src/main/resources/golden tools/schema.json';
 
 // The generator forces UTC itself; this makes the schema export match too.
 const env = { ...process.env, TZ: 'UTC' };
