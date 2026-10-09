@@ -135,12 +135,16 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+      # ram-size is explicit: the goldens parse into trees in memory (the
+      # androidTest manifest also asks for largeHeap), so the AVD default of
+      # 2048M is not left to chance.
       - name: Instrumented goldens
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.api }}
           target: ${{ matrix.target }}
           arch: x86_64
+          ram-size: 4096M
           disable-animations: true
           working-directory: android
           script: ./gradlew :core-device:connectedDebugAndroidTest --stacktrace

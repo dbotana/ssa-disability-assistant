@@ -11,6 +11,9 @@ ssa-disability-prep*.json
 assignment-info/
 ai-product-milestone-1-package/
 
+# Working plans. Decisions that later readers need go in TODO.md instead.
+plans/
+
 .DS_Store
 node_modules/
 _site/

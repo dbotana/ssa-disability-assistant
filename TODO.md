@@ -26,59 +26,56 @@ and its fixes made the same day. Nothing is committed yet. Where it stands:
 - **JS steps 1–7 (M2): done.** The 21 web test files, `tools/smoke.mjs` and
   the 9 turn scenarios all pass. The goldens are generated in UTC and come
   out the same on any machine.
-- **`core` port (M3): Schema, Engine, Parse, Choice, Correct and Validate.**
-  `./gradlew :core:test` runs 17 tests, all passing. They cover the parse,
-  choice and walks goldens, a replay of every recorded engine action, JS regex
-  and number semantics, and the phrases. Every Kotlin regex now goes through
-  one JS-to-platform translator (`core/js/JsRegex.kt`).
+- **`core` port (M3): done.** Schema, Engine, Parse, Choice, Correct,
+  Validate, Importer, TurnController and the whole PDF-planning side —
+  HelveticaMetrics, TextFitter, FillPlanner, AddendumLayout, plus the two
+  FormSpecs and the summary they build from. `./gradlew :core:test` runs 30
+  tests, all passing, and **every golden now has its port and its test**:
+  parse, choice and walks (as before), plus metrics, fits, fillplans,
+  addendum, import and turn. Every Kotlin regex goes through one
+  JS-to-platform translator (`core/js/JsRegex.kt`).
 - **`pdf`, `speech`, `llm`, `app`: skeletons**, as the review found. The
   privacy and native audits around them now work and fail closed.
 
 ## Open
 
-- [ ] **Commit `android/`, the goldens and `tools/schema.json`.**
-      `node tools/golden/check.mjs` now fails on goldens that were never
-      committed (it used to pass while checking nothing). So it fails until
-      the first commit, and passes from then on.
 - [ ] **Run the new CI once and fix what it finds.** Not yet run anywhere:
       the `device-tests` job, the canary job against real artifacts, and the
-      bundletool download. Two parts are unverified. One is the emulator
-      image name `google_apis_ps16k` (the 16 KB page-size image); check that
-      `reactivecircus/android-emulator-runner` accepts it. The other is
-      whether the goldens fit in the test process's memory on the emulator:
-      walks and fillplans are about 30 MB of JSON. The bundletool checksum was
-      recorded from the 1.17.2 release on 2026-10-08.
-- [ ] **Port what reads the other seven goldens** (metrics,
-      templateManifest, fits, fillplans, addendum, import, turn). Each needs
-      its port and a test: HelveticaMetrics, TextFitter, FillPlanner and
-      AddendumLayout, then Importer and TurnController. `tts` is read only to
-      check that every phrase is in the corpus; ttshash itself is not ported.
-      This is most of what is left of M3.
-- [ ] **Device-group delivery for `llm_pack` needs AI packs.** A plain asset
-      pack cannot be sent to the ≥ 6 GB group. Tried with a
-      `models#group_llmCapable/` folder and the bundle's device-group split
-      switched on: bundletool 1.17.2 rejects the bundle ("unsupported key
-      'group'"); its folder keys are lang, tcf, tier and countries. The plan
-      already names AI packs: use the `com.android.ai-pack` plugin and a
-      bundletool that supports them, in M6/M7. Until then `llm_pack` is not
-      in `assetPacks`. Still open as well: whether fast-follow delivery needs
-      a library that adds a network permission.
+      bundletool download. Verified locally 2026-10-08, so only the emulator
+      run itself is untried: the `google_apis_ps16k` image name is in
+      `reactivecircus/android-emulator-runner`'s documented targets, the
+      bundletool checksum matches the 1.17.2 release, the whole
+      `build-and-test` job (build, canary, both audits, golden freshness)
+      passes on this machine, and the workflow now pins `ram-size: 4096M`
+      for the goldens' ~17 MB of JSON (the compacted sizes; the androidTest
+      manifest already asks for largeHeap).
+- [ ] **Device-group delivery for `llm_pack` needs AI packs.** Confirmed
+      still true, and now researched (Play for On-device AI, 2026): the
+      `com.android.ai-pack` plugin with `dynamicDelivery { deliveryType }`,
+      listed in `assetPacks` like any pack, with device targeting applied
+      per pack by Play (ram-min 6 GB fits). Needs AGP ≥ 8.8 (we have
+      8.13.2). Fast-follow delivery needs the Play AI Delivery Library
+      (`com.google.android.play:ai-delivery`), which — like the PAD
+      libraries — talks to the Play Store app and should not add an INTERNET
+      permission to the app; the existing merged-manifest audit verifies that
+      empirically when it lands in M6/M7. Until then `llm_pack` is not in
+      `assetPacks`, and the bundle's device-group split stays off (bundletool
+      1.17.2 rejects the `#group_` folder key).
 - [ ] **Android wording for the phrases.** `Phrases` now reads the exported
       phrase table instead of a hand-made copy. The words are still the web
       app's ("hold the space bar", "check your downloads folder"). The
       Compose screens need their own, which means new clips and `tts`
-      entries.
-- [ ] **The goldens are large**: about 33 MB pretty-printed, mostly walks
-      (18 MB, the full state after every action) and fillplans (10 MB).
-      Writing those two without indentation would roughly halve that, at the
-      cost of readable diffs. Decide before the first commit, since git
-      keeps every version.
+      entries. Lands with the UI (M5).
 - [ ] **M0 hardware:** a 6–8 GB arm64 reference phone and a low-end phone.
 - [ ] **M1a, the PDF spike** (the plan's biggest risk): TemplateLoader,
       AcroFormWriter, AddendumRenderer and PdfSelfCheck; both forms filled
       from the JS-exported plan; a pdf-lib cross-read; the viewer checks;
       time and size; a written go/fallback decision. The templates are now in
-      `:pdf`'s assets, pinned.
+      `:pdf`'s assets, pinned, and `:core` already ships the goldens this
+      spike reads: `HelveticaMetrics` and `TemplateManifest` from
+      `core/src/main/resources/golden/` (written by the generator alongside
+      the test copies), and `AddendumLayout`'s draw lists for the renderer to
+      replay. PdfBox-Android 2.0.27.0 is in `libs.versions.toml`.
 - [ ] **M1b:** whisper.cpp and llama.cpp as pinned submodules, linked
       statically into the JNI libraries; the version script and export audit
       already apply to them. Load the models mmapped from
@@ -87,7 +84,8 @@ and its fixes made the same day. Nothing is committed yet. Where it stands:
 - [ ] **M1c:** `tools/llm-eval/` and eval v0 against parser v2.
 - [ ] **M4–M8** as the plan describes. TurnController should be a sealed
       type, a base mode × one overlay, rather than a copy of turn.js's
-      nullable flags.
+      nullable flags — the current port keeps the nullable flags for golden
+      parity.
 
 ## Done in the fix pass (2026-10-08)
 
@@ -95,6 +93,10 @@ Each was checked by a test or a re-run, and the new tests were checked by
 putting the bug back and watching them fail.
 
 **JS reference**
+- [x] **Commit `android/`, the goldens and `tools/schema.json`.**
+      `node tools/golden/check.mjs` now fails on goldens that were never
+      committed (it used to pass while checking nothing). So it fails until
+      the first commit, and passes from then on.
 - [x] **Parser v2 numbers.** `wordsToNumber()` follows the spoken grammar
       instead of summing words: "nineteen ninety eight", "three fifty", "one
       two three" and a bare "hundred" defer. A period said with an amount is
@@ -147,6 +149,49 @@ putting the bug back and watching them fail.
       - `check.mjs` also fails on goldens that were never committed.
 - [x] **Smaller.** The phrases are exported in `tools/schema.json`, and
       form-fill checks widget DAs as well as field DAs.
+
+**The seven remaining goldens (2026-10-08, completes M3)**
+- [x] **The goldens are large — decided: compact.** walks and fillplans are
+      written without indentation (33 MB → ~17 MB, mostly walks 18→7 MB and
+      fillplans 10→5 MB). The tests compare parsed JSON trees, never text,
+      and git keeps every version anyway; the small goldens stay
+      pretty-printed for human diffs.
+- [x] **metrics → `HelveticaMetrics`.** The generator also records probes
+      (text × size → width over the WinAnsi text, height), so the Kotlin
+      widths are pinned to pdf-lib directly. The WinAnsi code-point→glyph
+      table was extracted from the vendored pdf-lib bundle. `metrics.json`
+      and `templateManifest.json` are also written to `core/src/main/
+      resources/golden/` — the app reads them at runtime (box sizes and
+      widths never come from PDFBox), and `check.mjs` covers both copies.
+- [x] **templateManifest → `TemplateManifest` + `parseDa`**, with the
+      contract test: no comb, no MaxLen, no `/Opt` on either form.
+- [x] **fits → `TextFitter`** (`wrapLines`, `fitTextBox`), every box × ~40
+      values compared exactly, cut path included.
+- [x] **fillplans → `FillPlanner` + the two FormSpecs** (SsaStarterKit,
+      DsIntake) and the summary (`buildReport`/`present`/`shortLabel`,
+      en-US number grouping) they map through; ~400 plans re-planned from
+      their recorded answers, sections and tables compared whole.
+- [x] **addendum → `AddendumLayout`**, replaying the recorded content; every
+      draw op compared with exact doubles (JS order of operations kept).
+- [x] **import → `Importer`**, v1/v2/v3 inputs recorded in the golden and
+      reparsed, broken files refused with the same spoken-sentence messages.
+- [x] **turn → `TurnController`**, a port of turn.js over injected ports
+      (`createEngine`, `say`, `parseLocal`, `normalize`, `speakable`,
+      `formatTimeRemaining`, `correct`, `store`, `speech`, `audio`, `stt`,
+      `timers`, `clock`, `announce`, `onState`, `onExport`, `onReadBack`).
+      The shared YAML scenarios are copied into core's test resources pinned
+      by SHA-256 (like forms/ and audio/), plus the answer fixtures for
+      `resume`; a Kotlin harness with the same fixed clock and fake timers
+      runs all 9 scenarios and compares every spoken and announced line and
+      the final answers with the golden. Also ported on the way:
+      `localCommand`, `speakableValue`/`spellDigits`/`formatDate`/
+      `formatMonthYear`/`formatTimeRemaining`, and store.js's
+      `sensitiveAnswers`/`redact`.
+- [x] **`JsRegex` gained `\S`/`\D`/`\W` inside classes** — the complement
+      union (`[\s\S]` = any character) is exact under every dialect's
+      boundary, and `parseDa` needs it.
+- [x] **Numbers as JS prints them everywhere a value becomes text**: "8",
+      never "8.0" — `text()`, `present()` and the idle-lock message.
 
 **Kotlin `core`**
 - [x] **One regex translator** (`JsRegex.kt`, 25 cases taken from Node). It
@@ -217,7 +262,8 @@ putting the bug back and watching them fail.
 - [x] **Pinned assets.** `forms/` and `audio/` are copied into `:pdf` and
       `:speech` assets by `CopyPinnedAssets` (buildSrc), checked against
       `forms.SHA256SUMS` and `audio.SHA256SUMS`. The build fails on a wrong
-      hash, a missing file or an unpinned one.
+      hash, a missing file or an unpinned one. The turn scenarios and answer
+      fixtures are pinned into `:core`'s test resources the same way.
 
 ---
 
