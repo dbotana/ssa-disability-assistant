@@ -78,35 +78,56 @@ export function renderAddendum(doc, PDFLib, drawList, { font, bold }) {
 }
 
 /**
+ * The worksheet's fixed wording. Exported (tools/export-schema.mjs) so the
+ * Android WorksheetBuilder prints exactly these words.
+ */
+export const WORKSHEET = {
+  heading: 'Disability Forms Worksheet',
+  subject: 'Preparation worksheet — not an application',
+  creator: 'Voice Assistant for Disability Forms',
+  intro: [
+    'This worksheet was prepared by voice. The official form could not be '
+    + 'loaded, so your answers are listed here instead. It is NOT an application '
+    + 'and has not been sent to anyone.',
+    'HANDLE WITH CARE: this document may contain your Social Security number '
+    + 'and bank account numbers. Store it somewhere safe and shred it when you '
+    + 'no longer need it.'
+  ],
+  footer: ['Disability prep worksheet', 'Not an application. Prepared on the applicant\'s own device.']
+};
+
+/**
+ * What the worksheet says, as layoutAddendum content. The date is written the
+ * en-US way whatever the machine's locale ("Prepared 10/8/2026"), so the
+ * golden and the Android worksheet can agree on it.
+ */
+export function worksheetContent(answers, { heading = WORKSHEET.heading, now = () => new Date() } = {}) {
+  return {
+    title: heading,
+    intro: WORKSHEET.intro,
+    prepared: `Prepared ${now().toLocaleDateString('en-US')}`,
+    sections: buildReport(answers),
+    footer: WORKSHEET.footer
+  };
+}
+
+/**
  * A plain worksheet of every answer, built from nothing.
  *
  * The fallback for when an official form cannot be fetched. Better a
  * worksheet than an error. `now` supplies the "prepared on" date.
  */
 export async function buildWorksheet(PDFLib, answers, {
-  heading = 'Disability Forms Worksheet', now = () => new Date()
+  heading = WORKSHEET.heading, now = () => new Date()
 } = {}) {
   const doc = await PDFLib.PDFDocument.create();
   doc.setTitle(heading);
-  doc.setSubject('Preparation worksheet — not an application');
-  doc.setCreator('Voice Assistant for Disability Forms');
+  doc.setSubject(WORKSHEET.subject);
+  doc.setCreator(WORKSHEET.creator);
 
   const font = await doc.embedFont(PDFLib.StandardFonts.Helvetica);
   const bold = await doc.embedFont(PDFLib.StandardFonts.HelveticaBold);
-  const drawList = layoutAddendum({
-    title: heading,
-    intro: [
-      'This worksheet was prepared by voice. The official form could not be '
-      + 'loaded, so your answers are listed here instead. It is NOT an application '
-      + 'and has not been sent to anyone.',
-      'HANDLE WITH CARE: this document may contain your Social Security number '
-      + 'and bank account numbers. Store it somewhere safe and shred it when you '
-      + 'no longer need it.'
-    ],
-    prepared: `Prepared ${now().toLocaleDateString()}`,
-    sections: buildReport(answers),
-    footer: ['Disability prep worksheet', 'Not an application. Prepared on the applicant\'s own device.']
-  }, fontMetrics(font, bold));
+  const drawList = layoutAddendum(worksheetContent(answers, { heading, now }), fontMetrics(font, bold));
 
   renderAddendum(doc, PDFLib, drawList, { font, bold });
   return doc.save();

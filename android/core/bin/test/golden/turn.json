@@ -1,0 +1,610 @@
+{
+  "transcripts": [
+    {
+      "scenario": "add and delete a loop entry",
+      "spoken": [
+        "Voice mode. Hold the space bar while you answer, and let go when you are done. When I read an answer back, tap the space bar to keep it, or press N to answer again. You can type an answer instead at any point, and speaking still works afterwards. Say repeat, go back, or skip at any time.",
+        "Choosing your form.",
+        "Which form are we filling out today: Social Security's Adult Disability Starter Kit, Maine's Developmental Services Intake Application, or both?",
+        "Section 2 of 20.",
+        "Basic information about you.",
+        "What is your legal first name?",
+        "Your answers are ready. 10 required answers are still blank: What is your legal first name? What is your legal last name? What is your date of birth? Say the month, the day, and then the year. What city were you born in? What state or province were you born in? What country were you born in? What is your Social Security number? What month and year did your condition begin to limit your ability to work? Do you receive workers' compensation or another disability benefit? Do you give permission for Social Security to request your medical records directly from your providers? You can change an answer, or download your forms as they are.",
+        "Press a download button to save your filled form, or press read my answers to hear everything back.",
+        "Which answer would you like to change? You can name the field, for example, my phone number, or the second provider's address. You can add a new entry, by saying something like add another condition, or remove a whole entry, by saying remove that last provider. Say never mind to go back.",
+        "Adding a new condition.",
+        "What is the name of this condition?",
+        "Do you have another medical condition to add?",
+        "I added condition 1. 10 required answers are still blank. You can change another answer, or download your forms.",
+        "Which answer would you like to change? You can name the field, for example, my phone number, or the second provider's address. You can add a new entry, by saying something like add another condition, or remove a whole entry, by saying remove that last provider. Say never mind to go back.",
+        "Remove condition 1, Diabetes? This erases every answer recorded for that condition, and I cannot bring it back. Say yes to remove it, or no to keep it.",
+        "I removed condition 1, Diabetes. 10 required answers are still blank. You can change another answer, or download your forms."
+      ],
+      "announced": [
+        "Your answers are ready. 10 required answers are still blank: What is your legal first name? What is your legal last name? What is your date of birth? Say the month, the day, and then the year. What city were you born in? What state or province were you born in? What country were you born in? What is your Social Security number? What month and year did your condition begin to limit your ability to work? Do you receive workers' compensation or another disability benefit? Do you give permission for Social Security to request your medical records directly from your providers? You can change an answer, or download your forms as they are.",
+        "Which answer would you like to change? You can name the field, for example, my phone number, or the second provider's address. You can add a new entry, by saying something like add another condition, or remove a whole entry, by saying remove that last provider. Say never mind to go back.",
+        "I added condition 1. 10 required answers are still blank. You can change another answer, or download your forms.",
+        "Which answer would you like to change? You can name the field, for example, my phone number, or the second provider's address. You can add a new entry, by saying something like add another condition, or remove a whole entry, by saying remove that last provider. Say never mind to go back.",
+        "Remove condition 1, Diabetes? This erases every answer recorded for that condition, and I cannot bring it back. Say yes to remove it, or no to keep it.",
+        "I removed condition 1, Diabetes. 10 required answers are still blank. You can change another answer, or download your forms."
+      ],
+      "answers": {
+        "forms": "ssa",
+        "conditions": []
+      }
+    },
+    {
+      "scenario": "commands during a correction, and a double start",
+      "spoken": [
+        "Typing mode. I will ask a question, you type the answer and press Enter. The hold to talk button is still there whenever you would rather speak. You can type skip, back, or repeat at any time.",
+        "Choosing your form.",
+        "Which form are we filling out today: Social Security's Adult Disability Starter Kit, Maine's Developmental Services Intake Application, or both?",
+        "Section 2 of 20.",
+        "Basic information about you.",
+        "What is your legal first name?",
+        "What is your legal last name?",
+        "What is your date of birth? Say the month, the day, and then the year.",
+        "Which answer would you like to change? You can name the field, for example, my phone number, or the second provider's address. You can add a new entry, by saying something like add another condition, or remove a whole entry, by saying remove that last provider. Say never mind to go back.",
+        "Right now Legal first name is Ada. What should it be instead?",
+        "What is your legal first name?",
+        "You are in section 2 of 20, Basic information about you. About 4 percent done.",
+        "Right now Legal first name is Ada. What should it be instead?",
+        "What is your legal first name?",
+        "Legal first name is now Grace. 8 required answers are still blank. You can change another answer, or download your forms.",
+        "I have March 14, 1979. Is that correct? Type yes or no.",
+        "What city were you born in?"
+      ],
+      "announced": [
+        "Which answer would you like to change? You can name the field, for example, my phone number, or the second provider's address. You can add a new entry, by saying something like add another condition, or remove a whole entry, by saying remove that last provider. Say never mind to go back.",
+        "You are in section 2 of 20, Basic information about you. About 4 percent done.",
+        "Right now Legal first name is Ada. What should it be instead? What is your legal first name?",
+        "Legal first name is now Grace. 8 required answers are still blank. You can change another answer, or download your forms.",
+        "I have March 14, 1979. Is that correct? Type yes or no."
+      ],
+      "answers": {
+        "forms": "ssa",
+        "first_name": "Grace",
+        "last_name": "Lovelace",
+        "date_of_birth": "1979-03-14"
+      }
+    },
+    {
+      "scenario": "empty captures",
+      "spoken": [
+        "Voice mode. Hold the space bar while you answer, and let go when you are done. When I read an answer back, tap the space bar to keep it, or press N to answer again. You can type an answer instead at any point, and speaking still works afterwards. Say repeat, go back, or skip at any time.",
+        "Choosing your form.",
+        "Which form are we filling out today: Social Security's Adult Disability Starter Kit, Maine's Developmental Services Intake Application, or both?",
+        "I did not hear anything. Please try again, or say skip. The Starter Kit helps you get ready to apply for Social Security disability benefits. The Developmental Services application is how adults with an intellectual disability or autism apply to Maine for services. Say starter kit, developmental services, or both.",
+        "I did not hear anything. Please try again, or say skip. The Starter Kit helps you get ready to apply for Social Security disability benefits. The Developmental Services application is how adults with an intellectual disability or autism apply to Maine for services. Say starter kit, developmental services, or both.",
+        "I heard adult disability starter kit. Is that correct?"
+      ],
+      "announced": [
+        "I did not hear anything. Please try again, or say skip. The Starter Kit helps you get ready to apply for Social Security disability benefits. The Developmental Services application is how adults with an intellectual disability or autism apply to Maine for services. Say starter kit, developmental services, or both.",
+        "I did not hear anything. Please try again, or say skip. The Starter Kit helps you get ready to apply for Social Security disability benefits. The Developmental Services application is how adults with an intellectual disability or autism apply to Maine for services. Say starter kit, developmental services, or both.",
+        "I heard adult disability starter kit. Is that correct?"
+      ],
+      "answers": {}
+    },
+    {
+      "scenario": "the idle lock clears the numbers and asks for them again",
+      "spoken": [
+        "Typing mode. I will ask a question, you type the answer and press Enter. The hold to talk button is still there whenever you would rather speak. You can type skip, back, or repeat at any time.",
+        "Choosing your form.",
+        "Which form are we filling out today: Social Security's Adult Disability Starter Kit, Maine's Developmental Services Intake Application, or both?",
+        "Section 2 of 20.",
+        "Basic information about you.",
+        "What is your legal first name?",
+        "What is your legal last name?",
+        "What is your date of birth? Say the month, the day, and then the year.",
+        "I have March 14, 1979. Is that correct? Type yes or no.",
+        "What city were you born in?",
+        "What state or province were you born in?",
+        "What country were you born in?",
+        "Next I need your Social Security number. It is saved only on this device, and it is never sent to Social Security. You can say skip to leave it blank, or type it instead of saying it.",
+        "What is your Social Security number?",
+        "I have 9 8 7, 6 5, 4 3 2 1. Is that correct? Type yes or no.",
+        "Section 3 of 20.",
+        "Your medical conditions.",
+        "What is the medical condition that limits your ability to work? If you have more than one, we will take them one at a time.",
+        "For your security, I cleared your Social Security and bank numbers from this page after 15 minutes without activity. I will ask for them again before your forms are ready.",
+        "I cleared this while the page was not in use.",
+        "What is your Social Security number?"
+      ],
+      "announced": [
+        "I have March 14, 1979. Is that correct? Type yes or no.",
+        "I have 9 8 7, 6 5, 4 3 2 1. Is that correct? Type yes or no.",
+        "For your security, I cleared your Social Security and bank numbers from this page after 15 minutes without activity. I will ask for them again before your forms are ready."
+      ],
+      "answers": {
+        "forms": "ssa",
+        "first_name": "Ada",
+        "last_name": "Lovelace",
+        "date_of_birth": "1979-03-14",
+        "birth_city": "Bangor",
+        "birth_state": "Maine",
+        "birth_country": "United States",
+        "ssn": null
+      }
+    },
+    {
+      "scenario": "a resumed session asks again for the numbers it did not save",
+      "spoken": [
+        "Typing mode. I will ask a question, you type the answer and press Enter. The hold to talk button is still there whenever you would rather speak. You can type skip, back, or repeat at any time.",
+        "For your security, your Social Security and bank numbers were not saved when you stopped last time. I will ask for them again before your forms are ready.",
+        "Section 14 of 32.",
+        "People who know about your condition.",
+        "Can you give me the name of a second such person? This one is optional.",
+        "This was not saved when you stopped last time, for your security.",
+        "What is your Social Security number?",
+        "I have 9 8 7, 6 5, 4 3 2 1. Is that correct? Type yes or no.",
+        "Social Security number is now 9 8 7, 6 5, 4 3 2 1. This was not saved when you stopped last time, for your security.",
+        "What is your bank's 9-digit routing number?",
+        "This was not saved when you stopped last time, for your security.",
+        "What is your bank account number?"
+      ],
+      "announced": [
+        "For your security, your Social Security and bank numbers were not saved when you stopped last time. I will ask for them again before your forms are ready.",
+        "I have 9 8 7, 6 5, 4 3 2 1. Is that correct? Type yes or no."
+      ],
+      "answers": {
+        "forms": "both",
+        "for_self": false,
+        "helper_name": "Casco Bay Case Management",
+        "helper_address": "10 Front St",
+        "helper_city": "Portland",
+        "helper_county": "Cumberland",
+        "helper_zip": "04101",
+        "helper_phone": "2075550100",
+        "helper_fax": "2075550101",
+        "helper_email": "intake@example.org",
+        "first_name": "Ada",
+        "last_name": "Lovelace",
+        "date_of_birth": "1995-12-10",
+        "birth_city": "Bangor",
+        "birth_state": "Maine",
+        "birth_country": "United States",
+        "home_street": "5 Elm St",
+        "home_town": "Portland",
+        "home_state": "ME",
+        "home_zip": "041011234",
+        "mailing_different": true,
+        "mailing_address": "PO Box 9, Portland, ME 04101",
+        "applicant_phone": "2075550199",
+        "applicant_email": "ada@example.com",
+        "primary_language": "English",
+        "deaf_hoh": false,
+        "gender": "F",
+        "mainecare_number": "ME1234567",
+        "has_guardian": true,
+        "guardian_name": "Anne Byron",
+        "guardian_relationship": "Mother",
+        "guardian_address": "12 Oak St",
+        "guardian_city": "Augusta",
+        "guardian_county": "Kennebec",
+        "guardian_zip": "04330",
+        "guardian_phone": "2075550122",
+        "guardian_email": "anne@example.com",
+        "ec_same_as_guardian": false,
+        "ec_name": "Mary Somerville",
+        "ec_relationship": "Aunt",
+        "ec_address": "3 Pine St",
+        "ec_city": "Bath",
+        "ec_county": "Sagadahoc",
+        "ec_zip": "04530",
+        "ec_phone": "2075550133",
+        "ec_email": "mary@example.com",
+        "conditions": [
+          {
+            "name": "Condition number 1"
+          },
+          {
+            "name": "Condition number 2"
+          },
+          {
+            "name": "Condition number 3"
+          },
+          {
+            "name": "Condition number 4"
+          },
+          {
+            "name": "Condition number 5"
+          },
+          {
+            "name": "Condition number 6"
+          }
+        ],
+        "onset_date": "2021-03",
+        "medication_allergies": "Penicillin",
+        "food_allergies": "Peanuts",
+        "environmental_allergies": "Pollen",
+        "dietary_restrictions": "Gluten free",
+        "has_idd_dx": true,
+        "idd_dx_date": "2001-04",
+        "idd_age_at_dx": 5,
+        "idd_diagnoses": [
+          {
+            "name": "Autism spectrum disorder"
+          },
+          {
+            "name": "Mild intellectual disability"
+          },
+          {
+            "name": "ADHD"
+          }
+        ],
+        "providers": [
+          {
+            "name": "Dr. 1",
+            "address": "1 Main St",
+            "phone": "2075550010",
+            "first_seen": "2020-01",
+            "last_seen": "2023-06"
+          },
+          {
+            "name": "Dr. 2",
+            "address": "2 Main St",
+            "phone": "2075550020",
+            "first_seen": "2020-01",
+            "last_seen": "2023-06"
+          },
+          {
+            "name": "Dr. 3",
+            "address": "3 Main St",
+            "phone": "2075550030",
+            "first_seen": "2020-01",
+            "last_seen": "2023-06"
+          },
+          {
+            "name": "Dr. 4",
+            "address": "4 Main St",
+            "phone": "2075550040",
+            "first_seen": "2020-01",
+            "last_seen": "2023-06"
+          },
+          {
+            "name": "Dr. 5",
+            "address": "5 Main St",
+            "phone": "2075550050",
+            "first_seen": "2020-01",
+            "last_seen": "present"
+          }
+        ],
+        "tests": [
+          {
+            "name": "Test 1",
+            "date": "2023-02-14",
+            "ordered_by": "Dr. 1"
+          },
+          {
+            "name": "Test 2",
+            "date": "2023-02-14",
+            "ordered_by": "Dr. 2"
+          },
+          {
+            "name": "Test 3",
+            "date": "2023-02-14",
+            "ordered_by": "Dr. 3"
+          },
+          {
+            "name": "Test 4",
+            "date": "2023-02-14",
+            "ordered_by": "Dr. 4"
+          },
+          {
+            "name": "Test 5",
+            "date": "2023-02-14",
+            "ordered_by": "Dr. 5"
+          }
+        ],
+        "medications": [
+          {
+            "name": "Med 1",
+            "reason": "Reason 1",
+            "prescribed_by": "Dr. 1"
+          },
+          {
+            "name": "Med 2",
+            "reason": "Reason 2",
+            "prescribed_by": "Dr. 2"
+          },
+          {
+            "name": "Med 3",
+            "reason": "Reason 3",
+            "prescribed_by": "Dr. 3"
+          },
+          {
+            "name": "Med 4",
+            "reason": "Reason 4",
+            "prescribed_by": "Dr. 4"
+          },
+          {
+            "name": "Med 5",
+            "reason": "Reason 5",
+            "prescribed_by": "Dr. 5"
+          },
+          {
+            "name": "Med 6",
+            "reason": "Reason 6",
+            "prescribed_by": "Dr. 6"
+          }
+        ],
+        "wc_receives": false,
+        "records_permission": true,
+        "ref1_name": "Charles Babbage",
+        "ref1_phone": "2075550144",
+        "jobs": [
+          {
+            "employer": "Employer 1",
+            "job_title": "Title 1",
+            "business_type": "Restaurant",
+            "start": "2018-01",
+            "end": "present",
+            "hours_per_day": 8,
+            "days_per_week": 5,
+            "pay_amount": 15,
+            "pay_frequency": "hour"
+          },
+          {
+            "employer": "Employer 2",
+            "job_title": "Title 2",
+            "business_type": "Restaurant",
+            "start": "2018-01",
+            "end": "2019-06",
+            "hours_per_day": 8,
+            "days_per_week": 5,
+            "pay_amount": 15,
+            "pay_frequency": "hour"
+          },
+          {
+            "employer": "Employer 3",
+            "job_title": "Title 3",
+            "business_type": "Restaurant",
+            "start": "2018-01",
+            "end": "2019-06",
+            "hours_per_day": 8,
+            "days_per_week": 5,
+            "pay_amount": 15,
+            "pay_frequency": "hour"
+          },
+          {
+            "employer": "Employer 4",
+            "job_title": "Title 4",
+            "business_type": "Restaurant",
+            "start": "2018-01",
+            "end": "2019-06",
+            "hours_per_day": 8,
+            "days_per_week": 5,
+            "pay_amount": 15,
+            "pay_frequency": "hour"
+          },
+          {
+            "employer": "Employer 5",
+            "job_title": "Title 5",
+            "business_type": "Restaurant",
+            "start": "2018-01",
+            "end": "2019-06",
+            "hours_per_day": 8,
+            "days_per_week": 5,
+            "pay_amount": 15,
+            "pay_frequency": "hour"
+          }
+        ],
+        "currently_employed": true,
+        "vr_involvement": "Job coaching",
+        "volunteer_experience": "Food bank",
+        "in_school": true,
+        "graduation_date": "2027-06",
+        "education_level": "12th grade",
+        "education_school": "Deering High",
+        "special_ed": true,
+        "has_504_plan": false,
+        "psychoed_eval": true,
+        "training": [],
+        "marriages": [],
+        "children": [],
+        "living_arrangement": "Lives with family",
+        "household": [
+          {
+            "name": "Anne Byron"
+          },
+          {
+            "name": "Tom Byron"
+          }
+        ],
+        "has_comprehensive_eval": true,
+        "has_adaptive_test": false,
+        "has_iq_test": true,
+        "has_other_assessments": true,
+        "eating_level": "A",
+        "eating_explain": "Needs practice with eating",
+        "dressing_level": "C",
+        "dressing_explain": "Needs practice with dressing",
+        "toileting_level": "C",
+        "toileting_explain": "Needs practice with toileting",
+        "bathing_level": "C",
+        "bathing_explain": "Needs practice with bathing",
+        "grooming_level": "C",
+        "grooming_explain": "Needs practice with grooming",
+        "mobility_level": "C",
+        "mobility_explain": "Needs practice with mobility",
+        "physical_danger_level": "C",
+        "physical_danger_explain": "Needs practice with physical_danger",
+        "emotional_jeopardy_level": "C",
+        "emotional_jeopardy_explain": "Needs practice with emotional_jeopardy",
+        "healthy_relationships_level": "C",
+        "healthy_relationships_explain": "Needs practice with healthy_relationships",
+        "judgment_level": "C",
+        "judgment_explain": "Needs practice with judgment",
+        "cooking_level": "C",
+        "cooking_explain": "Needs practice with cooking",
+        "laundry_level": "C",
+        "laundry_explain": "Needs practice with laundry",
+        "shopping_level": "B",
+        "shopping_explain": "Needs practice with shopping",
+        "transportation_level": "C",
+        "transportation_explain": "Needs practice with transportation",
+        "banking_level": "C",
+        "banking_explain": "Needs practice with banking",
+        "recreation_level": "C",
+        "recreation_explain": "Needs practice with recreation",
+        "rel_family_level": "D",
+        "rel_family_explain": "Needs practice with rel_family",
+        "rel_friends_level": "C",
+        "rel_friends_explain": "Needs practice with rel_friends",
+        "rel_coworkers_level": "C",
+        "rel_coworkers_explain": "Needs practice with rel_coworkers",
+        "rel_support_staff_level": "C",
+        "rel_support_staff_explain": "Needs practice with rel_support_staff",
+        "expressive_level": "C",
+        "expressive_explain": "Needs practice with expressive",
+        "receptive_level": "C",
+        "receptive_explain": "Needs practice with receptive",
+        "sign_language_level": "C",
+        "sign_language_explain": "Needs practice with sign_language",
+        "visual_gestural_level": "C",
+        "visual_gestural_explain": "Needs practice with visual_gestural",
+        "ssn": "987654321"
+      }
+    },
+    {
+      "scenario": "spoken commands",
+      "spoken": [
+        "Voice mode. Hold the space bar while you answer, and let go when you are done. When I read an answer back, tap the space bar to keep it, or press N to answer again. You can type an answer instead at any point, and speaking still works afterwards. Say repeat, go back, or skip at any time.",
+        "Choosing your form.",
+        "Which form are we filling out today: Social Security's Adult Disability Starter Kit, Maine's Developmental Services Intake Application, or both?",
+        "You can say: repeat that, go back, skip this, where am I, read back my answers, change an answer, remove an entry, save and quit, or start over.",
+        "You are at the start, choosing which form to fill out. About 0 percent done.",
+        "Basic information about you.",
+        "What is your legal first name?",
+        "Choosing your form.",
+        "Going back.",
+        "Which form are we filling out today: Social Security's Adult Disability Starter Kit, Maine's Developmental Services Intake Application, or both?",
+        "Section 2 of 19.",
+        "Who is filling out this application.",
+        "Are you filling out this application for yourself?"
+      ],
+      "announced": [
+        "You are at the start, choosing which form to fill out. About 0 percent done."
+      ],
+      "answers": {
+        "forms": "ds"
+      }
+    },
+    {
+      "scenario": "ssn digit gate and digit read-back",
+      "spoken": [
+        "Voice mode. Hold the space bar while you answer, and let go when you are done. When I read an answer back, tap the space bar to keep it, or press N to answer again. You can type an answer instead at any point, and speaking still works afterwards. Say repeat, go back, or skip at any time.",
+        "Choosing your form.",
+        "Which form are we filling out today: Social Security's Adult Disability Starter Kit, Maine's Developmental Services Intake Application, or both?",
+        "Section 2 of 20.",
+        "Basic information about you.",
+        "What is your legal first name?",
+        "What is your legal last name?",
+        "What is your date of birth? Say the month, the day, and then the year.",
+        "I heard March 14, 1979. Is that correct?",
+        "What city were you born in?",
+        "What state or province were you born in?",
+        "What country were you born in?",
+        "Next I need your Social Security number. It is saved only on this device, and it is never sent to Social Security. You can say skip to leave it blank, or type it instead of saying it.",
+        "What is your Social Security number?",
+        "I am not sure I heard that correctly. Could you say it again? You can say the nine digits one at a time, and it is fine to pause between groups.",
+        "I am not sure I heard that correctly. Could you say it again? You can say the nine digits one at a time, and it is fine to pause between groups.",
+        "I heard 9 8 7, 6 5, 4 3 2 1. Is that correct?",
+        "Go ahead. Say your answer again, or type it instead.",
+        "I heard 9 8 7, 6 5, 4 3 2 1. Is that correct?",
+        "Section 3 of 20.",
+        "Your medical conditions.",
+        "What is the medical condition that limits your ability to work? If you have more than one, we will take them one at a time."
+      ],
+      "announced": [
+        "I heard March 14, 1979. Is that correct?",
+        "I am not sure I heard that correctly. Could you say it again? You can say the nine digits one at a time, and it is fine to pause between groups.",
+        "I am not sure I heard that correctly. Could you say it again? You can say the nine digits one at a time, and it is fine to pause between groups.",
+        "I heard 9 8 7, 6 5, 4 3 2 1. Is that correct?",
+        "Go ahead. Say your answer again, or type it instead.",
+        "I heard 9 8 7, 6 5, 4 3 2 1. Is that correct?"
+      ],
+      "answers": {
+        "forms": "ssa",
+        "first_name": "Ada",
+        "last_name": "Lovelace",
+        "date_of_birth": "1979-03-14",
+        "birth_city": "Bangor",
+        "birth_state": "Maine",
+        "birth_country": "United States",
+        "ssn": "987654321"
+      }
+    },
+    {
+      "scenario": "typed interview",
+      "spoken": [
+        "Typing mode. I will ask a question, you type the answer and press Enter. The hold to talk button is still there whenever you would rather speak. You can type skip, back, or repeat at any time.",
+        "Choosing your form.",
+        "Which form are we filling out today: Social Security's Adult Disability Starter Kit, Maine's Developmental Services Intake Application, or both?",
+        "Section 2 of 20.",
+        "Basic information about you.",
+        "What is your legal first name?",
+        "What is your legal last name?",
+        "What is your date of birth? Say the month, the day, and then the year.",
+        "I have March 14, 1979. Is that correct? Type yes or no.",
+        "What city were you born in?",
+        "Which answer would you like to change? You can name the field, for example, my phone number, or the second provider's address. You can add a new entry, by saying something like add another condition, or remove a whole entry, by saying remove that last provider. Say never mind to go back.",
+        "Right now Legal first name is Ada. What should it be instead?",
+        "What is your legal first name?",
+        "Legal first name is now Augusta. 7 required answers are still blank. You can change another answer, or download your forms.",
+        "Let us fill in what is missing.",
+        "What city were you born in?"
+      ],
+      "announced": [
+        "I have March 14, 1979. Is that correct? Type yes or no.",
+        "Which answer would you like to change? You can name the field, for example, my phone number, or the second provider's address. You can add a new entry, by saying something like add another condition, or remove a whole entry, by saying remove that last provider. Say never mind to go back.",
+        "Legal first name is now Augusta. 7 required answers are still blank. You can change another answer, or download your forms."
+      ],
+      "answers": {
+        "forms": "ssa",
+        "first_name": "Augusta",
+        "last_name": "Lovelace",
+        "date_of_birth": "1979-03-14"
+      }
+    },
+    {
+      "scenario": "voice answers confirm once",
+      "spoken": [
+        "Voice mode. Hold the space bar while you answer, and let go when you are done. When I read an answer back, tap the space bar to keep it, or press N to answer again. You can type an answer instead at any point, and speaking still works afterwards. Say repeat, go back, or skip at any time.",
+        "Choosing your form.",
+        "Which form are we filling out today: Social Security's Adult Disability Starter Kit, Maine's Developmental Services Intake Application, or both?",
+        "I heard adult disability starter kit. Is that correct?",
+        "Section 2 of 20.",
+        "Basic information about you.",
+        "What is your legal first name?",
+        "I heard Ada. Is that correct?",
+        "What is your legal last name?",
+        "I heard Lovelace. Is that correct?",
+        "Go ahead. Say your answer again, or type it instead.",
+        "What is your legal last name?",
+        "I heard Lovelace. Is that correct?",
+        "Please answer yes or no. Is that correct?",
+        "I heard Lovelace. Is that correct?",
+        "What is your date of birth? Say the month, the day, and then the year.",
+        "I heard March 14, 1979. Is that correct?",
+        "Going back.",
+        "What is your legal last name?"
+      ],
+      "announced": [
+        "I heard adult disability starter kit. Is that correct?",
+        "I heard Ada. Is that correct?",
+        "I heard Lovelace. Is that correct?",
+        "Go ahead. Say your answer again, or type it instead.",
+        "What is your legal last name?",
+        "I heard Lovelace. Is that correct?",
+        "Please answer yes or no. Is that correct?",
+        "I heard Lovelace. Is that correct?",
+        "I heard March 14, 1979. Is that correct?"
+      ],
+      "answers": {
+        "forms": "ssa",
+        "first_name": "Ada"
+      }
+    }
+  ]
+}

@@ -40,6 +40,7 @@ import * as correct from '../../src/correct.js';
 import { planFill, buildManifest } from '../../src/fill.js';
 import { fitTextBox } from '../../src/plan.js';
 import { layoutAddendum } from '../../src/addendum.js';
+import { worksheetContent } from '../../src/pdf.js';
 import { parseExport } from '../../src/importer.js';
 import { canonical } from '../../src/ttshash.js';
 import { collectCorpus } from '../tts-corpus.mjs';
@@ -481,6 +482,21 @@ async function goldenPdf() {
       }
     }
   }
+  // toWinAnsi over every code point of the blocks names and addresses use
+  // (Latin, general punctuation, currency, letterlike), plus samples of what
+  // must become "?" or lose an accent. [text, ansi] pairs.
+  const winAnsi = [];
+  for (const [a, b] of [[0x00, 0x2FF], [0x2000, 0x206F], [0x20A0, 0x20CF], [0x2100, 0x215F]]) {
+    for (let cp = a; cp <= b; cp++) {
+      const t = String.fromCodePoint(cp);
+      winAnsi.push([t, toWinAnsi(t)]);
+    }
+  }
+  for (const t of ['😀', '中文', 'e\u0301', 'Å\u030A', 'a\tb\rc\nd', 'Zoë “Zo” O’Brien-Łukasiewicz', 'ﬁle ½ ™', 'Ǆ ǅ']) {
+    winAnsi.push([t, toWinAnsi(t)]);
+  }
+  write('winansi', { cases: winAnsi }, { compact: true });
+
   write('metrics', {
     helvetica: dumpMetrics(fonts.regular),
     helveticaBold: dumpMetrics(fonts.bold),
@@ -557,19 +573,40 @@ async function goldenPdf() {
     '12345-6789', '$1,200', 'March 14, 1979', 'x'.repeat(300),
     ...Array.from({ length: 26 }, (_, i) => `value ${i}`)
   ];
+  // Where pdf-lib's own text-field appearance would put each of the fit's
+  // lines: its bounds (inset by the border width plus 1) and its line origins,
+  // from pdf-lib's layout functions with the real font. The Android writer
+  // draws exactly fit.lines, so it is pinned here to pdf-lib's positions for
+  // those same lines rather than to its own arithmetic.
+  const layoutOf = (entry, fit) => {
+    const inset = (entry.borderWidth ?? 0) + 1;
+    const bounds = { x: inset, y: inset, width: entry.width - 2 * inset, height: entry.height - 2 * inset };
+    const opts = { alignment: entry.quadding ?? 0, fontSize: fit.size, font: fonts.regular, bounds };
+    const placed = entry.multiline
+      ? PDFLib.layoutMultilineText(fit.lines.join('\n'), opts).lines
+      : [PDFLib.layoutSinglelineText(fit.lines[0] ?? '', opts).line];
+    const texts = placed.map(l => l.text);
+    if (JSON.stringify(texts) !== JSON.stringify(entry.multiline ? fit.lines : fit.lines.slice(0, 1))) {
+      throw new Error(`pdf-lib would lay out ${JSON.stringify(fit.lines)} as ${JSON.stringify(texts)}`);
+    }
+    return { bounds, lines: placed.map(({ text, x, y }) => ({ text, x, y })) };
+  };
+
   for (const [formId, manifest] of Object.entries(manifests)) {
     for (const [name, entry] of Object.entries(manifest.fields)) {
       if (entry.type !== 'text') continue;
       const box = { width: entry.width, height: entry.height, multiline: entry.multiline };
+      const appearance = { quadding: entry.quadding ?? 0, borderWidth: entry.borderWidth ?? 0 };
       // The recorded value is the one that was fitted.
       const out = valuePool.map((value, i) => {
         const v = i < 14 ? value : `${value} #${i}`;
-        return { value: v, fit: fitTextBox(box, toWinAnsi(v), metricsOf(fonts.regular)) };
+        const fit = fitTextBox(box, toWinAnsi(v), metricsOf(fonts.regular));
+        return { value: v, fit, layout: layoutOf(entry, fit) };
       });
-      fits.push({ form: formId, field: name, box, fits: out });
+      fits.push({ form: formId, field: name, box, appearance, fits: out });
     }
   }
-  write('fits', { fits });
+  write('fits', { fits }, { compact: true });
 
   // -- addendum draw lists -------------------------------------------------------
   // The content layoutAddendum was called with is recorded alongside the pages,
@@ -593,6 +630,12 @@ async function goldenPdf() {
       bold: metricsOf(fonts.bold)
     });
     addendum[formId] = { pages: drawList.pages, content };
+  }
+  // The fallback worksheet goes through the same layout, from buildReport().
+  {
+    const content = worksheetContent(fixture('both'), { now: NOW });
+    const drawList = layoutAddendum(content, { regular: metricsOf(fonts.regular), bold: metricsOf(fonts.bold) });
+    addendum.worksheet = { pages: drawList.pages, content };
   }
   write('addendum', addendum);
 }

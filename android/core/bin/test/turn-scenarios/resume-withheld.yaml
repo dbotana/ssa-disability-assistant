@@ -1,0 +1,32 @@
+# A resumed session never had the Social Security and bank numbers saved. It
+# says so at the start, and asks for each one again — once, as a correction —
+# before the forms are ready.
+scenario: a resumed session asks again for the numbers it did not save
+steps:
+  - start:
+      mode: text
+      resume:
+        fixture: both
+  - expect:
+      spoken: "were not saved when you stopped last time"
+
+  - finish
+  - expect:
+      spoken: "This was not saved when you stopped last time"
+      question: "Social Security number"
+  - type: 987-65-4321
+  - expect:
+      readback: open
+      question: "I have 9 8 7, 6 5, 4 3 2 1"
+  - type: yes
+  - expect:
+      readback: closed
+      answers:
+        ssn: "987654321"
+        first_name: Ada
+
+  # The bank numbers come next, the same way, one at a time.
+  - finish
+  - expect:
+      spoken: "This was not saved"
+      question: "account number"

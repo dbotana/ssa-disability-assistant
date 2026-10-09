@@ -15,6 +15,16 @@ android {
     defaultConfig {
         minSdk = 29
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // The spike's PDFs and their plans go out through TestStorage, and
+        // AGP pulls them into build/outputs/connected_android_test_additional_output/
+        // for tools/golden/crosscheck.mjs. Fixture answers only.
+        testInstrumentationRunnerArguments["useTestStorageService"] = "true"
+    }
+
+    packaging {
+        resources {
+            excludes += listOf("META-INF/LICENSE*", "META-INF/NOTICE*", "META-INF/versions/9/OSGI-INF/MANIFEST.MF")
+        }
     }
 
     compileOptions {
@@ -29,10 +39,13 @@ android {
 dependencies {
     api(project(":core"))
     api(libs.pdfbox.android)
+    implementation(libs.kotlinx.coroutines.core)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.storage)
+    androidTestUtil(libs.androidx.test.services)
 }
 
 // The blank official templates, from the repo's forms/, checked against the
@@ -45,5 +58,13 @@ androidComponents {
             assetPath.set("forms")
         }
         variant.sources.assets?.addGeneratedSourceDirectory(copy, CopyPinnedAssets::outputDir)
+
+        // The answer fixtures the instrumented fills use, pinned like :core's.
+        val fixtures = tasks.register<CopyPinnedAssets>("copy${variant.name.replaceFirstChar { it.uppercase() }}AnswerFixtures") {
+            sourceDir.set(rootProject.layout.projectDirectory.dir("../tests/fixtures/answers"))
+            pins.set(rootProject.layout.projectDirectory.file("core/answer-fixtures.SHA256SUMS"))
+            assetPath.set("fixtures/answers")
+        }
+        variant.androidTest?.sources?.resources?.addGeneratedSourceDirectory(fixtures, CopyPinnedAssets::outputDir)
     }
 }

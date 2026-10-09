@@ -1,0 +1,32 @@
+# The spoken navigation commands, on the voice path, with the politeness a
+# transcriber writes out around them.
+scenario: spoken commands
+steps:
+  - start:
+      mode: voice
+      confirm: false
+
+  - say: "uh, help please"
+  - expect:
+      spoken: "repeat that, go back"
+      question: "Which form"
+
+  - say: where am i
+  - expect:
+      spoken: "at the start"
+
+  # Skipping the form question reads as the Starter Kit, and back reopens it.
+  - say: skip
+  - expect:
+      question: "legal first name"
+  - say: "please go back"
+  - expect:
+      question: "Which form"
+      spoken: "Going back"
+
+  # confirm is off: an ordinary answer commits without a read-back.
+  - say: the developmental services application
+  - expect:
+      question: "Are you filling out this application for yourself"
+      answers:
+        forms: ds

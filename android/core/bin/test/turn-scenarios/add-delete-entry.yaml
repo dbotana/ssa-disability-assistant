@@ -1,0 +1,46 @@
+# Adding a loop entry from the review screen and deleting one, both by voice,
+# through the correction prompt. The reported bug: "add a condition" used to
+# overwrite the first condition instead of creating a second one.
+scenario: add and delete a loop entry
+steps:
+  - start:
+      mode: voice
+      confirm: false
+
+  # Walk to the review screen: form choice, then everything else skipped.
+  - say: starter kit
+  - command: finish
+  - expect:
+      panel: review
+      spoken: "Your answers are ready"
+
+  # Add a second condition to an empty list.
+  - command: correct
+  - expect:
+      question: "Which answer"
+  - say: add another condition
+  - expect:
+      question: "name of this condition"
+      spoken: "Adding a new condition"
+  - say: diabetes
+  - expect:
+      question: "another medical condition"
+  - say: "no I do not"
+  - expect:
+      panel: review
+      spoken: "I added condition 1"
+      answers:
+        conditions:
+          - name: Diabetes
+
+  # Delete it again, with the confirmation the destructive path demands.
+  - command: correct
+  - say: remove the condition
+  - expect:
+      question: "Remove condition 1"
+  - say: yes
+  - expect:
+      panel: review
+      spoken: "I removed condition 1"
+      answers:
+        conditions: []

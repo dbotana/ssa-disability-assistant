@@ -1,0 +1,50 @@
+# The bug 4d5a755 fixed: a command that only reports something ("where am
+# I") used to close an open correction while the corrected question stayed on
+# screen, so the next answer was filed under whatever the walk pointed at.
+# It must leave the correction open, and the answer must land where it was
+# asked. Also: a second start while the first is speaking joins it.
+scenario: commands during a correction, and a double start
+steps:
+  - start-twice:
+      mode: text
+      confirm: false
+  - expect:
+      spokenOnce: "Typing mode"
+
+  - type: starter kit
+  - type: Ada
+  - type: Lovelace
+  - expect:
+      question: "date of birth"
+
+  - command: correct
+  - type: my first name
+  - expect:
+      question: "legal first name"
+
+  # Reporting commands keep the correction open.
+  - type: where am i
+  - expect:
+      question: "legal first name"
+  - type: repeat
+  - expect:
+      question: "legal first name"
+
+  - type: Grace
+  - expect:
+      answers:
+        first_name: Grace
+        last_name: Lovelace
+        date_of_birth: null
+
+  # And the walk is back where it was: the next answer is a date of birth.
+  - type: March 14th 1979
+  - expect:
+      readback: open
+      question: "I have March 14, 1979"
+  - type: yes
+  - expect:
+      question: "city were you born"
+      answers:
+        date_of_birth: "1979-03-14"
+        first_name: Grace

@@ -77,5 +77,14 @@ abstract class CopyPinnedAssets : DefaultTask() {
         if (problems.isNotEmpty()) {
             throw GradleException("$src does not match $pinFile:\n  " + problems.joinToString("\n  "))
         }
+        // The pins travel with the files, as <assetPath>/SHA256SUMS: inside an
+        // APK a directory cannot be listed, so this is the index readers use,
+        // and the hashes a loader re-checks at runtime are the same ones the
+        // build checked.
+        pinFile.copyTo(out.resolve(PINS_NAME), overwrite = true)
+    }
+
+    companion object {
+        const val PINS_NAME = "SHA256SUMS"
     }
 }

@@ -1,0 +1,92 @@
+# Voice answers are interpreted first and confirmed once: the read-back
+# speaks the parsed value, not the raw transcript, and one yes commits.
+scenario: voice answers confirm once
+steps:
+  - start:
+      mode: voice
+      confirm: true
+  - expect:
+      question: "Which form"
+
+  - say: starter kit
+  - expect:
+      readback: open
+      question: "I heard adult disability starter kit"
+  - say: yes
+  - expect:
+      readback: closed
+      question: "legal first name"
+      answers:
+        forms: ssa
+
+  # An answer that echoes the question: the read-back speaks only the value.
+  - say: my legal first name is Ada
+  - expect:
+      readback: open
+      question: "I heard Ada"
+  - say: yes
+  - expect:
+      readback: closed
+      question: "legal last name"
+      answers:
+        first_name: Ada
+
+  # "No" throws the value away and reopens the question without reading its
+  # prompt again: the user heard it a moment ago.
+  - say: Lovelace
+  - expect:
+      readback: open
+      question: "I heard Lovelace"
+  - say: no
+  - expect:
+      readback: closed
+      question: "legal last name"
+      spoken: "Go ahead. Say your answer again"
+      unspoken: "legal last name"
+      answers:
+        last_name: null
+
+  # Repeat still replays the question, not "go ahead".
+  - say: repeat that
+  - expect:
+      spoken: "legal last name"
+      unspoken: "Go ahead"
+
+  # A second polarity after the first is not a yes.
+  - say: Lovelace
+  - expect:
+      readback: open
+      question: "I heard Lovelace"
+  - say: "yes I do not"
+  - expect:
+      readback: open
+      spoken: "Please answer yes or no"
+      answers:
+        last_name: null
+
+  # Repeat during a read-back replays the read-back.
+  - say: repeat that
+  - expect:
+      readback: open
+      spoken: "I heard Lovelace"
+
+  # A full-clause yes works on the read-back too.
+  - say: "yes I do"
+  - expect:
+      readback: closed
+      question: "date of birth"
+      answers:
+        last_name: Lovelace
+
+  # A command still wins over an open read-back: no "no" needed first.
+  - say: March 14th 1979
+  - expect:
+      readback: open
+      question: "I heard March 14, 1979"
+  - say: go back
+  - expect:
+      readback: closed
+      question: "legal last name"
+      answers:
+        date_of_birth: null
+        last_name: null

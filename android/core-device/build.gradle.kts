@@ -42,6 +42,29 @@ android {
     }
 }
 
+// The turn scenarios and answer fixtures :core's tests read, pinned and copied
+// exactly as :core does for its JVM test run (they are not in
+// core/src/test/resources, which only holds the goldens).
+androidComponents {
+    onVariants { variant ->
+        val name = variant.name.replaceFirstChar { it.uppercase() }
+        val scenarios = tasks.register<CopyPinnedAssets>("copy${name}TurnScenarios") {
+            sourceDir.set(rootProject.layout.projectDirectory.dir("../tools/turn-scenarios"))
+            pins.set(rootProject.layout.projectDirectory.file("core/turn-scenarios.SHA256SUMS"))
+            assetPath.set("turn-scenarios")
+        }
+        val fixtures = tasks.register<CopyPinnedAssets>("copy${name}AnswerFixtures") {
+            sourceDir.set(rootProject.layout.projectDirectory.dir("../tests/fixtures/answers"))
+            pins.set(rootProject.layout.projectDirectory.file("core/answer-fixtures.SHA256SUMS"))
+            assetPath.set("fixtures/answers")
+        }
+        variant.androidTest?.sources?.resources?.let {
+            it.addGeneratedSourceDirectory(scenarios, CopyPinnedAssets::outputDir)
+            it.addGeneratedSourceDirectory(fixtures, CopyPinnedAssets::outputDir)
+        }
+    }
+}
+
 dependencies {
     androidTestImplementation(project(":core"))
     androidTestImplementation(libs.kotlinx.coroutines.core)

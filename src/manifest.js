@@ -25,7 +25,8 @@ export function parseDa(da) {
  * @param {object} form   a pdf-lib PDFForm
  * @param {object} PDFLib the pdf-lib namespace (for class checks)
  * @returns {{ fields: { [name]: { type, width, height, multiline, quadding,
- *                                 comb, maxLen, da, widgets, onStates } } }}
+ *                                 comb, maxLen, borderWidth, da, widgets,
+ *                                 onStates } } }}
  */
 export function buildManifest(form, PDFLib) {
   const fields = {};
@@ -40,6 +41,9 @@ export function buildManifest(form, PDFLib) {
       entry.quadding = field.acroField.getQuadding();
       entry.comb = field.isCombed();
       entry.maxLen = field.getMaxLength() ?? null;
+      // pdf-lib insets the text by the border width plus 1; the Android
+      // writer places its lines with the same bounds.
+      entry.borderWidth = field.acroField.getWidgets()[0].getBorderStyle()?.getWidth() ?? 0;
     } else if (field instanceof PDFLib.PDFCheckBox) {
       entry.type = 'checkbox';
       entry.onStates = field.acroField.getWidgets()

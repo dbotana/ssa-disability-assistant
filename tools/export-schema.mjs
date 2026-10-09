@@ -20,6 +20,19 @@ import {
 import { ALIASES, LOOP_WORDS, ORDINALS, STOP, ratingAliases, MAX_LOOP_ITEMS } from '../src/correct.js';
 import { LABELS } from '../src/summary.js';
 import * as say from '../src/phrases.js';
+import * as ssaKit from '../src/forms/ssa-starter-kit.js';
+import * as dsIntake from '../src/forms/ds-intake.js';
+import { WORKSHEET } from '../src/pdf.js';
+
+// What each form's PDF says about itself: its template, the filename prefix,
+// the document title, and the addendum's wording. The Android writer prints
+// these, so they are exported rather than copied.
+const formSpec = spec => ({
+  template: spec.TEMPLATE,
+  filePrefix: spec.FILE_PREFIX,
+  title: spec.TITLE,
+  addendum: spec.ADDENDUM
+});
 
 const out = {
   schemaVersion: SCHEMA_VERSION,
@@ -39,6 +52,8 @@ const out = {
     maxLoopItems: MAX_LOOP_ITEMS
   },
   labels: LABELS,
+  formSpecs: { ssa: formSpec(ssaKit), ds: formSpec(dsIntake) },
+  worksheet: WORKSHEET,
   // Every fixed string the interview speaks, by its name in phrases.js, so
   // the Android app reads the same words the clips in audio/ were made from
   // instead of a hand-kept copy. Maps stay maps (INTRO, REASK, ERRORS).
