@@ -35,6 +35,30 @@ sourceSets.named("main") {
     resources.srcDir(syncSchema)
 }
 
+// The turn scenarios are shared between the JS and Kotlin implementations;
+// they are copied into the test resources pinned by hash, exactly like
+// :pdf's forms and :speech's audio, so the Kotlin test runs the same files
+// the turn golden was generated from. The answer fixtures feed the
+// `resume` scenarios.
+val syncScenarios = tasks.register<CopyPinnedAssets>("syncScenarios") {
+    sourceDir = file("${rootProject.projectDir}/../tools/turn-scenarios")
+    pins = file("turn-scenarios.SHA256SUMS")
+    assetPath = "turn-scenarios"
+    outputDir = layout.buildDirectory.dir("generated/scenario-resources/scenarios")
+}
+
+val syncFixtures = tasks.register<CopyPinnedAssets>("syncFixtures") {
+    sourceDir = file("${rootProject.projectDir}/../tests/fixtures/answers")
+    pins = file("answer-fixtures.SHA256SUMS")
+    assetPath = "fixtures/answers"
+    outputDir = layout.buildDirectory.dir("generated/scenario-resources/fixtures")
+}
+
+sourceSets.named("test") {
+    resources.srcDir(syncScenarios)
+    resources.srcDir(syncFixtures)
+}
+
 tasks.test {
     useJUnit()
     testLogging {

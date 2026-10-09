@@ -81,7 +81,14 @@ object JsRegex {
                         's' -> out.append(WS)
                         'd' -> out.append(DIGIT)
                         'w' -> out.append(WORD)
-                        'S', 'D', 'W', 'b', 'B' -> fail("\\$e inside a class")
+                        // The uppercase forms appear only as complement unions
+                        // ([\s\S] = any character): a class and its complement
+                        // cover everything under every dialect's boundary, so
+                        // Java's ASCII negation is exact here too.
+                        'S' -> out.append("\\S")
+                        'D' -> out.append("\\D")
+                        'W' -> out.append("\\W")
+                        'b', 'B' -> fail("\\$e inside a class")
                         else -> out.append('\\').append(e)
                     }
                 } else {
