@@ -15,18 +15,28 @@ import org.ssa.assistant.core.schema.Schema
  * The wording is still the web app's — "hold the space bar", "check your
  * downloads folder" — and the Android screens will need their own for those,
  * with clips of their own. That lands with the UI (TODO.md, Android port).
+ *
+ * A French or Lingala [lang] translates the English text through the shared
+ * catalogue (D1). English stays byte-identical: `translate(text, "en")`
+ * returns its argument.
  */
-class Phrases(private val table: Json.Obj) {
+class Phrases(
+    private val table: Json.Obj,
+    private val i18n: I18n? = null,
+    private val lang: String = "en",
+) {
     constructor(schema: Schema) : this(schema.phrases)
+
+    private fun out(text: String): String = i18n?.translate(text, lang) ?: text
 
     /** One phrase by its name in phrases.js: `text("ANSWER_AGAIN")`. */
     fun text(name: String): String =
-        table[name]?.asString() ?: throw IllegalArgumentException("no phrase $name")
+        out(table[name]?.asString() ?: throw IllegalArgumentException("no phrase $name"))
 
     /** One of the keyed tables: INTRO, REASK, ERRORS. */
     fun table(name: String): Map<String, String> =
         (table[name]?.asObject() ?: throw IllegalArgumentException("no phrase table $name"))
-            .entries.mapValues { it.value.asString()!! }
+            .entries.mapValues { out(it.value.asString()!!) }
 
     val intro: Map<String, String> get() = table("INTRO")
     val reask: Map<String, String> get() = table("REASK")

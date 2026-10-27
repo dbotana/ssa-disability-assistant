@@ -20,6 +20,7 @@
 // parseLocal() only turns spoken forms into something for it to check.
 
 import { matchChoice } from './choice.js';
+import { lexicon, fold } from './i18n/index.js';
 
 const YES = /^(y|yes|yeah|yep|yup|sure|correct|right|true|affirmative|ok|okay|that is right|thats right|that's right|uh huh)$/;
 const NO = /^(n|no|nope|nah|negative|false|incorrect|wrong|that is wrong|thats wrong|that's wrong|uh uh)$/;
@@ -159,11 +160,11 @@ const defaultNow = () => new Date();
  * @returns {{command:null, value:*, confidence:number, needsClarification:false,
  *            clarifyPrompt:null}|null} null when the answer should be asked again.
  */
-export function parseLocal(question, transcript, { typed = false, now = defaultNow } = {}) {
+export function parseLocal(question, transcript, { typed = false, now = defaultNow, lang = 'en' } = {}) {
   const raw = String(transcript ?? '').trim();
   if (!raw) return null;
 
-  const value = parseByType(question, raw, typed, now);
+  const value = parseByType(question, raw, typed, now, lang);
   if (value === null) return null;
 
   return {
@@ -175,7 +176,7 @@ export function parseLocal(question, transcript, { typed = false, now = defaultN
   };
 }
 
-function parseByType(question, raw, typed, now) {
+function parseByType(question, raw, typed, now, lang) {
   // A speaker echoes the question back: "My date of birth is March 14th,
   // 1979." The echo carries no information and must not become part of the
   // answer. Typed free text is exempt — it is taken exactly as written, and
@@ -189,18 +190,18 @@ function parseByType(question, raw, typed, now) {
   // the digit-by-digit read-back still stands between the parse and the form.
   const s = stripEcho(raw, question);
   switch (question.type) {
-    case 'yesno': return parseYesNo(s);
+    case 'yesno': return parseYesNo(s, lang);
     case 'ssn':
     case 'routing':
-    case 'account': return parseSensitiveDigits(s);
-    case 'phone': return parsePhone(s);
-    case 'zip': return parseZip(s);
+    case 'account': return parseSensitiveDigits(s, lang);
+    case 'phone': return parsePhone(s, lang);
+    case 'zip': return parseZip(s, lang);
     case 'email': return parseEmail(s);
-    case 'choice': return parseChoice(s, question);
-    case 'date': return parseDate(s, question, now);
-    case 'monthyear': return parseMonthYear(s, question, now);
+    case 'choice': return parseChoice(s, question, lang);
+    case 'date': return parseDate(s, question, now, lang);
+    case 'monthyear': return parseMonthYear(s, question, now, lang);
     case 'money':
-    case 'number': return parseNumber(s, question);
+    case 'number': return parseNumber(s, question, lang);
     default: return typed ? null : parseText(s);
   }
 }
@@ -275,7 +276,9 @@ function parseText(raw) {
 const YES_PHRASE = /^(yes|yeah|yep|yup)\b[ ,]+(i|you|he|she|we|they|it)\s+(do|does|did|am|are|is|was|were|have|has|had|would|will|can|could|should)$/i;
 const NO_PHRASE = /^(no|nope|nah)\b[ ,]+(i|you|he|she|we|they|it)\s+(do not|don'?t|does not|doesn'?t|did not|didn'?t|am not|are not|aren'?t|is not|isn'?t|was not|wasn'?t|were not|weren'?t|have not|haven'?t|has not|hasn'?t|had not|hadn'?t|would not|wouldn'?t|will not|won'?t|can not|cannot|can'?t|could not|couldn'?t|should not|shouldn'?t)$/i;
 
-function parseYesNo(raw) {
+function parseYesNo(raw, lang = 'en') {
+  if (lang !== 'en') return parseYesNoLocalized(raw, lang);
+
   // Checked against the unstripped text: "uh huh" and "uh uh" begin with a
   // filler word that is part of the answer itself. A transcriber's curly
   // apostrophe ("doesn’t", "that’s right") reads as the straight one.
@@ -302,6 +305,39 @@ function parseYesNo(raw) {
   return null;
 }
 
+/**
+ * Yes or no in French or Lingala. The transcript is folded (D5), and the
+ * tables are stored folded, so a spelling with or without its accents works.
+ * The same anchoring applies: only a bare yes or no counts.
+ */
+function parseYesNoLocalized(raw, lang) {
+  const tables = lexicon(lang);
+  let s = fold(raw, lang)
+    .replace(/[’']/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/[.!?,]+$/, '')
+    .trim();
+  if (!s) return null;
+
+  const hit = words => Array.isArray(words) && words.some(w => fold(w, lang) === s);
+  if (hit(tables.yes)) return { value: true, confidence: 1 };
+  if (hit(tables.no)) return { value: false, confidence: 1 };
+
+  for (const source of tables.lead ?? []) {
+    try { s = s.replace(new RegExp(source), '').trim(); } catch { /* bad table entry */ }
+  }
+  if (hit(tables.yes)) return { value: true, confidence: 1 };
+  if (hit(tables.no)) return { value: false, confidence: 1 };
+
+  for (const source of tables.yesPhrases ?? []) {
+    try { if (new RegExp(source).test(s)) return { value: true, confidence: 1 }; } catch { /* ignore */ }
+  }
+  for (const source of tables.noPhrases ?? []) {
+    try { if (new RegExp(source).test(s)) return { value: false, confidence: 1 }; } catch { /* ignore */ }
+  }
+  return null;
+}
+
 // -- choice ----------------------------------------------------------------
 
 /**
@@ -309,8 +345,8 @@ function parseYesNo(raw) {
  * lives in choice.js so that normalize() applies exactly the same rules to
  * whatever the model returns.
  */
-function parseChoice(raw, question) {
-  const option = matchChoice(question.options, raw);
+function parseChoice(raw, question, lang = 'en') {
+  const option = matchChoice(question.options, raw, { lang });
   return option ? { value: option.value, confidence: 1 } : null;
 }
 
@@ -325,16 +361,16 @@ function parseChoice(raw, question) {
  * ambiguous (77 or 7-7? 1-7 or 17?) and go to the model rather than being
  * resolved by a guess here.
  */
-function parseSensitiveDigits(raw) {
-  const digits = digitsFrom(raw);
+function parseSensitiveDigits(raw, lang = 'en') {
+  const digits = digitsFrom(raw, lang);
   if (digits === null) return null;
   // normalize() enforces the exact length. Anything it would reject should
   // reach it as a clarification, not be silently dropped here.
   return { value: digits, confidence: 1 };
 }
 
-function parsePhone(raw) {
-  const digits = digitsFrom(raw);
+function parsePhone(raw, lang = 'en') {
+  const digits = digitsFrom(raw, lang);
   if (digits === null) return null;
   // Only the two lengths normalize() accepts. Anything else is as likely to
   // be a misheard answer to a different question as a phone number, and the
@@ -352,11 +388,12 @@ function parsePhone(raw) {
  * between spoken digit groups ("9, 8, 7, …"). Rejects any other word, and
  * rejects the multiplier forms that have two readings.
  */
-function digitsFrom(raw) {
-  let s = clean(raw)
+function digitsFrom(raw, lang = 'en') {
+  let s = clean(raw, lang)
     .replace(/[.,!?]+/g, ' ')
     .replace(/[-–—()+]/g, ' ')
     .replace(/\bdash\b|\bhyphen\b|\band\b/g, ' ');
+  const words = lang === 'en' ? DIGIT_WORDS : lexicon(lang).digits ?? DIGIT_WORDS;
 
   // "double seven" / "triple oh" — no single correct reading. Defer.
   if (/\b(double|triple|twice|thrice)\b/.test(s)) return null;
@@ -369,16 +406,16 @@ function digitsFrom(raw) {
     if (/^\d+$/.test(token)) { out += token; continue; }
     // Own keys only: a bare lookup finds "constructor" on the prototype, and
     // "1234 constructor" would read as an account number.
-    if (!Object.prototype.hasOwnProperty.call(DIGIT_WORDS, token)) return null;   // a real word
-    const word = DIGIT_WORDS[token];
+    if (!Object.prototype.hasOwnProperty.call(words, token)) return null;   // a real word
+    const word = words[token];
     out += word;
   }
   return out || null;
 }
 
 /** A five or nine digit ZIP code, and nothing else. */
-function parseZip(raw) {
-  const digits = digitsFrom(raw);
+function parseZip(raw, lang = 'en') {
+  const digits = digitsFrom(raw, lang);
   if (digits === null) return null;
   return digits.length === 5 || digits.length === 9 ? { value: digits, confidence: 1 } : null;
 }
@@ -523,8 +560,8 @@ const PERIOD_PHRASES = [
  * `kind: 'year'` marks a number question that asks for a year, where
  * "nineteen ninety eight" is 1998 rather than an ambiguous run of words.
  */
-function parseNumber(raw, question) {
-  let s = clean(raw)
+function parseNumber(raw, question, lang = 'en') {
+  let s = clean(raw, lang)
     .replace(/[.,!?]+$/, '')
     .replace(/\bdollars?\b|\bbucks?\b/g, ' ')
     .replace(/[$,]/g, '')
@@ -548,7 +585,7 @@ function parseNumber(raw, question) {
   // question for the user, not a number to pick from. "Two thousand and five"
   // is not a range — wordsToNumber settles that below, so only the digit path
   // needs the guard.
-  const wordValue = wordsToNumber(s);
+  const wordValue = lang === 'en' ? wordsToNumber(s) : null;
   if (wordValue !== null) return { value: wordValue, confidence: 1 };
 
   if (question?.kind === 'year') {
@@ -569,20 +606,26 @@ function parseNumber(raw, question) {
 
 // -- dates -----------------------------------------------------------------
 
-function parseDate(raw, question, now) {
-  const s = spokenNumbers(clean(raw));
+function parseDate(raw, question, now, lang = 'en') {
+  const s = spokenNumbers(clean(raw, lang));
 
   let m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
   if (m) return dated(+m[1], +m[2], +m[3], 1, question, now);
 
-  // 3/14/79, 03-14-1979
+  // 3/14/79, 03-14-1979. French and Lingala write the day first (D5).
   m = /^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2}|\d{4})$/.exec(s);
-  if (m) return dated(expandYear(+m[3], m[3].length, question, now), +m[1], +m[2], 1, question, now);
+  if (m) {
+    const year = expandYear(+m[3], m[3].length, question, now);
+    return lang === 'en'
+      ? dated(year, +m[1], +m[2], 1, question, now)
+      : dated(year, +m[2], +m[1], 1, question, now);
+  }
 
   // March 14th 1979 · the 14th of March, 1979 · March 14 1979
-  const month = findMonth(s);
+  const month = findMonth(s, lang);
   if (month === null) return null;
-  const matches = [...s.matchAll(/\b(\d{1,4})(st|nd|rd|th)?\b/g)];
+  const ordinal = lang === 'en' ? '(st|nd|rd|th)?' : '(?:er|e|st|nd|rd|th)?';
+  const matches = [...s.matchAll(new RegExp(`\\b(\\d{1,4})${ordinal}\\b`, 'g'))];
   const nums = matches.map(x => x[1]);
   if (nums.length !== 2) return null;
 
@@ -603,10 +646,15 @@ function parseDate(raw, question, now) {
   return dated(expandYear(+yearRaw, yearRaw.length, question, now), month, +day, confidence, question, now);
 }
 
-function parseMonthYear(raw, question, now) {
-  const s = spokenNumbers(clean(raw));
+function parseMonthYear(raw, question, now, lang = 'en') {
+  const s = spokenNumbers(clean(raw, lang));
 
-  if (PRESENT.test(s) && !/\b(19|20)\d{2}\b/.test(s)) {
+  const present = lang === 'en'
+    ? PRESENT.test(s) && !/\b(19|20)\d{2}\b/.test(s)
+    : (lexicon(lang).present ?? []).some(source => {
+      try { return new RegExp(source).test(s); } catch { return false; }
+    }) && !/\b(19|20)\d{2}\b/.test(s);
+  if (present) {
     return { value: 'present', confidence: 1 };
   }
 
@@ -617,7 +665,7 @@ function parseMonthYear(raw, question, now) {
   m = /^(\d{1,2})[/\-.](\d{2}|\d{4})$/.exec(s);
   if (m) return monthYear(expandYear(+m[2], m[2].length, question, now), +m[1], m[2].length === 4 ? 1 : 0.8, question, now);
 
-  const month = findMonth(s);
+  const month = findMonth(s, lang);
   if (month === null) return null;
   const nums = [...s.matchAll(/\b(\d{2,4})\b/g)].map(x => x[1]);
   if (nums.length !== 1) return null;
@@ -626,9 +674,10 @@ function parseMonthYear(raw, question, now) {
   return monthYear(expandYear(+yearRaw, yearRaw.length, question, now), month, yearRaw.length === 4 ? 1 : 0.8, question, now);
 }
 
-function findMonth(s) {
-  for (const [name, n] of Object.entries(MONTHS)) {
-    if (new RegExp(`\\b${name}\\b`).test(s)) return n;
+function findMonth(s, lang = 'en') {
+  const table = lang === 'en' ? MONTHS : lexicon(lang).months ?? MONTHS;
+  for (const [name, n] of Object.entries(table)) {
+    if (new RegExp(`\\b${escapeRe(name)}\\b`).test(s)) return n;
   }
   return null;
 }
@@ -692,12 +741,23 @@ function allowsFuture(question) {
 
 // -- shared ----------------------------------------------------------------
 
-function clean(raw) {
-  const s = String(raw ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
+function clean(raw, lang = 'en') {
+  const s = (lang === 'en' ? String(raw ?? '').toLowerCase() : fold(raw, lang))
+    .replace(/\s+/g, ' ').trim();
   // "okay" and "uh" are filler in "okay, March 14th" but the entire answer in
   // "okay" and "uh huh". Only strip a lead-in when something survives it.
-  const stripped = s.replace(LEAD_FILLER, '').trim();
-  return stripped ? stripped : s;
+  if (lang === 'en') {
+    const stripped = s.replace(LEAD_FILLER, '').trim();
+    return stripped ? stripped : s;
+  }
+  let out = s;
+  for (const source of lexicon(lang).lead ?? []) {
+    try {
+      const next = out.replace(new RegExp(source), '').trim();
+      if (next) out = next;
+    } catch { /* a bad table entry must not break parsing */ }
+  }
+  return out;
 }
 
 const pad2 = n => String(n).padStart(2, '0');

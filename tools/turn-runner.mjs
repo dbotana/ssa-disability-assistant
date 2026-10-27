@@ -286,6 +286,7 @@ export async function runScenario(name, steps, opts = {}) {
   const h = harness();
   const { turn, spoken, announced, state, record } = h;
 
+  let scenarioLanguages = null;
   let last = null;
   const snap = () => state.snapshots.at(-1) ?? last;
   const flushSpoken = () => {
@@ -294,11 +295,15 @@ export async function runScenario(name, steps, opts = {}) {
     announced.length = 0;
   };
   const settle = () => new Promise(r => setTimeout(r, 0));
-  const startOpts = o => ({
-    mode: o.mode ?? 'voice',
-    confirm: o.confirm ?? true,
-    ...(o.resume ? { saved: savedSession(o.resume) } : {})
-  });
+  const startOpts = o => {
+    if (o.languages) scenarioLanguages = o.languages;
+    return {
+      mode: o.mode ?? 'voice',
+      confirm: o.confirm ?? true,
+      ...(o.languages ? { languages: o.languages } : {}),
+      ...(o.resume ? { saved: savedSession(o.resume) } : {})
+    };
+  };
 
   for (const step of steps) {
     await settle();
@@ -375,7 +380,17 @@ export async function runScenario(name, steps, opts = {}) {
 
   await settle();
   return opts.record
-    ? { failures, transcript: { spoken: record.spoken.slice(), announced: record.announced.slice(), answers: snap().answers } }
+    ? {
+        failures,
+        transcript: {
+          // Existing English scenarios keep the exact shape they had; only a
+          // scenario that chooses languages records them.
+          ...(scenarioLanguages ? { languages: snap().languages } : {}),
+          spoken: record.spoken.slice(),
+          announced: record.announced.slice(),
+          answers: snap().answers
+        }
+      }
     : failures;
 }
 

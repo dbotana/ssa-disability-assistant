@@ -1,11 +1,14 @@
 package org.ssa.assistant.core.parse
 
+import org.ssa.assistant.core.I18n
 import org.ssa.assistant.core.Question
 import org.ssa.assistant.core.js.js
 import org.ssa.assistant.core.js.jsEscape
 import org.ssa.assistant.core.js.jsLower
 import org.ssa.assistant.core.js.jsTrim
 import org.ssa.assistant.core.js.test
+import org.ssa.assistant.core.json.asArray
+import org.ssa.assistant.core.json.asString
 import java.time.LocalDate
 
 /**
@@ -134,26 +137,40 @@ object Parse {
      * must be asked again. `now` is the current date (the century window and
      * the future-date check).
      */
-    fun parseLocal(question: Question, transcript: String?, typed: Boolean = false, now: LocalDate = LocalDate.now()): ParsedValue? {
+    fun parseLocal(
+        question: Question,
+        transcript: String?,
+        typed: Boolean = false,
+        now: LocalDate = LocalDate.now(),
+        lang: String = "en",
+        i18n: I18n? = null,
+    ): ParsedValue? {
         val raw = jsTrim(transcript ?: "")
         if (raw.isEmpty()) return null
-        return parseByType(question, raw, typed, now)
+        return parseByType(question, raw, typed, now, lang, i18n)
     }
 
-    private fun parseByType(question: Question, raw: String, typed: Boolean, now: LocalDate): ParsedValue? {
+    private fun parseByType(
+        question: Question,
+        raw: String,
+        typed: Boolean,
+        now: LocalDate,
+        lang: String,
+        i18n: I18n?,
+    ): ParsedValue? {
         // The echo is stripped for typed input too; typed free text still
         // returns null below and is kept exactly as written.
         val s = stripEcho(raw, question)
         return when (question.type) {
-            "yesno" -> parseYesNo(s)
-            "ssn", "routing", "account" -> parseSensitiveDigits(s)
-            "phone" -> parsePhone(s)
-            "zip" -> parseZip(s)
+            "yesno" -> parseYesNo(s, lang, i18n)
+            "ssn", "routing", "account" -> parseSensitiveDigits(s, lang, i18n)
+            "phone" -> parsePhone(s, lang, i18n)
+            "zip" -> parseZip(s, lang, i18n)
             "email" -> parseEmail(s)
-            "choice" -> parseChoice(s, question)
-            "date" -> parseDate(s, question, now)
-            "monthyear" -> parseMonthYear(s, question, now)
-            "money", "number" -> parseNumber(s, question)
+            "choice" -> parseChoice(s, question, lang, i18n)
+            "date" -> parseDate(s, question, now, lang, i18n)
+            "monthyear" -> parseMonthYear(s, question, now, lang, i18n)
+            "money", "number" -> parseNumber(s, question, lang, i18n)
             else -> if (typed) null else parseText(s)
         }
     }
@@ -195,7 +212,9 @@ object Parse {
     private val YES_PHRASE = js("^(yes|yeah|yep|yup)\\b[ ,]+(i|you|he|she|we|they|it)\\s+(do|does|did|am|are|is|was|were|have|has|had|would|will|can|could|should)$", true)
     private val NO_PHRASE = js("^(no|nope|nah)\\b[ ,]+(i|you|he|she|we|they|it)\\s+(do not|don'?t|does not|doesn'?t|did not|didn'?t|am not|are not|aren'?t|is not|isn'?t|was not|wasn'?t|were not|weren'?t|have not|haven'?t|has not|hasn'?t|had not|hadn'?t|would not|wouldn'?t|will not|won'?t|can not|cannot|can'?t|could not|couldn'?t|should not|shouldn'?t)$", true)
 
-    private fun parseYesNo(raw: String?): ParsedValue? {
+    private fun parseYesNo(raw: String?, lang: String = "en", i18n: I18n? = null): ParsedValue? {
+        if (lang != "en") return parseYesNoLocalized(raw, lang, i18n ?: I18n.default)
+
         val bare = jsTrim(jsLower(raw ?: "").replace("’", "'").replace(js("\\s+"), " "))
             .replaceFirst(js("[.!?,]+$"), "")
         if (YES.test(bare)) return ParsedValue(true, 1.0)
@@ -203,24 +222,68 @@ object Parse {
         if (YES_PHRASE.test(bare)) return ParsedValue(true, 1.0)
         if (NO_PHRASE.test(bare)) return ParsedValue(false, 1.0)
 
-        val s = clean(raw).replace("’", "'").replaceFirst(js("[.!?,]+$"), "")
+        val s = clean(raw, lang, i18n).replace("’", "'").replaceFirst(js("[.!?,]+$"), "")
         if (YES.test(s)) return ParsedValue(true, 1.0)
         if (NO.test(s)) return ParsedValue(false, 1.0)
         return null
     }
 
+    /**
+     * Yes or no in French or Lingala. The transcript is folded (D5), and the
+     * tables are stored folded, so a spelling with or without accents works.
+     * The same anchoring applies: only a bare yes or no counts.
+     */
+    private fun parseYesNoLocalized(raw: String?, lang: String, i18n: I18n): ParsedValue? {
+        val tables = i18n.lexicon(lang)
+        var s = i18n.fold(raw, lang)
+            .replace(js("[’']"), " ")
+            .replace(js("\\s+"), " ")
+            .replaceFirst(js("[.!?,]+$"), "")
+            .trim()
+        if (s.isEmpty()) return null
+
+        fun strings(key: String): List<String> =
+            (tables[key]?.asArray()?.items ?: emptyList()).mapNotNull { it.asString() }
+        fun words(key: String): List<String> = strings(key).map { i18n.fold(it, lang) }
+        fun hit(values: List<String>) = values.any { it == s }
+
+        val yes = words("yes")
+        val no = words("no")
+        if (hit(yes)) return ParsedValue(true, 1.0)
+        if (hit(no)) return ParsedValue(false, 1.0)
+
+        for (source in strings("lead")) {
+            try { s = s.replaceFirst(js(source), "").trim() } catch (_: Exception) { /* bad table entry */ }
+        }
+        if (hit(yes)) return ParsedValue(true, 1.0)
+        if (hit(no)) return ParsedValue(false, 1.0)
+
+        for (source in strings("yesPhrases")) {
+            try { if (js(source).containsMatchIn(s)) return ParsedValue(true, 1.0) } catch (_: Exception) { /* ignore */ }
+        }
+        for (source in strings("noPhrases")) {
+            try { if (js(source).containsMatchIn(s)) return ParsedValue(false, 1.0) } catch (_: Exception) { /* ignore */ }
+        }
+        return null
+    }
+
     // -- choice ----------------------------------------------------------------
 
-    private fun parseChoice(raw: String, question: Question): ParsedValue? =
-        matchChoice(question.options, raw)?.let { ParsedValue(it.value, 1.0) }
+    private fun parseChoice(
+        raw: String,
+        question: Question,
+        lang: String = "en",
+        i18n: I18n? = null,
+    ): ParsedValue? =
+        matchChoice(question.options, raw, lang, i18n)?.let { ParsedValue(it.value, 1.0) }
 
     // -- digits ----------------------------------------------------------------
 
-    private fun parseSensitiveDigits(raw: String): ParsedValue? =
-        digitsFrom(raw)?.let { ParsedValue(it, 1.0) }
+    private fun parseSensitiveDigits(raw: String, lang: String = "en", i18n: I18n? = null): ParsedValue? =
+        digitsFrom(raw, lang, i18n)?.let { ParsedValue(it, 1.0) }
 
-    private fun parsePhone(raw: String): ParsedValue? {
-        val digits = digitsFrom(raw) ?: return null
+    private fun parsePhone(raw: String, lang: String = "en", i18n: I18n? = null): ParsedValue? {
+        val digits = digitsFrom(raw, lang, i18n) ?: return null
         if (digits.length == 10) return ParsedValue(digits, 1.0)
         if (digits.length == 11 && digits.startsWith("1")) return ParsedValue(digits, 1.0)
         return null
@@ -231,8 +294,8 @@ object Parse {
      * written digits (ASCII only, as JS `\d`), spoken digit words, and the
      * separators people say or a transcriber writes between groups.
      */
-    private fun digitsFrom(raw: String): String? {
-        val s = clean(raw)
+    private fun digitsFrom(raw: String, lang: String = "en", i18n: I18n? = null): String? {
+        val s = clean(raw, lang, i18n)
             .replace(js("[.,!?]+"), " ")
             .replace(js("[-–—()+]"), " ")
             .replace(js("\\bdash\\b|\\bhyphen\\b|\\band\\b"), " ")
@@ -242,16 +305,24 @@ object Parse {
         val tokens = s.split(js("\\s+")).filter { it.isNotEmpty() }
         if (tokens.isEmpty()) return null
 
+        val words: Map<String, String> = if (lang == "en") DIGIT_WORDS else {
+            val table = (i18n ?: I18n.default).lexicon(lang)["digits"]?.let { d ->
+                val obj = (d as? org.ssa.assistant.core.json.Json.Obj) ?: null
+                obj?.entries?.mapValues { (_, v) -> v.asString() ?: "" }
+            }
+            if (table.isNullOrEmpty()) DIGIT_WORDS else table
+        }
+
         val out = StringBuilder()
         for (token in tokens) {
             if (js("^\\d+$").test(token)) { out.append(token); continue }
-            out.append(DIGIT_WORDS[token] ?: return null)
+            out.append(words[token] ?: return null)
         }
         return if (out.isEmpty()) null else out.toString()
     }
 
-    private fun parseZip(raw: String): ParsedValue? {
-        val digits = digitsFrom(raw) ?: return null
+    private fun parseZip(raw: String, lang: String = "en", i18n: I18n? = null): ParsedValue? {
+        val digits = digitsFrom(raw, lang, i18n) ?: return null
         return if (digits.length == 5 || digits.length == 9) ParsedValue(digits, 1.0) else null
     }
 
@@ -352,8 +423,8 @@ object Parse {
         js("\\b(?:an?|per|each) paycheck\\b") to "paycheck"
     )
 
-    private fun parseNumber(raw: String, question: Question): ParsedValue? {
-        var s = jsTrim(clean(raw)
+    private fun parseNumber(raw: String, question: Question, lang: String = "en", i18n: I18n? = null): ParsedValue? {
+        var s = jsTrim(clean(raw, lang, i18n)
             .replaceFirst(js("[.,!?]+$"), "")
             .replace(js("\\bdollars?\\b|\\bbucks?\\b"), " ")
             .replace(js("[$,]"), ""))
@@ -370,7 +441,7 @@ object Parse {
         s = jsTrim(s.replace(js("\\b(approx\\w*|about|around|roughly)\\b"), " ").replace(js("\\s+"), " "))
         if (s.isEmpty()) return null
 
-        wordsToNumber(s)?.let { return ParsedValue(it.toDouble(), 1.0) }
+        if (lang == "en") wordsToNumber(s)?.let { return ParsedValue(it.toDouble(), 1.0) }
 
         if (question.kind == "year") {
             val year = jsTrim(spokenNumbers(s))
@@ -388,8 +459,14 @@ object Parse {
 
     // -- dates -----------------------------------------------------------------
 
-    private fun parseDate(raw: String, question: Question, now: LocalDate): ParsedValue? {
-        val s = spokenNumbers(clean(raw))
+    private fun parseDate(
+        raw: String,
+        question: Question,
+        now: LocalDate,
+        lang: String = "en",
+        i18n: I18n? = null,
+    ): ParsedValue? {
+        val s = spokenNumbers(clean(raw, lang, i18n))
 
         var m = js("^(\\d{4})-(\\d{2})-(\\d{2})$").find(s)
         if (m != null) {
@@ -397,16 +474,20 @@ object Parse {
             return dated(g[1].toInt(), g[2].toInt(), g[3].toInt(), 1.0, question, now)
         }
 
-        // 3/14/79, 03-14-1979
+        // 3/14/79, 03-14-1979. French and Lingala write the day first (D5).
         m = js("^(\\d{1,2})[/\\-.](\\d{1,2})[/\\-.](\\d{2}|\\d{4})$").find(s)
         if (m != null) {
             val g = m.groupValues
-            return dated(expandYear(g[3].toInt(), g[3].length, question, now), g[1].toInt(), g[2].toInt(), 1.0, question, now)
+            val year = expandYear(g[3].toInt(), g[3].length, question, now)
+            return if (lang == "en")
+                dated(year, g[1].toInt(), g[2].toInt(), 1.0, question, now)
+            else dated(year, g[2].toInt(), g[1].toInt(), 1.0, question, now)
         }
 
         // March 14th 1979 · the 14th of March, 1979 · March 14 1979
-        val month = findMonth(s) ?: return null
-        val matches = js("\\b(\\d{1,4})(st|nd|rd|th)?\\b").findAll(s).toList()
+        val month = findMonth(s, lang, i18n) ?: return null
+        val ordinal = if (lang == "en") "(st|nd|rd|th)?" else "(?:er|e|st|nd|rd|th)?"
+        val matches = js("\\b(\\d{1,4})$ordinal\\b").findAll(s).toList()
         val nums = matches.map { it.groupValues[1] }
         if (nums.size != 2) return null
 
@@ -419,8 +500,8 @@ object Parse {
             b.length == 4 -> { yearRaw = b; day = a }
             a.toInt() > 31 -> { yearRaw = a; day = b }
             b.toInt() > 31 -> { yearRaw = b; day = a }
-            matches[0].groupValues[2].isNotEmpty() && matches[1].groupValues[2].isEmpty() -> { day = a; yearRaw = b }
-            matches[1].groupValues[2].isNotEmpty() && matches[0].groupValues[2].isEmpty() -> { day = b; yearRaw = a }
+            matches[0].groupValues.getOrElse(2) { "" }.isNotEmpty() && matches[1].groupValues.getOrElse(2) { "" }.isEmpty() -> { day = a; yearRaw = b }
+            matches[1].groupValues.getOrElse(2) { "" }.isNotEmpty() && matches[0].groupValues.getOrElse(2) { "" }.isEmpty() -> { day = b; yearRaw = a }
             else -> return null
         }
 
@@ -428,10 +509,23 @@ object Parse {
         return dated(expandYear(yearRaw.toInt(), yearRaw.length, question, now), month, day.toInt(), confidence, question, now)
     }
 
-    private fun parseMonthYear(raw: String, question: Question, now: LocalDate): ParsedValue? {
-        val s = spokenNumbers(clean(raw))
+    private fun parseMonthYear(
+        raw: String,
+        question: Question,
+        now: LocalDate,
+        lang: String = "en",
+        i18n: I18n? = null,
+    ): ParsedValue? {
+        val s = spokenNumbers(clean(raw, lang, i18n))
 
-        if (PRESENT.test(s) && !js("\\b(19|20)\\d{2}\\b").test(s)) {
+        val present = if (lang == "en") PRESENT.test(s) else {
+            val table = (i18n ?: I18n.default).lexicon(lang)
+            (table["present"]?.asArray()?.items ?: emptyList()).any { source ->
+                val pattern = source.asString() ?: return@any false
+                try { js(pattern).containsMatchIn(s) } catch (_: Exception) { false }
+            }
+        }
+        if (present && !js("\\b(19|20)\\d{2}\\b").test(s)) {
             return ParsedValue("present", 1.0)
         }
 
@@ -445,7 +539,7 @@ object Parse {
             return monthYear(expandYear(g[2].toInt(), g[2].length, question, now), g[1].toInt(), if (g[2].length == 4) 1.0 else 0.8, question, now)
         }
 
-        val month = findMonth(s) ?: return null
+        val month = findMonth(s, lang, i18n) ?: return null
         val nums = js("\\b(\\d{2,4})\\b").findAll(s).map { it.groupValues[1] }.toList()
         if (nums.size != 1) return null
 
@@ -453,9 +547,16 @@ object Parse {
         return monthYear(expandYear(yearRaw.toInt(), yearRaw.length, question, now), month, if (yearRaw.length == 4) 1.0 else 0.8, question, now)
     }
 
-    private fun findMonth(s: String): Int? {
-        for ((name, n) in MONTHS) {
-            if (js("\\b$name\\b").test(s)) return n
+    private fun findMonth(s: String, lang: String = "en", i18n: I18n? = null): Int? {
+        val table: Map<String, Int> = if (lang == "en") MONTHS else {
+            val months = (i18n ?: I18n.default).lexicon(lang)["months"]
+            val obj = (months as? org.ssa.assistant.core.json.Json.Obj)
+            obj?.entries?.mapValues { (_, v) ->
+                (v as? org.ssa.assistant.core.json.Json.Num)?.value?.toInt() ?: 0
+            } ?: MONTHS
+        }
+        for ((name, n) in table) {
+            if (js("\\b${jsEscape(name)}\\b").test(s)) return n
         }
         return null
     }
@@ -499,12 +600,24 @@ object Parse {
 
     // -- shared ----------------------------------------------------------------
 
-    private fun clean(raw: String?): String {
-        val s = jsTrim(jsLower(raw ?: "").replace(js("\\s+"), " "))
+    private fun clean(raw: String?, lang: String = "en", i18n: I18n? = null): String {
+        val s = jsTrim(if (lang == "en") jsLower(raw ?: "") else (i18n ?: I18n.default).fold(raw, lang))
+            .replace(js("\\s+"), " ")
         // "okay" and "uh" are filler in "okay, March 14th" but the entire
         // answer in "okay" and "uh huh". Only strip a lead-in when something
         // survives it.
-        val stripped = jsTrim(s.replaceFirst(LEAD_FILLER, ""))
-        return stripped.ifEmpty { s }
+        if (lang == "en") {
+            val stripped = jsTrim(s.replaceFirst(LEAD_FILLER, ""))
+            return stripped.ifEmpty { s }
+        }
+        var out = s
+        val table = (i18n ?: I18n.default).lexicon(lang)
+        for (source in (table["lead"]?.asArray()?.items ?: emptyList()).mapNotNull { it.asString() }) {
+            try {
+                val next = jsTrim(out.replaceFirst(js(source), ""))
+                if (next.isNotEmpty()) out = next
+            } catch (_: Exception) { /* a bad table entry must not break parsing */ }
+        }
+        return out
     }
 }

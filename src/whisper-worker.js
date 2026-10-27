@@ -36,26 +36,30 @@ env.useBrowserCache = false;
 env.backends.onnx.wasm.wasmPaths = new URL('../vendor/transformers/', import.meta.url).href;
 env.backends.onnx.wasm.proxy = false;
 
-let asr = null;
+let asr = new Map();
 
-function load() {
-  asr ??= pipeline('automatic-speech-recognition', MODEL, {
-    device: 'wasm',
-    dtype: DTYPE,
-    progress_callback: p => {
-      if (p?.status === 'progress') {
-        postMessage({ type: 'progress', file: p.file, loaded: p.loaded, total: p.total });
+function load(model = MODEL) {
+  if (!asr.has(model)) {
+    const pending = pipeline('automatic-speech-recognition', model, {
+      device: 'wasm',
+      dtype: DTYPE,
+      progress_callback: p => {
+        if (p?.status === 'progress') {
+          postMessage({ type: 'progress', file: p.file, loaded: p.loaded, total: p.total });
+        }
       }
-    }
-  }).catch(err => { asr = null; throw err; });
-  return asr;
+    }).catch(err => { asr.delete(model); throw err; });
+    asr.set(model, pending);
+  }
+  return asr.get(model);
 }
 
 self.onmessage = async ({ data }) => {
   const { id, type } = data ?? {};
+  const model = data?.model ?? MODEL;
   if (type === 'load') {
     try {
-      await load();
+      await load(model);
       postMessage({ id, type: 'ready' });
     } catch (err) {
       postMessage({ id, type: 'error', kind: 'model', message: String(err?.message ?? err) });
@@ -66,15 +70,18 @@ self.onmessage = async ({ data }) => {
   if (type === 'transcribe') {
     let run;
     try {
-      run = await load();
+      run = await load(model);
     } catch (err) {
       postMessage({ id, type: 'error', kind: 'model', message: String(err?.message ?? err) });
       return;
     }
     try {
-      // No language or task option: English-only (.en) checkpoints reject
-      // both. chunk_length_s lets a 60-second digit capture through whole.
-      const out = await run(data.audio, { chunk_length_s: 30 });
+      // English-only (.en) checkpoints reject language and task, so they are
+      // passed only for a multilingual pack. chunk_length_s lets a 60-second
+      // digit capture through whole.
+      const out = await run(data.audio, data.multilingual
+        ? { language: data.language, task: 'transcribe', chunk_length_s: 30 }
+        : { chunk_length_s: 30 });
       postMessage({ id, type: 'result', text: out?.text ?? '' });
     } catch (err) {
       postMessage({ id, type: 'error', kind: 'unknown', message: String(err?.message ?? err) });

@@ -47,6 +47,11 @@ import { collectCorpus } from '../tts-corpus.mjs';
 import * as ssaKit from '../../src/forms/ssa-starter-kit.js';
 import * as dsIntake from '../../src/forms/ds-intake.js';
 import { toWinAnsi } from '../../src/forms/common.js';
+import {
+  CHANNELS, DEFAULT_SETTINGS, LANGUAGES, MESSAGES, UI, STRINGS, translationCorpus,
+  normalizeSettings, langFor, translate, message, fold, formatDate, formatMonthYear,
+  formatMoney, formatTimeRemaining
+} from '../../src/i18n/index.js';
 import { VALUE_CASES, DEFER_CASES } from './parse-corpus.mjs';
 import { runScenario, yamlParse } from '../turn-runner.mjs';
 
@@ -159,6 +164,76 @@ function currentView(q) {
 }
 
 // ---------------------------------------------------------------------------
+// i18n
+// ---------------------------------------------------------------------------
+
+/** The language table, catalogues, channel resolution and a few formatted
+ *  values, so the Kotlin port reads one source instead of a second copy. */
+async function goldenI18n() {
+  const resolutions = [];
+  for (const settings of [
+    { input: 'en', output: 'en', screen: 'en', fill: 'en' },
+    { input: 'en', output: 'fr', screen: 'en', fill: 'ln' },
+    { input: 'fr', output: 'ln', screen: 'fr', fill: 'en' },
+    { input: 'ln', output: 'en', screen: 'ln', fill: 'fr' }
+  ]) {
+    for (const channel of CHANNELS) {
+      resolutions.push({ settings, channel, lang: langFor(channel, settings) });
+    }
+  }
+
+  const samples = [];
+  for (const lang of ['en', 'fr', 'ln']) {
+    for (const [key, vars] of [
+      ['section_of', { number: 2, count: 5 }],
+      ['readback_heard', { value: lang === 'en' ? 'yes' : translate('Yes', lang) }],
+      ['no_recorded', { label: translate('providers', lang) }],
+      ['summary_row', { label: translate('Legal first name', lang), value: 'Ada' }],
+      ['saved_expiry', { days: 7 }],
+      ['stt_unavailable', {}]
+    ]) {
+      samples.push({ key, vars, lang, text: message(key, vars, lang) });
+    }
+  }
+
+  const formats = [];
+  for (const lang of ['en', 'fr', 'ln']) {
+    for (const [fn, value] of [
+      ['formatDate', '1979-03-14'],
+      ['formatMonthYear', '2019-11'],
+      ['formatMonthYear', 'present'],
+      ['formatMoney', 1200],
+      ['formatTimeRemaining', 120],
+      ['fold', 'Février'],
+      ['translate', 'Legal first name']
+    ]) {
+      const text = {
+        formatDate: () => formatDate(value, lang),
+        formatMonthYear: () => formatMonthYear(value, lang),
+        formatMoney: () => formatMoney(value, lang),
+        formatTimeRemaining: () => formatTimeRemaining(value, lang),
+        fold: () => fold(value, lang),
+        translate: () => translate(value, lang)
+      }[fn]();
+      formats.push({ fn, value, lang, text });
+    }
+  }
+
+  write('i18n', {
+    channels: CHANNELS,
+    defaults: DEFAULT_SETTINGS,
+    languages: LANGUAGES,
+    messages: MESSAGES,
+    ui: UI,
+    corpus: translationCorpus(),
+    strings: { fr: STRINGS.fr.strings, ln: STRINGS.ln.strings },
+    resolution: resolutions,
+    samples,
+    formats
+  });
+}
+
+// ---------------------------------------------------------------------------
 // parse
 // ---------------------------------------------------------------------------
 
@@ -188,6 +263,45 @@ async function goldenParse() {
     const r = parseLocal(caseQuestion(c), input, { typed: true, now: NOW });
     typed.push({
       type, input, optionsKey: optionsKey ?? null, questionKey: questionKey ?? null,
+      result: r === null ? null : { value: r.value, confidence: r.confidence }
+    });
+  }
+
+  // Localized input. The cases above stay without a `lang` field, which means
+  // English, so their results are pinned exactly as before.
+  const localized = [
+    ['yesno', 'oui', 'fr'],
+    ['yesno', 'non', 'fr'],
+    ['yesno', 'oui, merci', 'fr'],
+    ['yesno', 'ɛɛ', 'ln'],
+    ['yesno', 'te', 'ln'],
+    ['date', '14 mars 1979', 'fr'],
+    ['date', 'le 14 mars 1979', 'fr'],
+    ['date', '1er janvier 1980', 'fr'],
+    ['date', '14/3/1979', 'fr'],
+    ['date', '14 sanza ya misato 1979', 'ln'],
+    ['zip', 'zéro quatre un zéro un', 'fr'],
+    ['zip', 'moko mibale misato minei mitano', 'ln'],
+    ['phone', 'zéro quatre un cinq cinq cinq un deux trois quatre', 'fr'],
+    ['choice', 'Les deux formulaires', 'fr', null, 'forms'],
+    ['choice', 'Ba fɔmɛlɛ mibale', 'ln', null, 'forms'],
+    ['choice', 'ba fomele mibale', 'ln', null, 'forms'],
+    ['monthyear', 'toujours', 'fr'],
+    ['monthyear', 'encore', 'fr'],
+    ['monthyear', 'sikawa', 'ln'],
+    ['number', 'quatorze', 'fr'],
+    ['number', 'douze', 'fr'],
+    ['number', 'zomi na mibale', 'ln']
+  ];
+  for (const [type, input, lang, optionsKey, questionKey] of localized) {
+    const c = { type, optionsKey: optionsKey ?? null, questionKey: questionKey ?? null };
+    const r = parseLocal(caseQuestion(c), input, { now: NOW, lang });
+    cases.push({
+      type,
+      input,
+      lang,
+      optionsKey: optionsKey ?? null,
+      questionKey: questionKey ?? null,
       result: r === null ? null : { value: r.value, confidence: r.confidence }
     });
   }
@@ -492,7 +606,8 @@ async function goldenPdf() {
       winAnsi.push([t, toWinAnsi(t)]);
     }
   }
-  for (const t of ['😀', '中文', 'e\u0301', 'Å\u030A', 'a\tb\rc\nd', 'Zoë “Zo” O’Brien-Łukasiewicz', 'ﬁle ½ ™', 'Ǆ ǅ']) {
+  for (const t of ['😀', '中文', 'e\u0301', 'Å\u030A', 'a\tb\rc\nd', 'Zoë “Zo” O’Brien-Łukasiewicz', 'ﬁle ½ ™', 'Ǆ ǅ',
+    'ɛ Ɛ ɔ Ɔ', 'Kopɛtɛ nzoto', 'Bɔkɔ́']) {
     winAnsi.push([t, toWinAnsi(t)]);
   }
   write('winansi', { cases: winAnsi }, { compact: true });
@@ -521,9 +636,9 @@ async function goldenPdf() {
     ['minimal.json', fixture('minimal')]
   ];
 
-  const planFor = (formId, answers) => {
+  const planFor = (formId, answers, lang = 'en') => {
     const spec = formId === 'ssa' ? ssaKit : dsIntake;
-    const mapping = spec.map(answers, { today: NOW() });
+    const mapping = spec.map(answers, { today: NOW(), lang });
     return planFill(mapping, manifests[formId], metricsOf(fonts.regular));
   };
 
@@ -533,6 +648,19 @@ async function goldenPdf() {
     for (const formId of ['ssa', 'ds']) {
       plans.push({ fixture: name, form: formId, answers, plan: planFor(formId, answers) });
     }
+  }
+
+  // The same two forms in a non-English fill language. These pin translated
+  // labels, generated Yes/No and choice labels, and WinAnsi folding, while the
+  // plans above keep English byte-identical.
+  for (const [name, answers] of [['both', fixture('both')], ['starter-kit', fixture('starter-kit')]]) {
+    for (const formId of ['ssa', 'ds']) {
+      plans.push({ fixture: name, form: formId, lang: 'fr', answers, plan: planFor(formId, answers, 'fr') });
+    }
+  }
+  {
+    const answers = fixture('both');
+    plans.push({ fixture: 'both', form: 'ssa', lang: 'ln', answers, plan: planFor('ssa', answers, 'ln') });
   }
 
   // ~200 seeded random answer sets.
@@ -636,6 +764,15 @@ async function goldenPdf() {
     const content = worksheetContent(fixture('both'), { now: NOW });
     const drawList = layoutAddendum(content, { regular: metricsOf(fonts.regular), bold: metricsOf(fonts.bold) });
     addendum.worksheet = { pages: drawList.pages, content };
+  }
+  // A translated worksheet and Starter Kit addendum, so the Kotlin layout has
+  // the same French strings and measurements to reproduce.
+  {
+    const content = worksheetContent(fixture('both'), { now: NOW, lang: 'fr' });
+    const drawList = layoutAddendum(content, {
+      regular: metricsOf(fonts.regular), bold: metricsOf(fonts.bold), lang: 'fr'
+    });
+    addendum.fr = { pages: drawList.pages, content };
   }
   write('addendum', addendum);
 }
@@ -751,6 +888,7 @@ async function goldenTurn() {
 // ---------------------------------------------------------------------------
 
 async function main() {
+  await goldenI18n();
   await goldenParse();
   await goldenChoice();
   await goldenWalks();

@@ -15,6 +15,8 @@ import { readFile, readdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { LANGUAGES } from '../src/i18n/languages.js';
+
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 let failures = 0;
@@ -61,6 +63,20 @@ for (const model of models) {
 const worker = await readFile(join(ROOT, 'src', 'whisper-worker.js'), 'utf8');
 const used = worker.match(/const MODEL = '([^']+)'/)?.[1];
 check('the worker loads a committed model', models.some(m => m.name === used), `MODEL = ${used}`);
+
+// The language table's `installed` flag is a fact about this checkout, not a
+// promise: an installed pack must name a committed directory, and an
+// uninstalled one must not pretend it is there.
+const committed = new Set(models.map(m => m.name));
+for (const [code, language] of Object.entries(LANGUAGES)) {
+  const model = language.stt?.model;
+  check(`${code} speech pack names a model`, typeof model === 'string' && model.length > 0);
+  if (language.stt?.installed) {
+    check(`${code} installed speech pack is committed`, committed.has(model), model);
+  } else {
+    check(`${code} uninstalled speech pack is absent`, !committed.has(model), model);
+  }
+}
 
 console.log(failures === 0 ? 'vendor-integrity: all checks passed' : `vendor-integrity: ${failures} failure(s)`);
 process.exit(failures === 0 ? 0 : 1);

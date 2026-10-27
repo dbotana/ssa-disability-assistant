@@ -7,6 +7,7 @@
 import { SECTIONS, FORM_IDS, RATING_GROUPS, SENSITIVE_TYPES, nodeActive, sectionActive } from './schema.js';
 import { speakableValue, formatDate, formatMonthYear } from './a11y.js';
 import { choiceLabel } from './choice.js';
+import { translate, message, formatMoney } from './i18n/index.js';
 
 /**
  * Normalize the raw answer set into an ordered, presentable structure that
@@ -17,7 +18,7 @@ import { choiceLabel } from './choice.js';
  * row of blanks behind. Pass `form` to narrow it further to one form's
  * questions, as the Starter Kit's addendum does.
  */
-export function buildReport(answers, { form = null } = {}) {
+export function buildReport(answers, { form = null, lang = 'en' } = {}) {
   const report = [];
   for (const section of SECTIONS) {
     if (!sectionActive(section, answers)) continue;
@@ -34,12 +35,12 @@ export function buildReport(answers, { form = null } = {}) {
         blocks.push({
           kind: 'table',
           id: q.id,
-          label: q.itemLabel,
+          label: translate(q.itemLabel, lang),
           columns: q.fields.map(f => ({
-            id: f.id, label: shortLabel(f.prompt, f.id), type: f.type, options: f.options
+            id: f.id, label: translate(shortLabel(f.prompt, f.id), lang), type: f.type, options: f.options
           })),
           rows: items.map(item =>
-            q.fields.map(f => present(item[f.id], f.type, f.options))
+            q.fields.map(f => present(item[f.id], f.type, f.options, lang))
           ),
           empty: items.length === 0
         });
@@ -50,15 +51,15 @@ export function buildReport(answers, { form = null } = {}) {
       blocks.push({
         kind: 'field',
         id: q.id,
-        label: shortLabel(q.prompt, q.id),
+        label: translate(shortLabel(q.prompt, q.id), lang),
         type: q.type,
         options: q.options,
-        value: present(value, q.type, q.options),
+        value: present(value, q.type, q.options, lang),
         answered: value != null && value !== ''
       });
     }
 
-    if (blocks.length) report.push({ id: section.id, title: section.title, blocks });
+    if (blocks.length) report.push({ id: section.id, title: translate(section.title, lang), blocks });
   }
   return report;
 }
@@ -231,23 +232,27 @@ export function shortLabel(prompt, id) {
 }
 
 /** Printable rendering of a stored value. `options` is for choice answers. */
-export function present(value, type, options = null) {
+export function present(value, type, options = null, lang = 'en') {
   if (value == null || value === '') return '';
-  if (type === 'yesno') return value === true ? 'Yes' : 'No';
-  if (type === 'choice') return choiceLabel(options, value);
+  if (type === 'yesno') return message(value === true ? 'yes' : 'no', {}, lang);
+  if (type === 'choice') return choiceLabel(options, value, lang);
   if (type === 'zip') {
     const digits = String(value).replace(/\D/g, '');
     return digits.length === 9 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits || String(value);
   }
-  if (type === 'money') return `$${Number(value).toLocaleString()}`;
+  if (type === 'money') {
+    return lang === 'en' ? `$${Number(value).toLocaleString()}` : formatMoney(value, lang);
+  }
   if (type === 'ssn') return groupDigits(value, [3, 2, 4], '-');
   if (type === 'phone') return groupDigits(value, [3, 3, 4], '-');
   if (type === 'routing' || type === 'account') return String(value).replace(/\D/g, '');
   // Dates are stored ISO for sorting and re-import; a worksheet someone reads
   // at an SSA appointment should show them the way a person writes them.
-  if (type === 'date') return formatDate(value);
+  if (type === 'date') return formatDate(value, lang);
   if (type === 'monthyear') {
-    return String(value).toLowerCase() === 'present' ? 'Present' : formatMonthYear(value);
+    return String(value).toLowerCase() === 'present'
+      ? message('present', {}, lang)
+      : formatMonthYear(value, lang);
   }
   return String(value);
 }
@@ -283,8 +288,8 @@ function groupDigits(value, groups, sep) {
  * `reveal` is set: this screen is the one most likely to be seen over a
  * shoulder, shared, or recorded. The spoken read-back is not masked.
  */
-export function renderSummary(container, answers, { reveal = false } = {}) {
-  const report = buildReport(answers);
+export function renderSummary(container, answers, { reveal = false, lang = 'en' } = {}) {
+  const report = buildReport(answers, { lang });
   const shown = (value, type) => (!reveal && value && SENSITIVE_TYPES.has(type) ? maskDigits(value) : value);
   container.innerHTML = '';
 
@@ -298,18 +303,23 @@ export function renderSummary(container, answers, { reveal = false } = {}) {
         if (block.empty) {
           const p = document.createElement('p');
           p.className = 'empty';
-          p.textContent = `No ${block.label} recorded.`;
+          p.textContent = message('no_recorded', { label: block.label }, lang);
           container.append(p);
           continue;
         }
         block.rows.forEach((row, idx) => {
           const dl = document.createElement('dl');
           const caption = document.createElement('dt');
-          caption.textContent = `${titleCase(block.label)} ${idx + 1}`;
+          caption.textContent = message('table_caption', {
+            label: titleCase(block.label), number: idx + 1
+          }, lang);
           dl.append(caption);
           block.columns.forEach((col, i) => {
             const dd = document.createElement('dd');
-            dd.textContent = `${col.label}: ${shown(row[i], col.type) || 'not answered'}`;
+            dd.textContent = message('summary_column', {
+              label: col.label,
+              value: shown(row[i], col.type) || message('not_answered', {}, lang)
+            }, lang);
             dl.append(dd);
           });
           container.append(dl);
@@ -321,7 +331,7 @@ export function renderSummary(container, answers, { reveal = false } = {}) {
       const dt = document.createElement('dt');
       dt.textContent = block.label;
       const dd = document.createElement('dd');
-      dd.textContent = shown(block.value, block.type) || 'Not answered';
+      dd.textContent = shown(block.value, block.type) || message('not_answered_cap', {}, lang);
       if (!block.answered) dd.className = 'empty';
       dl.append(dt, dd);
       container.append(dl);
@@ -334,22 +344,31 @@ function titleCase(s) {
 }
 
 /** Plain-text rendering, used for the spoken read-back. */
-export function summaryText(answers) {
+export function summaryText(answers, { lang = 'en' } = {}) {
   const lines = [];
-  for (const section of buildReport(answers)) {
+  for (const section of buildReport(answers, { lang })) {
     lines.push(section.title + '.');
     for (const block of section.blocks) {
       if (block.kind === 'table') {
-        if (block.empty) { lines.push(`No ${block.label} recorded.`); continue; }
+        if (block.empty) { lines.push(message('no_recorded', { label: block.label }, lang)); continue; }
         block.rows.forEach((row, idx) => {
+          const item = answers[block.id]?.[idx] ?? {};
+          const raw = block.columns.map(c => item[c.id]);
           const parts = block.columns
-            .map((col, i) => row[i] ? `${col.label}, ${speakableValue(row[i], col.type)}` : null)
+            .map((col, i) => raw[i] != null && raw[i] !== ''
+              ? `${col.label}, ${speakableValue(raw[i], col.type, col.options, lang)}`
+              : null)
             .filter(Boolean);
-          lines.push(`${titleCase(block.label)} ${idx + 1}: ${parts.join('. ')}.`);
+          lines.push(`${message('table_caption', {
+            label: titleCase(block.label), number: idx + 1
+          }, lang)}: ${parts.join('. ')}.`);
         });
         continue;
       }
-      lines.push(`${block.label}: ${block.value || 'not answered'}.`);
+      lines.push(message('summary_row', {
+        label: block.label,
+        value: block.value || message('not_answered', {}, lang)
+      }, lang));
     }
   }
   return lines.join('\n');

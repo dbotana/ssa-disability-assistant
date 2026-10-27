@@ -34,6 +34,8 @@ data class Schema(
     val formSpecs: Map<String, FormSpecInfo> = emptyMap(),
     /** The fallback worksheet's fixed wording (WORKSHEET in src/pdf.js). */
     val worksheet: Json.Obj = Json.Obj(),
+    /** The language table, catalogues and lexicons (the `i18n` export). */
+    val i18n: Json.Obj = Json.Obj(),
 )
 
 /** What a form's PDF says about itself — TEMPLATE, FILE_PREFIX, TITLE, ADDENDUM in its JS spec. */
@@ -85,7 +87,8 @@ object SchemaLoader {
                     addendum = o["addendum"]?.asObject() ?: Json.Obj()
                 )
             },
-            worksheet = obj["worksheet"]?.asObject() ?: Json.Obj()
+            worksheet = obj["worksheet"]?.asObject() ?: Json.Obj(),
+            i18n = obj["i18n"]?.asObject() ?: Json.Obj()
         )
     }
 }

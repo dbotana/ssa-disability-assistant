@@ -168,6 +168,71 @@ whole recording at once rather than finalizing on the first pause. A
 transcript that still does not have the right number of digits — the gate
 asks `normalize()` — is asked again rather than read back.
 
+## Languages
+
+The setup screen has four language selects. They are independent: French
+questions with English speech and a Lingala addendum is a legal combination.
+
+| Channel | What it controls |
+|---|---|
+| **Input** | Which speech pack Whisper loads, and which vocabulary the parser, command matcher, choice matcher and correction matcher use for what you say or type |
+| **Output** | Everything spoken: prompts, read-backs, confirmations, errors, announcements and “read back my answers” |
+| **Screen** | Every visible string: the setup, interview and review panels and the summary |
+| **Fill** | The app-written prose in downloaded PDFs: the addendum, worksheet, table headings and generated labels such as Yes/No and choice names |
+
+The choices apply when you press **Start**, and on resume from the current
+selects. They are saved in the browser under `localStorage['ssa-languages-v1']`
+and are not part of a saved interview. Changing a language mid-interview is not
+supported.
+
+English is unchanged byte for byte: the same wording, the same clips, the same
+`audio/manifest.json`. The French and Lingala catalogues are keyed by their
+English source text, live in `src/i18n/catalog/`, and are exported into
+`tools/schema.json` so the Android `:core` port reads exactly the same data.
+There is no translation service and no network path: translation is data on
+disk.
+
+### Voice input and voices
+
+Only the bundled speech model, `models/whisper-base.en`, is installed, and it
+transcribes English only. Choosing French or Lingala for **input** is allowed
+and saved, but the voice lane is then closed with a translated explanation and
+typed answers keep working. A future multilingual pack lifts this without a
+code change: commit `models/whisper-base/` with its `SHA256SUMS` and set that
+language's `stt.installed` to `true` in `src/i18n/languages.js`.
+
+Non-English **output** never plays an English clip. It uses a system voice the
+browser reports as local; Lingala tries a Lingala voice, then French, then
+English, and otherwise stays silent while the live region still carries the
+text. Clip packs can be added later as data under `LANGUAGES[*].clips`; none
+are generated in this change.
+
+### What the parser understands
+
+French and Lingala input recognises localized yes/no words, digit words, month
+names, “still working” markers, commands and choice labels. Dates accept both
+`14/3/1979` and `14 mars 1979`. Matching folds case and strips diacritics for
+French and Lingala (English matching is untouched), so `Février` and `fevrier`
+are the same word. Spoken French or Lingala *number words* such as `quatorze`
+are not understood in this version; digits and typed answers are.
+
+### What the PDFs translate
+
+**Fill** translates only text this app writes: the addendum and worksheet
+prose, table titles and column labels, checklist labels and generated values.
+The agency's own printed form, its field names, and dates and money written
+into agency fields are never changed, and free-text answers are never
+translated. Dates in agency fields stay `MM/DD/YYYY` and money stays `$1,200`.
+Lingala is written in everyday Latin orthography with `ɛ`/`ɔ`; those letters
+are folded to `e`/`o` when a PDF font cannot encode them.
+
+### Translation provenance
+
+The French and Lingala text is machine-authored. It has **not** been reviewed
+by a native speaker, and both catalogues record
+`meta.reviewedByNativeSpeaker: false`. Have the wording reviewed before using
+the app with real applicants.
+
 ## Privacy: what leaves the computer, and what does not
 
 **Nothing you say or type is sent anywhere.** Specifically:

@@ -26,6 +26,8 @@ const listeners = new Map();
 const make = id => ({
   id, hidden: hiddenIds.has(id), textContent: '', value: '', checked: true,
   dataset: {}, style: {}, classList: { add() {}, remove() {} },
+  options: [],
+  add(option) { this.options.push(option); },
   addEventListener(type, fn) { listeners.set(`${id}:${type}`, fn); },
   removeEventListener() {}, focus() {}, click() { listeners.get(`${id}:click`)?.({}); },
   querySelectorAll: () => [], appendChild() {}, setAttribute() {}, remove() {},
@@ -37,6 +39,8 @@ const nodes = Object.fromEntries(ids.map(id => [id, make(id)]));
 const docListeners = new Map();
 globalThis.document = {
   readyState: 'complete',
+  title: '',
+  documentElement: { lang: 'en' },
   getElementById: id => nodes[id] ?? null,
   querySelector: () => ({ value: 'voice', checked: true }),
   querySelectorAll: sel => (sel === '[data-command]'
@@ -54,7 +58,10 @@ globalThis.window = {
   SpeechSynthesisUtterance: class {},
   speechSynthesis: { speak() {}, cancel() {} }
 };
-globalThis.navigator = { mediaDevices: { getUserMedia: async () => { throw new Error('no mic'); } } };
+Object.defineProperty(globalThis, 'navigator', {
+  configurable: true,
+  value: { mediaDevices: { getUserMedia: async () => { throw new Error('no mic'); } } }
+});
 globalThis.localStorage = { getItem: () => null, setItem() {}, removeItem() {} };
 globalThis.sessionStorage = globalThis.localStorage;
 globalThis.fetch = async () => ({ ok: false, status: 404, json: async () => ({}), text: async () => '' });

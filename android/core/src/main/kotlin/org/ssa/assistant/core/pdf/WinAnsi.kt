@@ -21,7 +21,10 @@ private val WIN_ANSI_EXTRAS: Set<String> = (
 
 private val STROKED = mapOf(
     "Ł" to "L", "ł" to "l", "Đ" to "D", "đ" to "d", "Ħ" to "H", "ħ" to "h",
-    "ı" to "i", "Ŧ" to "T", "ŧ" to "t"
+    "ı" to "i", "Ŧ" to "T", "ŧ" to "t",
+    // Lingala's open vowels (D7) have no WinAnsi form; "e"/"o" is how they are
+    // commonly written when the character set is limited.
+    "ɛ" to "e", "Ɛ" to "E", "ɔ" to "o", "Ɔ" to "O"
 )
 
 private fun encodable(cp: Int): Boolean {

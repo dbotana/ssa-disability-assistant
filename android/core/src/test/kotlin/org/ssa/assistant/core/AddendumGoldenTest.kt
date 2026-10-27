@@ -21,18 +21,21 @@ import org.ssa.assistant.core.pdf.Op
 class AddendumGoldenTest {
 
     private val golden = Golden.load("addendum")
+    private val i18n = I18n(org.ssa.assistant.core.schema.SchemaLoader.load())
 
     @Test
     fun addendum() {
         var totalOps = 0
         var rulesSeen = 0
-        for (form in listOf("ssa", "ds")) {
+        for ((form, lang) in listOf("ssa" to "en", "ds" to "en", "fr" to "fr")) {
             val entry = golden.asObject()!![form]!!.asObject()!!
             val content = AddendumLayout.Content.fromJson(entry["content"]!!)
             val pages = AddendumLayout.layout(
                 content,
                 WrappedMetrics(HelveticaMetrics.HELVETICA),
-                WrappedMetrics(HelveticaMetrics.HELVETICA_BOLD)
+                WrappedMetrics(HelveticaMetrics.HELVETICA_BOLD),
+                lang,
+                i18n,
             )
             val expectedPages = entry["pages"]!!.asArray()!!.items
             check(pages.size == expectedPages.size) {

@@ -1,0 +1,21 @@
+# One channel per language: English input and screen, French speech, Lingala
+# fill. A question on screen must not be the spoken language, and vice versa.
+scenario: mixed channels
+steps:
+  - start:
+      mode: text
+      confirm: true
+      languages:
+        input: en
+        output: fr
+        screen: en
+        fill: ln
+  - expect:
+      panel: interview
+      question: "Which form"
+      unspoken: "Which form"
+  - type: starter kit
+  - expect:
+      question: "legal first name"
+      spoken: "prénom légal"
+      unspoken: "legal first name"

@@ -86,6 +86,24 @@ const blob = (bytes = 8) => new Blob([new Uint8Array(bytes)], { type: 'audio/web
   check('one load message for many load() calls', w.posted.filter(p => p.msg.type === 'load').length === 1);
   check('the worker is a module worker', w.opts?.type === 'module');
   check('the worker is whisper-worker.js next to the module', /\/src\/whisper-worker\.js$/.test(w.url), w.url);
+  const load = w.posted.find(p => p.msg.type === 'load')?.msg;
+  check('English load names whisper-base.en', load?.model === 'whisper-base.en', String(load?.model));
+  check('English load is not multilingual', load?.multilingual === false, String(load?.multilingual));
+}
+
+{
+  // The French pack is not on disk. Refusing must not create a worker or post
+  // a message: the only safe answer is "type instead", at once.
+  const stt = await fresh('fr-unavailable');
+  const before = workers.length;
+  const err = await stt.load(null, 'fr').then(() => null, e => e);
+  check('French load rejects as unavailable', err?.kind === 'unavailable', String(err?.kind));
+  check('French load creates no worker', workers.length === before);
+  const typed = await stt.transcribe(blob(), 'fr').then(() => null, e => e);
+  check('French transcribe rejects as unavailable', typed?.kind === 'unavailable', String(typed?.kind));
+  check('French transcribe creates no worker', workers.length === before);
+  check('French is reported unavailable', stt.available('fr') === false);
+  check('English is reported available', stt.available('en') === true);
 }
 
 // -- transcribing ------------------------------------------------------------

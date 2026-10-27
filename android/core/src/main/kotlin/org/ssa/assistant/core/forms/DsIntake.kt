@@ -1,5 +1,6 @@
 package org.ssa.assistant.core.forms
 
+import org.ssa.assistant.core.I18n
 import org.ssa.assistant.core.Option
 import org.ssa.assistant.core.pdf.Mapping
 import org.ssa.assistant.core.json.Json
@@ -60,16 +61,22 @@ private fun confirmedDx(n: Int): String =
     "Current Diagnoses Confirmed by Psychological evaluation with IQ and Adaptive Scores $n"
 
 /** "Keeping up relationships: Family", for addendum labels. */
-private fun activityLabels(schema: Schema): Map<String, String> {
-    val out = LinkedHashMap<String, String>()
+private fun activityParts(schema: Schema): Map<String, Pair<String, String>> {
+    val out = LinkedHashMap<String, Pair<String, String>>()
     for (group in schema.ratingGroups.items) {
         val g = group.asObject() ?: continue
         for (act in g["activities"]?.asArray()?.items ?: emptyList()) {
             val a = act.asObject() ?: continue
-            out[a["key"]?.asString() ?: ""] = "${g["title"]?.asString()}: ${a["label"]?.asString()}"
+            out[a["key"]?.asString() ?: ""] = (g["title"]?.asString() ?: "") to (a["label"]?.asString() ?: "")
         }
     }
     return out
+}
+
+/** "Daily living activities: Eating", with both halves translated. */
+private fun localizeActivity(parts: Map<String, Pair<String, String>>, key: String, lang: String, i18n: I18n): String {
+    val part = parts[key] ?: return key
+    return "${i18n.translate(part.first, lang)}: ${i18n.translate(part.second, lang)}"
 }
 
 /**
@@ -80,15 +87,15 @@ private fun activityLabels(schema: Schema): Map<String, String> {
  * last marriage that ended in the spouse's death is "Widowed", one that ended
  * otherwise is "Divorced", and no marriages at all is "Never married".
  */
-private fun maritalStatus(schema: Schema, a: Json.Obj): String {
+private fun maritalStatus(schema: Schema, a: Json.Obj, lang: String, i18n: I18n): String {
     val maritalOptions = optionsFromSchema(findQuestion("marital_status", schema.sections)?.get("options"))
-    if (!hasForm(a, "ssa")) return choiceLabel(maritalOptions, kotlinValue(a.get("marital_status")))
+    if (!hasForm(a, "ssa")) return choiceLabel(maritalOptions, kotlinValue(a.get("marital_status")), lang, i18n)
     val list = a.get("marriages") as? Json.Arr ?: return ""
-    if (list.items.isEmpty()) return "Never married"
-    if (list.items.any { m -> (m.asObject()?.get("still_active")) === Json.True }) return "Married"
+    if (list.items.isEmpty()) return i18n.translate("Never married", lang)
+    if (list.items.any { m -> (m.asObject()?.get("still_active")) === Json.True }) return i18n.translate("Married", lang)
     val last = list.items.last().asObject() ?: return ""
-    if (last.get("spouse_died") === Json.True) return "Widowed"
-    if (last.get("still_active") === Json.False) return "Divorced"
+    if (last.get("spouse_died") === Json.True) return i18n.translate("Widowed", lang)
+    if (last.get("still_active") === Json.False) return i18n.translate("Divorced", lang)
     return ""
 }
 
@@ -128,24 +135,30 @@ private fun employmentHistory(a: Json.Obj): String {
         .joinToString("; ")
 }
 
-private fun specialEducation(a: Json.Obj): String {
+private fun specialEducation(a: Json.Obj, lang: String, i18n: I18n): String {
     val parts = mutableListOf<String>()
     val specialEd = kotlinValue(a.get("special_ed"))
     val plan504 = kotlinValue(a.get("has_504_plan"))
-    if (specialEd is Boolean) parts.add("Special education: ${yesNo(specialEd)}")
-    if (plan504 is Boolean) parts.add("504 plan: ${yesNo(plan504)}")
+    if (specialEd is Boolean) parts.add("Special education: ${yesNo(specialEd, lang, i18n)}")
+    if (plan504 is Boolean) parts.add("504 plan: ${yesNo(plan504, lang, i18n)}")
     return parts.joinToString("; ")
 }
 
 /** Map an answer set onto the DS Intake Application. */
-fun mapDsIntake(schema: Schema, answers: Json.Obj, today: LocalDate): Mapping {
+fun mapDsIntake(
+    schema: Schema,
+    answers: Json.Obj,
+    today: LocalDate,
+    lang: String = "en",
+    i18n: I18n = I18n(schema),
+): Mapping {
     val out = LinkedHashMap<String, String>()
     val labels = LinkedHashMap<String, String>()
-    fun put(field: String, value: Any?, label: String) {
+    fun put(field: String, value: Any?, label: String, translated: Boolean = false) {
         val v = text(value)
         if (v.isEmpty()) return
         out[field] = v
-        labels[field] = label
+        labels[field] = if (translated) label else i18n.translate(label, lang)
     }
 
     val name = join(listOf(kotlinValue(answers.get("first_name")), kotlinValue(answers.get("last_name"))), " ")
@@ -167,11 +180,11 @@ fun mapDsIntake(schema: Schema, answers: Json.Obj, today: LocalDate): Mapping {
     put("State 1", kotlinValue(answers.get("home_state")), "State")
     put("Zip 1", zip(kotlinValue(answers.get("home_zip"))), "Zip")
     put("Phone 1", phone(kotlinValue(answers.get("applicant_phone"))), "Phone number")
-    put("Marital Status", maritalStatus(schema, answers), "Marital status")
+    put("Marital Status", maritalStatus(schema, answers, lang, i18n), "Marital status")
     put("Email 1", kotlinValue(answers.get("applicant_email")), "Email")
     put("Place of Birth", join(listOf(kotlinValue(answers.get("birth_city")), kotlinValue(answers.get("birth_state")), kotlinValue(answers.get("birth_country")))), "Place of birth")
     put("Primary Language 1", kotlinValue(answers.get("primary_language")), "Primary language")
-    put("Deaf or hard of hearing 1", yesNo(kotlinValue(answers.get("deaf_hoh"))), "Deaf or hard of hearing")
+    put("Deaf or hard of hearing 1", yesNo(kotlinValue(answers.get("deaf_hoh")), lang, i18n), "Deaf or hard of hearing")
 
     // Section 2: someone completing it for the applicant.
     if (kotlinValue(answers.get("for_self")) == false) {
@@ -231,10 +244,12 @@ fun mapDsIntake(schema: Schema, answers: Json.Obj, today: LocalDate): Mapping {
         }
         if (confirmed.size > CONFIRMED_DX_ROWS) {
             tables.add(Json.Obj().also { o ->
-                o["title"] = Json.Str("5b. Diagnoses confirmed by psychological evaluation, continued")
-                o["itemLabel"] = Json.Str("diagnosis")
+                o["title"] = Json.Str(i18n.translate("5b. Diagnoses confirmed by psychological evaluation, continued", lang))
+                o["itemLabel"] = Json.Str(i18n.translate("diagnosis", lang))
                 o["startAt"] = Json.Num((CONFIRMED_DX_ROWS + 1).toDouble())
-                o["columns"] = Json.Arr(mutableListOf(Json.Obj().also { c -> c["label"] = Json.Str("Confirmed diagnosis") }))
+                o["columns"] = Json.Arr(mutableListOf(Json.Obj().also { c ->
+                    c["label"] = Json.Str(i18n.translate("Confirmed diagnosis", lang))
+                }))
                 o["rows"] = Json.Arr(confirmed.drop(CONFIRMED_DX_ROWS).mapTo(mutableListOf()) { dx ->
                     Json.Arr(mutableListOf(Json.Str(dx)))
                 })
@@ -249,26 +264,29 @@ fun mapDsIntake(schema: Schema, answers: Json.Obj, today: LocalDate): Mapping {
         "Who is in the household")
 
     // 7-12: rated activities.
-    val labelsFor = activityLabels(schema)
+    val parts = activityParts(schema)
     for ((key, suffix) in RATING_FIELDS) {
         val level = kotlinValue(answers.get("${key}_level")) ?: continue
-        val label = labelsFor[key] ?: key
-        put("Letter$suffix", level, "$label — rating")
-        if (level != "A") put("Explanation$suffix", kotlinValue(answers.get("${key}_explain")), "$label — explanation")
+        val label = if (parts.containsKey(key)) localizeActivity(parts, key, lang, i18n) else key
+        put("Letter$suffix", level, "$label — ${i18n.translate("rating", lang)}", translated = true)
+        if (level != "A") {
+            put("Explanation$suffix", kotlinValue(answers.get("${key}_explain")),
+                "$label — ${i18n.translate("explanation", lang)}", translated = true)
+        }
     }
 
     // 13: education.
-    put("Are you currently attending school", yesNo(kotlinValue(answers.get("in_school"))), "Currently attending school")
+    put("Are you currently attending school", yesNo(kotlinValue(answers.get("in_school")), lang, i18n), "Currently attending school")
     if (kotlinValue(answers.get("in_school")) == true) {
         put("Anticipated graduation date", my(kotlinValue(answers.get("graduation_date"))), "Anticipated graduation date")
     }
     put("Highest grade completed", kotlinValue(answers.get("education_level")), "Highest grade completed")
     put("Name of school", kotlinValue(answers.get("education_school")), "Name of school")
-    put("Have you ever received Special Education andor 504 Plan", specialEducation(answers), "Special education or 504 plan")
-    put("Have you had a Psychoeducational Evaluation", yesNo(kotlinValue(answers.get("psychoed_eval"))), "Psychoeducational evaluation")
+    put("Have you ever received Special Education andor 504 Plan", specialEducation(answers, lang, i18n), "Special education or 504 plan")
+    put("Have you had a Psychoeducational Evaluation", yesNo(kotlinValue(answers.get("psychoed_eval")), lang, i18n), "Psychoeducational evaluation")
 
     // 14: employment.
-    put("Are you currently employed", yesNo(kotlinValue(answers.get("currently_employed"))), "Currently employed")
+    put("Are you currently employed", yesNo(kotlinValue(answers.get("currently_employed")), lang, i18n), "Currently employed")
     put("Employment History", employmentHistory(answers), "Employment history")
     put("Involvement with VR", kotlinValue(answers.get("vr_involvement")), "Involvement with Vocational Rehabilitation")
     put("Volunteer experiences", kotlinValue(answers.get("volunteer_experience")), "Volunteer experiences")

@@ -30,6 +30,7 @@ import java.time.ZoneOffset
 class ParseGoldenTest {
 
     private val schema = SchemaLoader.load()
+    private val i18n = I18n(schema)
     private val golden = Golden.load("parse").asObject()!!
 
     /** The generator's fixed "today", which it pins in UTC. */
@@ -64,7 +65,8 @@ class ParseGoldenTest {
         for ((i, raw) in cases.withIndex()) {
             val c = raw.asObject()!!
             val input = c["input"]!!.asString()!!
-            val actual = resultTree(Parse.parseLocal(caseQuestion(c), input, typed = false, now = now))
+            val lang = c["lang"]?.asString() ?: "en"
+            val actual = resultTree(Parse.parseLocal(caseQuestion(c), input, typed = false, now = now, lang = lang, i18n = i18n))
             val expected = c["result"] ?: Json.Null
             check(actual.treeEquals(expected)) {
                 "case[$i] ${c["questionKey"]?.asString() ?: c["type"]!!.asString()} ${Json.Str(input).writeJson()}: " +
@@ -80,7 +82,8 @@ class ParseGoldenTest {
         for ((i, raw) in cases.withIndex()) {
             val c = raw.asObject()!!
             val input = c["input"]!!.asString()!!
-            val actual = resultTree(Parse.parseLocal(caseQuestion(c), input, typed = true, now = now))
+            val lang = c["lang"]?.asString() ?: "en"
+            val actual = resultTree(Parse.parseLocal(caseQuestion(c), input, typed = true, now = now, lang = lang, i18n = i18n))
             val expected = c["result"] ?: Json.Null
             check(actual.treeEquals(expected)) {
                 "typed[$i] ${c["type"]!!.asString()} ${Json.Str(input).writeJson()}: expected ${expected.writeJson()} got ${actual.writeJson()}"
@@ -113,7 +116,8 @@ class ParseGoldenTest {
             val input = c["input"]!!.asString()!!
             val question = schemaQuestion(id, loopId)
 
-            val parsed = Parse.parseLocal(question, input, typed = false, now = now)
+            val lang = c["lang"]?.asString() ?: "en"
+            val parsed = Parse.parseLocal(question, input, typed = false, now = now, lang = lang, i18n = i18n)
             val expected = c["result"] ?: Json.Null
             check(resultTree(parsed).treeEquals(expected)) {
                 "perQuestion[$i] ${loopId?.let { "$it." } ?: ""}$id (${question.type}) ${Json.Str(input).writeJson()}: " +

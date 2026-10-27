@@ -7,7 +7,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.launch
+import org.ssa.assistant.core.I18n
 import org.ssa.assistant.core.KEY_COMMANDS
+import org.ssa.assistant.core.LanguageSettings
 import org.ssa.assistant.core.Option
 import org.ssa.assistant.core.Phrases
 import org.ssa.assistant.core.Question
@@ -44,6 +46,8 @@ class TurnController(private val ports: Ports, schema: Schema) {
     interface Ports {
         val say: Phrases
         val correct: Correct
+        /** The shared catalogue and formatters the four channels read from. */
+        val i18n: I18n
         val store: StorePort
         val speech: SpeechPort
         val audio: AudioPort
@@ -53,13 +57,13 @@ class TurnController(private val ports: Ports, schema: Schema) {
         val clock: () -> Long
         val announce: (String, Boolean) -> Unit
         val onState: (Json.Obj) -> Unit
-        val onExport: suspend (List<String>, Json.Obj) -> Unit
+        val onExport: suspend (List<String>, Json.Obj, LanguageSettings) -> Unit
         val onReadBack: suspend (Json.Obj) -> Unit
         fun createEngine(saved: Json.Obj?, now: () -> Double): Engine
-        fun parseLocal(question: Question, transcript: String, typed: Boolean, now: LocalDate): ParsedValue?
+        fun parseLocal(question: Question, transcript: String, typed: Boolean, now: LocalDate, lang: String): ParsedValue?
         fun normalize(result: ParsedValue?, question: Question): Normalized
-        fun speakable(value: Any?, type: String, options: List<Option>?): String
-        fun formatTimeRemaining(seconds: Int?): String?
+        fun speakable(value: Any?, type: String, options: List<Option>?, lang: String): String
+        fun formatTimeRemaining(seconds: Int?, lang: String): String?
     }
 
     interface StorePort {
@@ -73,7 +77,7 @@ class TurnController(private val ports: Ports, schema: Schema) {
     }
 
     interface SpeechPort {
-        suspend fun speak(text: String, interrupt: Boolean)
+        suspend fun speak(text: String, interrupt: Boolean, lang: String = "en")
         fun cancel()
     }
 
@@ -131,8 +135,40 @@ class TurnController(private val ports: Ports, schema: Schema) {
     private val sensitiveTypes: Set<String> = schema.sensitiveTypes.toSet()
     private val schemaNodes: List<Node> = flatten(schema.sections)
 
-    private val ACCEPT_HINT = "Press the space bar to keep it, or N to answer again. " +
-        "You can also say yes or no."
+    // -- languages ---------------------------------------------------------------
+    //
+    // Four channels, resolved independently (D2). `languages` is set on start;
+    // until then English keeps every path exactly as it was.
+    private var languages = LanguageSettings()
+
+    private fun screen(text: String?): String = ports.i18n.translate(text, languages.screen)
+    private fun out(text: String?): String = ports.i18n.translate(text, languages.output)
+    private fun msg(key: String, vars: Map<String, Any?> = emptyMap(), channel: String = "output"): String =
+        ports.i18n.message(key, vars, languages.langFor(channel))
+    private fun inputLang(): String = languages.input
+    private fun outputLang(): String = languages.output
+
+    private fun speakValue(value: Any?, type: String, options: List<Option>?): String =
+        ports.speakable(value, type, options, outputLang())
+    private fun screenValue(value: Any?, type: String, options: List<Option>?): String =
+        ports.speakable(value, type, options, languages.screen)
+
+    /** A message pair for text that is both spoken and shown (review notes). */
+    private data class Note(val spoken: String, val shown: String)
+
+    private fun pair(
+        key: String,
+        vars: Map<String, Any?>,
+        screenVars: Map<String, Any?> = vars,
+    ): Note = Note(msg(key, vars), msg(key, screenVars, "screen"))
+
+    private fun sayPair(text: String): Note = Note(out(text), screen(text))
+
+    /** One fixed phrase from the schema's tables, still in English. */
+    private fun say(table: String, key: String): String =
+        ports.say.table(table)[key] ?: throw IllegalArgumentException("no phrase $table.$key")
+
+    private fun command(text: String?): String? = localCommand(text, inputLang(), ports.i18n)
 
     // -- state -----------------------------------------------------------------
 
@@ -255,35 +291,46 @@ class TurnController(private val ports: Ports, schema: Schema) {
 
         val segments = mutableListOf<String>()
         if (correcting != null) {
-            sectionLabel = "Changing an answer — ${q.sectionTitle}"
+            sectionLabel = msg("changing_answer", mapOf("section" to screen(q.sectionTitle)), "screen")
         } else if (adding != null) {
-            sectionLabel = "Adding a ${adding!!.itemLabel} — ${q.sectionTitle}"
+            sectionLabel = msg(
+                "adding_item",
+                mapOf("item" to screen(adding!!.itemLabel), "section" to screen(q.sectionTitle)),
+                "screen",
+            )
         } else if (announceSection || q.section != lastSection) {
             val p = engine!!.progress()
             if (p.sectionCount != null) {
-                segments.add("Section ${p.sectionNumber} of ${p.sectionCount}.")
-                segments.add("${q.sectionTitle}.")
-                sectionLabel = "Section ${p.sectionNumber} of ${p.sectionCount} — ${q.sectionTitle}"
+                segments.add(msg("section_of", mapOf("number" to p.sectionNumber, "count" to p.sectionCount)))
+                segments.add("${out(q.sectionTitle)}.")
+                sectionLabel = msg(
+                    "section_label_with_count",
+                    mapOf("number" to p.sectionNumber, "count" to p.sectionCount, "title" to screen(q.sectionTitle)),
+                    "screen",
+                )
             } else {
-                segments.add("${q.sectionTitle}.")
-                sectionLabel = q.sectionTitle ?: ""
+                segments.add("${out(q.sectionTitle)}.")
+                sectionLabel = screen(q.sectionTitle)
             }
             lastSection = q.section
-            val left = ports.formatTimeRemaining(p.secondsRemaining)
+            val left = ports.formatTimeRemaining(p.secondsRemaining, outputLang())
             if (left != null && left != lastSpokenEstimate) {
-                segments.add("$left left.")
+                segments.add(msg("time_left", mapOf("time" to left)))
                 lastSpokenEstimate = left
             }
         }
-        if (q.warn != null && correcting == null) segments.add(q.warn)
+        if (q.warn != null && correcting == null) segments.add(out(q.warn))
         if (correcting == null && q.loopPhase == "field" && (q.itemNumber ?: 0) > 1 && isFirstFieldOfItem(q)) {
-            segments.add("${titleCase(q.itemLabel ?: "")} ${q.itemNumber}.")
+            segments.add(msg(
+                "item_number",
+                mapOf("item" to out(titleCase(q.itemLabel ?: "")), "number" to q.itemNumber),
+            ))
         }
         if (prefix.isNotEmpty()) segments.add(prefix)
-        segments.add(q.prompt)
+        segments.add(out(q.prompt))
 
-        questionTextContent = q.prompt
-        hintTextContent = q.hint ?: ""
+        questionTextContent = screen(q.prompt)
+        hintTextContent = q.hint?.let { screen(it) } ?: ""
         reviewIntro = ""
         awaitSpeakSegments(segments)
 
@@ -294,14 +341,18 @@ class TurnController(private val ports: Ports, schema: Schema) {
         lastSegments = segments.filter { it.isNotEmpty() }.toMutableList()
         lastSpoken = lastSegments.joinToString(" ")
         for ((i, text) in lastSegments.withIndex()) {
-            ports.speech.speak(text, interrupt = i == 0)
+            ports.speech.speak(text, interrupt = i == 0, lang = outputLang())
         }
     }
 
     private fun progressText(): String {
         val p = engine!!.progress()
-        val left = ports.formatTimeRemaining(p.secondsRemaining)
-        return if (left != null) "${p.percent}% done · $left left" else "${p.percent}% done"
+        val left = ports.formatTimeRemaining(p.secondsRemaining, languages.screen)
+        return if (left != null) {
+            msg("progress_line", mapOf("percent" to p.percent, "time" to left), "screen")
+        } else {
+            msg("progress_only", mapOf("percent" to p.percent), "screen")
+        }
     }
 
     private fun resumeListening() {
@@ -344,12 +395,14 @@ class TurnController(private val ports: Ports, schema: Schema) {
         val reveal: Boolean = false,
         val saved: SavedSession? = null,
         val withheldFrom: List<Json.Obj>? = null,
+        val languages: LanguageSettings? = null,
     )
 
     data class SavedSession(val state: Json.Obj?, val withheld: List<Json.Obj>?)
 
     private suspend fun startNow(opts: StartOptions) {
         mode = opts.mode
+        languages = (opts.languages ?: LanguageSettings()).normalize()
         confirmEachAnswer = opts.confirm
         revealSensitive = opts.reveal
         engine = ports.createEngine(opts.saved?.state, { ports.clock() / 1000.0 })
@@ -363,18 +416,28 @@ class TurnController(private val ports: Ports, schema: Schema) {
         panel = "interview"
         lastInputWasText = mode == "text"
 
-        ports.speech.speak(introFor(mode), interrupt = true)
+        // A language whose speech pack is not installed keeps typed answers and
+        // closes the voice lane, with an explanation (D5/decision 1). The input,
+        // screen and output languages remain independent even here.
+        if (!ports.i18n.sttInstalled(languages.input) && mode != "text") {
+            voiceDisabled = true
+            mode = "text"
+            lastInputWasText = true
+            val unavailable = msg("stt_unavailable")
+            ports.announce(unavailable, true)
+            ports.speech.speak(unavailable, interrupt = false, lang = outputLang())
+        }
+
+        ports.speech.speak(out(introFor(mode)), interrupt = true, lang = outputLang())
         if (!ports.store.isPersisting()) {
-            val msg = "You did not set a PIN, so nothing is being saved. " +
-                "If you close this page, your answers will be lost."
-            ports.announce(msg, true)
-            ports.speech.speak(msg, interrupt = false)
+            val noPin = msg("no_pin_warning")
+            ports.announce(noPin, true)
+            ports.speech.speak(noPin, interrupt = false, lang = outputLang())
         }
         if (withheld.isNotEmpty()) {
-            val msg = "For your security, your Social Security and bank numbers were not saved when you " +
-                "stopped last time. I will ask for them again before your forms are ready."
-            ports.announce(msg, true)
-            ports.speech.speak(msg, interrupt = false)
+            val message = msg("withheld_warning")
+            ports.announce(message, true)
+            ports.speech.speak(message, interrupt = false, lang = outputLang())
         }
         touchActivity()
         askCurrent(announceSection = true)
@@ -389,12 +452,12 @@ class TurnController(private val ports: Ports, schema: Schema) {
     suspend fun onTalkDown() {
         if (busy || voiceDisabled || ports.audio.isRecording()) return
         lastInputWasText = false
-        statusText = "Listening…"
+        statusText = msg("listening", emptyMap(), "screen")
         emit()
         try {
             ports.audio.startRecording(Json.Obj())
         } catch (e: Exception) {
-            ports.announce("The microphone is not available. Switching to typing.", true)
+            ports.announce(msg("microphone_unavailable"), true)
             disableVoice()
         }
     }
@@ -407,7 +470,7 @@ class TurnController(private val ports: Ports, schema: Schema) {
 
     private suspend fun listenHandsFree() {
         if (busy || voiceDisabled || mode != "handsfree") return
-        statusText = "Listening…"
+        statusText = msg("listening", emptyMap(), "screen")
         emit()
         // Nobody reads out nine digits without breathing. Digit fields get a
         // silence window long enough to group them in.
@@ -440,11 +503,11 @@ class TurnController(private val ports: Ports, schema: Schema) {
         if (blob.size < 800
             || ports.audio.lastCaptureDurationMs() < MIN_CAPTURE_MS
             || !ports.audio.lastCaptureHadSpeech()) {
-            reask(ports.say.table("REASK")["nothingHeard"]!!)
+            reask(out(say("REASK", "nothingHeard")))
             return
         }
         busy = true
-        statusText = "Transcribing…"
+        statusText = msg("transcribing", emptyMap(), "screen")
         emit()
         try {
             val asked = askedQuestion()
@@ -456,25 +519,25 @@ class TurnController(private val ports: Ports, schema: Schema) {
             // returns a short plausible phrase. Reject those rather than
             // record them.
             if (isEmptyTranscript(transcript, ports.audio.lastCapturePeak())) {
-                reask(ports.say.table("REASK")["nothingHeard"]!!)
+                reask(out(say("REASK", "nothingHeard")))
                 return
             }
 
             // These are the fields where a misread digit does lasting damage.
-            if (needsAccurateDigits(asked) && localCommand(transcript) == null
+            if (needsAccurateDigits(asked) && command(transcript) == null
                 && !namesSomethingToDelete(transcript)
                 && !digitsSurviveNormalize(asked, transcript)) {
-                statusText = "You said: $transcript"
+                statusText = msg("you_said", mapOf("text" to transcript), "screen")
                 emit()
-                reask(ports.say.table("REASK")["unsure"]!!)
+                reask(out(say("REASK", "unsure")))
                 return
             }
 
-            statusText = "You said: $transcript"
+            statusText = msg("you_said", mapOf("text" to transcript), "screen")
             emit()
             handleTranscript(transcript)
         } catch (err: SttError) {
-            if (err.kind == "empty") { reask(ports.say.table("REASK")["nothingHeard"]!!); return }
+            if (err.kind == "empty") { reask(out(say("REASK", "nothingHeard"))); return }
             handleSttError(err)
         } finally {
             busy = false
@@ -489,7 +552,7 @@ class TurnController(private val ports: Ports, schema: Schema) {
     }
 
     private fun parse(question: Question, text: String, typed: Boolean = false): ParsedValue? =
-        ports.parseLocal(question, text, typed, parseNow())
+        ports.parseLocal(question, text, typed, parseNow(), inputLang())
 
     /** The parser's "now", as JS derives it from a Date: the local date. */
     private fun parseNow(): LocalDate =
@@ -512,7 +575,7 @@ class TurnController(private val ports: Ports, schema: Schema) {
 
         // Navigation words are matched on the voice path too, not only when typed.
         if (pending == null) {
-            val cmd = localCommand(transcript)
+            val cmd = command(transcript)
             if (cmd != null) { statusText = ""; runCommand(cmd); return }
         }
 
@@ -527,15 +590,15 @@ class TurnController(private val ports: Ports, schema: Schema) {
             val yn = parse(q.copy(type = "yesno", prompt = "Is that correct?"), transcript)
             if (yn?.value == true) { acceptReadBack(); return }
             if (yn?.value == false) { rejectReadBack(); return }
-            val cmd = localCommand(transcript)
+            val cmd = command(transcript)
             if (cmd != null) { statusText = ""; runCommand(cmd); return }
-            reask(ports.say.table("REASK")["yesno"]!!)
+            reask(out(say("REASK", "yesno")))
             return
         }
 
         val local = parse(q, transcript)
         if (local == null) {
-            reask(if (q.hint != null) "${ports.say.table("REASK")["generic"]} ${q.hint}" else ports.say.table("REASK")["generic"]!!)
+            reask(if (q.hint != null) "${out(say("REASK", "generic"))} ${out(q.hint)}" else out(say("REASK", "generic")))
             return
         }
         val result = ports.normalize(local, q)
@@ -543,7 +606,7 @@ class TurnController(private val ports: Ports, schema: Schema) {
         if (result.command != null) { runCommand(result.command); return }
 
         if (result.needsClarification || result.value == null) {
-            reask(result.clarifyPrompt ?: ports.say.table("REASK")["generic"]!!)
+            reask(result.clarifyPrompt?.let { out(it) } ?: out(say("REASK", "generic")))
             return
         }
 
@@ -552,9 +615,16 @@ class TurnController(private val ports: Ports, schema: Schema) {
         // digit where that is how a misheard digit is caught.
         if (q.confirm || confirmEachAnswer) {
             pending = Pending(q, result.value)
-            val readBack = "I heard ${ports.speakable(result.value, q.type, q.options)}. Is that correct?"
-            questionTextContent = readBack
-            hintTextContent = ACCEPT_HINT
+            val readBack = msg(
+                "readback_heard",
+                mapOf("value" to speakValue(result.value, q.type, q.options)),
+            )
+            questionTextContent = msg(
+                "readback_heard",
+                mapOf("value" to screenValue(result.value, q.type, q.options)),
+                "screen",
+            )
+            hintTextContent = msg("accept_hint", emptyMap(), "screen")
             ports.announce(readBack, false)
             // Through speakSegments, so `repeat` replays the read-back rather
             // than the question it is about.
@@ -571,7 +641,11 @@ class TurnController(private val ports: Ports, schema: Schema) {
         touchActivity()
         val asked = correcting?.question ?: engine!!.current()
         statusText = if (!confirmEachAnswer && asked != null && value != null)
-            "Recorded: ${ports.speakable(value, asked.type, asked.options)}" else ""
+            msg(
+                "recorded",
+                mapOf("value" to screenValue(value, asked.type, asked.options)),
+                "screen",
+            ) else ""
         if (correcting != null) { finishCorrection(value); return }
         engine!!.submit(value)
         saveSession()
@@ -586,9 +660,9 @@ class TurnController(private val ports: Ports, schema: Schema) {
 
     private suspend fun reask(message: String) {
         val q = engine!!.current()
-        val hint = if (q?.hint != null) " ${q.hint}" else ""
+        val hint = if (q?.hint != null) " ${out(q.hint)}" else ""
         ports.announce(message + hint, true)
-        ports.speech.speak(message + hint, interrupt = false)
+        ports.speech.speak(message + hint, interrupt = false, lang = outputLang())
         resumeListening()
     }
 
@@ -607,12 +681,12 @@ class TurnController(private val ports: Ports, schema: Schema) {
         pending = null
         // The same question reopens without its prompt being read again. The
         // user heard it a moment ago and is only fixing what was heard.
-        questionTextContent = q.prompt
-        hintTextContent = q.hint ?: ""
-        ports.announce(ports.say.text("ANSWER_AGAIN"), true)
-        awaitSpeakSegments(listOf(ports.say.text("ANSWER_AGAIN")))
-        lastSegments = mutableListOf(q.prompt)
-        lastSpoken = q.prompt
+        questionTextContent = screen(q.prompt)
+        hintTextContent = q.hint?.let { screen(it) } ?: ""
+        ports.announce(out(ports.say.text("ANSWER_AGAIN")), true)
+        awaitSpeakSegments(listOf(out(ports.say.text("ANSWER_AGAIN"))))
+        lastSegments = mutableListOf(out(q.prompt))
+        lastSpoken = out(q.prompt)
         resumeListening()
     }
 
@@ -625,14 +699,13 @@ class TurnController(private val ports: Ports, schema: Schema) {
         busy = true
         try {
             if (pending != null) {
-                val yes = js("^(y|yes|yeah|correct|right)$", true).test(t)
-                val no = js("^(n|no|nope|wrong)$", true).test(t)
-                if (yes) { acceptReadBack(); return }
-                if (no) { rejectReadBack(); return }
+                val yn = parse(pending!!.question.copy(type = "yesno", prompt = "Is that correct?"), t)
+                if (yn?.value == true) { acceptReadBack(); return }
+                if (yn?.value == false) { rejectReadBack(); return }
                 // As on the spoken path: a command still wins over the read-back.
-                val cmd = localCommand(t)
+                val cmd = command(t)
                 if (cmd != null) { runCommand(cmd); return }
-                reask(ports.say.table("REASK")["yesno"]!!)
+                reask(out(say("REASK", "yesno")))
                 return
             }
 
@@ -648,7 +721,7 @@ class TurnController(private val ports: Ports, schema: Schema) {
 
     /** A typed answer: parsed locally, or taken as written for free text. */
     private suspend fun handleTypedDirect(text: String) {
-        val cmd = localCommand(text)
+        val cmd = command(text)
         if (cmd != null) { runCommand(cmd); return }
 
         if (pending == null && namesSomethingToDelete(text)) {
@@ -660,11 +733,10 @@ class TurnController(private val ports: Ports, schema: Schema) {
         if (q == null) return
 
         if (pending != null) {
-            val yes = js("^(y|yes|yeah|correct|right)$", true).test(text)
-            val no = js("^(n|no|nope|wrong)$", true).test(text)
-            if (yes) { acceptReadBack(); return }
-            if (no) { rejectReadBack(); return }
-            reask(ports.say.table("REASK")["yesno"]!!)
+            val yn = parse(q.copy(type = "yesno", prompt = "Is that correct?"), text)
+            if (yn?.value == true) { acceptReadBack(); return }
+            if (yn?.value == false) { rejectReadBack(); return }
+            reask(out(say("REASK", "yesno")))
             return
         }
 
@@ -677,14 +749,21 @@ class TurnController(private val ports: Ports, schema: Schema) {
         )
         if (result.command != null) { runCommand(result.command); return }
         if (result.needsClarification || result.value == null) {
-            reask(result.clarifyPrompt ?: ports.say.table("REASK")["notRight"]!!)
+            reask(result.clarifyPrompt?.let { out(it) } ?: out(say("REASK", "notRight")))
             return
         }
         if (q.confirm) {
             pending = Pending(q, result.value)
-            val readBack = "I have ${ports.speakable(result.value, q.type, q.options)}. Is that correct? Type yes or no."
-            questionTextContent = readBack
-            hintTextContent = ACCEPT_HINT
+            val readBack = msg(
+                "readback_typed",
+                mapOf("value" to speakValue(result.value, q.type, q.options)),
+            )
+            questionTextContent = msg(
+                "readback_typed",
+                mapOf("value" to screenValue(result.value, q.type, q.options)),
+                "screen",
+            )
+            hintTextContent = msg("accept_hint", emptyMap(), "screen")
             ports.announce(readBack, false)
             awaitSpeakSegments(listOf(readBack))
             emit()
@@ -709,7 +788,7 @@ class TurnController(private val ports: Ports, schema: Schema) {
         pending = null
 
         if (correcting != null && (cmd == "back" || cmd == "skip")) {
-            returnToReview(ports.say.text("UNCHANGED"))
+            returnToReview(sayPair(ports.say.text("UNCHANGED")))
             return
         }
         if ((correcting != null || inCorrectionPrompt()) && !KEEPS_CORRECTION.contains(cmd)) {
@@ -726,7 +805,7 @@ class TurnController(private val ports: Ports, schema: Schema) {
                 engine!!.back()
                 saveSession()
                 if (adding != null && !stillAdding()) { finishAddition(); return }
-                askCurrent(prefix = ports.say.text("GOING_BACK"))
+                askCurrent(prefix = out(ports.say.text("GOING_BACK")))
             }
             "skip" -> {
                 engine!!.skip()
@@ -736,14 +815,24 @@ class TurnController(private val ports: Ports, schema: Schema) {
             }
             "where" -> {
                 val p = engine!!.progress()
-                val left = ports.formatTimeRemaining(p.secondsRemaining)
+                val left = ports.formatTimeRemaining(p.secondsRemaining, outputLang())
                 val where = if (p.sectionCount != null)
-                    "You are in section ${p.sectionNumber} of ${p.sectionCount}, ${p.sectionTitle}."
-                else "You are at the start, choosing which form to fill out."
-                val msg = "$where About ${p.percent} percent done" +
-                    (if (left != null) ", $left left at the pace you have been going." else ".")
-                ports.announce(msg, true)
-                ports.speech.speak(msg, interrupt = false)
+                    msg(
+                        "where_section",
+                        mapOf(
+                            "number" to p.sectionNumber,
+                            "count" to p.sectionCount,
+                            "title" to out(p.sectionTitle),
+                        ),
+                    )
+                else msg("where_start")
+                val message = if (left != null) {
+                    msg("where_done_left", mapOf("where" to where, "percent" to p.percent, "time" to left))
+                } else {
+                    msg("where_done", mapOf("where" to where, "percent" to p.percent))
+                }
+                ports.announce(message, true)
+                ports.speech.speak(message, interrupt = false, lang = outputLang())
                 if (mode == "handsfree") queueListen()
             }
             "readback" -> {
@@ -754,28 +843,27 @@ class TurnController(private val ports: Ports, schema: Schema) {
             "save_quit" -> {
                 if (saveSession()) {
                     ports.store.flush()
-                    ports.speech.speak(ports.say.text("SAVED"), interrupt = false)
-                    statusText = "Saved, encrypted with your PIN. Your place is kept on this device."
+                    ports.speech.speak(out(ports.say.text("SAVED")), interrupt = false, lang = outputLang())
+                    statusText = msg("saved_ok", emptyMap(), "screen")
                     emit()
                 } else {
-                    val msg = "Nothing is being saved, because no PIN was set when you started. " +
-                        "If you close this page, your answers will be lost."
-                    statusText = msg
-                    ports.announce(msg, true)
-                    ports.speech.speak(msg, interrupt = false)
+                    val message = msg("nothing_saved")
+                    statusText = msg("nothing_saved", emptyMap(), "screen")
+                    ports.announce(message, true)
+                    ports.speech.speak(message, interrupt = false, lang = outputLang())
                 }
             }
             "restart" -> {
                 engine!!.reset()
                 ports.store.clearState()
                 withheld = mutableListOf()
-                ports.speech.speak(ports.say.text("STARTING_OVER"), interrupt = false)
+                ports.speech.speak(out(ports.say.text("STARTING_OVER")), interrupt = false, lang = outputLang())
                 askCurrent(announceSection = true)
             }
             "clear_data" -> clearEverything()
             "finish" -> awaitFinishInterview()
             "help" -> {
-                ports.speech.speak(ports.say.text("HELP"), interrupt = false)
+                ports.speech.speak(out(ports.say.text("HELP")), interrupt = false, lang = outputLang())
                 if (mode == "handsfree") queueListen()
             }
         }
@@ -802,15 +890,13 @@ class TurnController(private val ports: Ports, schema: Schema) {
         clearCorrectionState()
         awaitingFieldName = true
 
-        sectionLabel = "Changing an answer"
-        val msg = ports.say.text("WHICH_FIELD")
-        questionTextContent = "Which answer would you like to change?"
-        hintTextContent = "Name a field, such as \"my date of birth\" or \"the first job's employer\". " +
-            "To put a new entry on a list, say \"add another condition\". " +
-            "To delete a whole entry, say \"remove the second provider\"."
-        lastSpoken = msg
-        ports.announce(msg, false)
-        ports.speech.speak(msg, interrupt = false)
+        sectionLabel = msg("change_answer_label", emptyMap(), "screen")
+        val message = out(ports.say.text("WHICH_FIELD"))
+        questionTextContent = msg("which_answer", emptyMap(), "screen")
+        hintTextContent = msg("which_answer_hint", emptyMap(), "screen")
+        lastSpoken = message
+        ports.announce(message, false)
+        ports.speech.speak(message, interrupt = false, lang = outputLang())
         emit()
         resumeListening()
     }
@@ -823,7 +909,7 @@ class TurnController(private val ports: Ports, schema: Schema) {
         }
 
         if (js("^(never ?mind|cancel|nothing|stop|go back|back|done|no)\\b", true).test(jsTrim(text))) {
-            returnToReview("No changes made.")
+            returnToReview(pair("no_changes", emptyMap()))
             return
         }
 
@@ -831,7 +917,7 @@ class TurnController(private val ports: Ports, schema: Schema) {
         if (choosingItem != null) {
             val picked = pickItem(text, choosingItem!!.candidates)
             if (picked == null) {
-                sayAndListen("I did not catch which one. " + itemOptions(choosingItem!!))
+                sayAndListen(msg("did_not_catch_options", mapOf("options" to itemOptions(choosingItem!!))))
                 return
             }
             val loopId = choosingItem!!.loopId
@@ -842,9 +928,12 @@ class TurnController(private val ports: Ports, schema: Schema) {
 
         // Answering "did you mean A or B?"
         if (choosing != null) {
-            val picked = ports.correct.resolveChoice(text, choosing)
+            val picked = ports.correct.resolveChoice(text, choosing, inputLang())
             if (picked == null) {
-                sayAndListen("I did not catch which one. " + optionsSentence(choosing!!))
+                sayAndListen(msg(
+                    "did_not_catch_options",
+                    mapOf("options" to optionsSentence(choosing!!)),
+                ))
                 return
             }
             choosing = null
@@ -862,39 +951,36 @@ class TurnController(private val ports: Ports, schema: Schema) {
             if (add !is Correct.AdditionResult.None) { beginAddition(add); return }
         }
 
-        val result = ports.correct.resolveTarget(text, engine!!.answers())
+        val result = ports.correct.resolveTarget(text, engine!!.answers(), inputLang())
 
         if (result is Correct.Resolution.Ok) { beginCorrection(result.target); return }
 
         if (result is Correct.Resolution.Ambiguous) {
             choosing = result.candidates
-            sayAndListen("I found more than one answer like that. ${optionsSentence(result.candidates)}")
+            sayAndListen(msg("did_you_mean", mapOf("list" to optionsList(result.candidates))))
             return
         }
 
-        sayAndListen("I could not find an answer by that name. " +
-            "You can name it the way I asked it, for example, my date of birth, " +
-            "or say never mind to go back.")
+        sayAndListen(msg("not_found_answer"))
     }
 
-    private fun optionsSentence(candidates: List<Target>): String {
-        val list = candidates.mapIndexed { i, c -> "${i + 1}. ${ports.correct.describeTarget(c)}" }.joinToString(". ")
-        return "Did you mean: $list. Say the number, or the name."
-    }
+    private fun optionsList(candidates: List<Target>): String =
+        candidates.mapIndexed { i, c -> "${i + 1}. ${out(ports.correct.describeTarget(c))}" }.joinToString(". ")
+
+    private fun optionsSentence(candidates: List<Target>): String =
+        msg("did_you_mean", mapOf("list" to optionsList(candidates)))
 
     // -- adding a loop entry ------------------------------------------------------
 
     private suspend fun beginAddition(add: Correct.AdditionResult) {
         when (add) {
             is Correct.AdditionResult.Ambiguous -> {
-                val names = add.candidates.map { it.second }
-                sayAndListen("I can add to more than one list. Did you mean a " +
-                    "${names.joinToString(", or a ")}? Say which one, or say never mind to go back.")
+                val names = add.candidates.map { out(it.second) }
+                sayAndListen(msg("add_ambiguous", mapOf("names" to names.joinToString(", or a "))))
                 return
             }
             is Correct.AdditionResult.Full -> {
-                sayAndListen("That is as many ${add.itemLabel} entries as I can take. " +
-                    "You can change one of them instead, or say never mind to go back.")
+                sayAndListen(msg("add_full", mapOf("item" to out(add.itemLabel))))
                 return
             }
             is Correct.AdditionResult.None -> return
@@ -903,13 +989,12 @@ class TurnController(private val ports: Ports, schema: Schema) {
                 val itemLabel = add.itemLabel
                 val nextNumber = add.nextNumber
                 if (engine!!.jumpTo(loopId) == null) {
-                    sayAndListen("I could not open that list. Try naming a different one, or say never mind.")
+                    sayAndListen(msg("add_open_failed"))
                     return
                 }
                 val q = engine!!.submit(true)
                 if (q == null || q.loopId != loopId || q.loopPhase != "field") {
-                    sayAndListen("I could not start a new $itemLabel. " +
-                        "Try naming a different one, or say never mind.")
+                    sayAndListen(msg("add_start_failed", mapOf("item" to out(itemLabel))))
                     return
                 }
 
@@ -921,7 +1006,7 @@ class TurnController(private val ports: Ports, schema: Schema) {
                 if ((q.itemNumber ?: 0) > 1) {
                     askCurrent()
                 } else {
-                    askCurrent(prefix = "Adding a new $itemLabel.")
+                    askCurrent(prefix = msg("adding_new", mapOf("item" to out(itemLabel))))
                 }
             }
         }
@@ -935,13 +1020,21 @@ class TurnController(private val ports: Ports, schema: Schema) {
         val added = ((engine!!.answers()[loopId] as? Json.Arr)?.items?.size ?: 0) - startCount
         adding = null
         saveSession()
-        returnToReview(
-            when {
-                added == 1 -> "I added $itemLabel ${startCount + 1}."
-                added > 1 -> "I added $added entries."
-                else -> "No $itemLabel was added."
-            }
-        )
+        val number = startCount + 1
+        val addedNote = when {
+            added == 1 -> pair(
+                "added_one",
+                mapOf("item" to out(itemLabel), "number" to number),
+                mapOf("item" to screen(itemLabel), "number" to number),
+            )
+            added > 1 -> pair("added_many", mapOf("count" to added))
+            else -> pair(
+                "added_none",
+                mapOf("item" to out(itemLabel)),
+                mapOf("item" to screen(itemLabel)),
+            )
+        }
+        returnToReview(addedNote)
     }
 
     // -- deleting a loop entry -------------------------------------------------------
@@ -967,25 +1060,26 @@ class TurnController(private val ports: Ports, schema: Schema) {
                 return
             }
             is Correct.DeletionResult.Empty -> {
-                sayAndListen("There is no ${r.itemLabel} recorded to remove. " +
-                    "You can name something else, or say never mind to go back.")
+                sayAndListen(msg("no_item_to_remove", mapOf("item" to out(r.itemLabel))))
                 return
             }
             is Correct.DeletionResult.Ambiguous -> {
                 choosingItem = ChoosingItem(r.loopId, r.itemLabel, r.candidates)
-                sayAndListen("Which ${r.itemLabel} should I remove? ${itemOptions(choosingItem!!)}")
+                sayAndListen(msg(
+                    "which_item_remove",
+                    mapOf("item" to out(r.itemLabel), "options" to itemOptions(choosingItem!!)),
+                ))
                 return
             }
             is Correct.DeletionResult.None -> {}
         }
 
-        sayAndListen("I could not tell what to remove. You can say, for example, " +
-            "remove the second provider, or delete that last job. Say never mind to go back.")
+        sayAndListen(msg("could_not_tell_remove"))
     }
 
     private fun itemOptions(c: ChoosingItem): String {
-        val list = c.candidates.map { ports.correct.describeItem(it) }.joinToString(". ")
-        return "$list. Say the number, or the name."
+        val list = c.candidates.map { out(ports.correct.describeItem(it)) }.joinToString(". ")
+        return msg("say_number_or_name", mapOf("list" to list))
     }
 
     private fun pickItem(text: String, candidates: List<Correct.ItemDescription>): Correct.ItemDescription? {
@@ -1009,21 +1103,24 @@ class TurnController(private val ports: Ports, schema: Schema) {
         choosingItem = null
         confirmingDelete = ConfirmingDelete(loopId, item)
 
-        val what = ports.correct.describeItem(item)
-        val msg = "Remove $what? This erases every answer recorded for that " +
-            "${item.itemLabel}, and I cannot bring it back. Say yes to remove it, or no to keep it."
-        questionTextContent = "Remove $what?"
-        hintTextContent = "Say yes to remove it, or no to keep it."
-        sayAndListen(msg)
+        val what = out(ports.correct.describeItem(item))
+        val shownWhat = screen(ports.correct.describeItem(item))
+        val message = msg("remove_confirm", mapOf("what" to what, "item" to out(item.itemLabel)))
+        questionTextContent = msg("remove_question", mapOf("what" to shownWhat), "screen")
+        hintTextContent = msg("remove_hint", emptyMap(), "screen")
+        sayAndListen(message)
     }
 
     private suspend fun handleDeleteConfirmation(text: String) {
         val s = jsTrim(text)
-        val yes = js("^(y|yes|yeah|yep|correct|right|do it|remove it|delete it)\\b", true).test(s)
-        val no = js("^(n|no|nope|nah|keep it|cancel|never ?mind|stop)\\b", true).test(s)
+        val yn = parse(Question(id = "", prompt = "Is that correct?", type = "yesno"), text)
+        val yes = yn?.value == true ||
+            js("^(y|yes|yeah|yep|correct|right|do it|remove it|delete it)\\b", true).test(s)
+        val no = yn?.value == false ||
+            js("^(n|no|nope|nah|keep it|cancel|never ?mind|stop)\\b", true).test(s)
 
         if (!yes && !no) {
-            sayAndListen("Please say yes to remove it, or no to keep it.")
+            sayAndListen(msg("keep_or_remove"))
             return
         }
 
@@ -1031,15 +1128,23 @@ class TurnController(private val ports: Ports, schema: Schema) {
         confirmingDelete = null
 
         if (no) {
-            returnToReview("I kept ${ports.correct.describeItem(c.item)}.")
+            returnToReview(pair(
+                "kept_item",
+                mapOf("what" to out(ports.correct.describeItem(c.item))),
+                mapOf("what" to screen(ports.correct.describeItem(c.item))),
+            ))
             return
         }
 
         val removed = engine!!.removeItem(c.loopId, c.item.index)
         saveSession()
         returnToReview(
-            if (removed) "I removed ${ports.correct.describeItem(c.item)}."
-            else "That entry could not be removed."
+            if (removed) pair(
+                "removed_item",
+                mapOf("what" to out(ports.correct.describeItem(c.item))),
+                mapOf("what" to screen(ports.correct.describeItem(c.item))),
+            )
+            else pair("remove_failed", emptyMap())
         )
     }
 
@@ -1049,7 +1154,7 @@ class TurnController(private val ports: Ports, schema: Schema) {
         val restore = engine!!.cursorSnapshot()
         val q = engine!!.jumpTo(target.id, target.loopIndex ?: 0, target.loopId)
         if (q == null) {
-            sayAndListen("I could not open that answer. Try naming a different one, or say never mind.")
+            sayAndListen(msg("could_not_open_answer"))
             return
         }
 
@@ -1058,11 +1163,15 @@ class TurnController(private val ports: Ports, schema: Schema) {
         pending = null
 
         val current = target.value
+        val what = out(ports.correct.describeTarget(target))
         val heard = if (current == null || current == "")
-            "${ports.correct.describeTarget(target)} is blank right now."
-        else "Right now ${ports.correct.describeTarget(target)} is ${ports.speakable(current, target.type, target.options)}."
+            msg("target_blank", mapOf("what" to what))
+        else msg(
+            "target_current",
+            mapOf("what" to what, "value" to speakValue(current, target.type, target.options)),
+        )
 
-        askCurrent(prefix = "$heard What should it be instead?")
+        askCurrent(prefix = msg("what_instead", mapOf("heard" to heard)))
     }
 
     private suspend fun finishCorrection(value: Any?) {
@@ -1079,7 +1188,11 @@ class TurnController(private val ports: Ports, schema: Schema) {
             saveSession()
             if (next != null) {
                 clearCorrectionState()
-                ports.speech.speak(ports.say.text("FORMS_CHANGED"), interrupt = false)
+                ports.speech.speak(
+                    out(ports.say.text("FORMS_CHANGED")),
+                    interrupt = false,
+                    lang = outputLang(),
+                )
                 askCurrent(announceSection = true)
                 return
             }
@@ -1087,41 +1200,53 @@ class TurnController(private val ports: Ports, schema: Schema) {
 
         saveSession()
 
-        val what = ports.correct.describeTarget(t)
+        val what = out(ports.correct.describeTarget(t))
+        val spokenValue = speakValue(value, t.type, t.options)
+        val shownValue = screenValue(value, t.type, t.options)
         returnToReview(
-            if (ok) "${titleCase(what)} is now ${ports.speakable(value, t.type, t.options)}."
-            else "That answer could not be changed.",
+            if (ok) pair(
+                "now_value",
+                mapOf("what" to titleCase(what), "value" to spokenValue),
+                mapOf("what" to titleCase(screen(ports.correct.describeTarget(t))), "value" to shownValue),
+            ) else pair("change_failed", emptyMap()),
             about = t
         )
     }
 
-    private suspend fun returnToReview(note: String, about: Target? = null) {
+    private suspend fun returnToReview(note: String, about: Target? = null) =
+        returnToReview(Note(note, note), about)
+
+    private suspend fun returnToReview(note: Note, about: Target? = null) {
+        val spokenNote = note.spoken
+        val screenNote = note.shown
+
         if (resumeAfterPrompt) {
             clearCorrectionState()
             saveSession()
-            askCurrent(prefix = "$note Back to your question.")
+            askCurrent(prefix = msg("back_to_question", mapOf("note" to spokenNote)))
             return
         }
-        if (askNextWithheld(note)) return
+        if (askNextWithheld(spokenNote)) return
 
         clearCorrectionState()
         panel = "review"
 
         val missing = engine!!.missingRequired()
-        val tail = if (missing.isNotEmpty())
-            " ${missing.size} required ${if (missing.size == 1) "answer is" else "answers are"} still blank."
-        else ""
-        val msg = "$note$tail You can change another answer, or download your forms."
-        reviewIntro = msg
-        ports.announce(msg, true)
-        ports.speech.speak(msg, interrupt = false)
+        val tailKey = if (missing.size == 1) "missing_tail_one" else "missing_tail_many"
+        val tail = if (missing.isNotEmpty()) msg(tailKey, mapOf("count" to missing.size)) else ""
+        val shownTail = if (missing.isNotEmpty())
+            msg(tailKey, mapOf("count" to missing.size), "screen") else ""
+        val message = msg("review_note", mapOf("note" to spokenNote, "tail" to tail))
+        reviewIntro = msg("review_note", mapOf("note" to screenNote, "tail" to shownTail), "screen")
+        ports.announce(message, true)
+        ports.speech.speak(message, interrupt = false, lang = outputLang())
         emit(focus = "fix")
     }
 
-    private suspend fun sayAndListen(msg: String) {
-        lastSpoken = msg
-        ports.announce(msg, true)
-        ports.speech.speak(msg, interrupt = false)
+    private suspend fun sayAndListen(message: String) {
+        lastSpoken = message
+        ports.announce(message, true)
+        ports.speech.speak(message, interrupt = false, lang = outputLang())
         resumeListening()
     }
 
@@ -1136,15 +1261,29 @@ class TurnController(private val ports: Ports, schema: Schema) {
         ports.audio.earcon("done")
 
         val missing = engine!!.missingRequired()
+        val key = if (missing.size == 1) "finish_missing_one" else "finish_missing_many"
         val intro = if (missing.isNotEmpty()) {
-            "Your answers are ready. ${missing.size} required ${if (missing.size == 1) "answer is" else "answers are"} still blank: " +
-                missing.mapNotNull { it.prompt }.joinToString(" ") +
-                " You can change an answer, or download your forms as they are."
-        } else ports.say.text("ALL_DONE")
+            msg(
+                key,
+                mapOf(
+                    "count" to missing.size,
+                    "prompts" to missing.mapNotNull { it.prompt }.joinToString(" ") { out(it) },
+                ),
+            )
+        } else out(ports.say.text("ALL_DONE"))
 
-        reviewIntro = intro
+        reviewIntro = if (missing.isNotEmpty()) {
+            msg(
+                key,
+                mapOf(
+                    "count" to missing.size,
+                    "prompts" to missing.mapNotNull { it.prompt }.joinToString(" ") { screen(it) },
+                ),
+                "screen",
+            )
+        } else screen(ports.say.text("ALL_DONE"))
         ports.announce(intro, true)
-        awaitSpeakSegments(listOf(intro, ports.say.text("DOWNLOAD_HINT")))
+        awaitSpeakSegments(listOf(intro, out(ports.say.text("DOWNLOAD_HINT"))))
         emit(focus = "download")
     }
 
@@ -1165,10 +1304,10 @@ class TurnController(private val ports: Ports, schema: Schema) {
             if (q == null) continue
             correcting = Correction(target, q, restore)
             panel = "interview"
-            val why = if (w["idle"] === Json.True)
-                "I cleared this while the page was not in use."
-            else "This was not saved when you stopped last time, for your security."
-            val which = if (target.loopId != null) " This one is for ${target.itemLabel} ${target.itemNumber}." else ""
+            val why = if (w["idle"] === Json.True) msg("cleared_idle") else msg("not_saved_again")
+            val which = if (target.loopId != null)
+                msg("this_one_is", mapOf("item" to out(target.itemLabel), "number" to target.itemNumber))
+            else ""
             askCurrent(prefix = "${if (note.isNotEmpty()) "$note " else ""}$why$which")
             return true
         }
@@ -1178,24 +1317,31 @@ class TurnController(private val ports: Ports, schema: Schema) {
     /** Fill the chosen forms. Returns the controller to the review screen. */
     suspend fun exportForms(ids: List<String>) {
         touchActivity()
-        if (askNextWithheld("Before I fill in your forms, I need a number again.")) return
+        if (askNextWithheld(msg("before_fill"))) return
         val answers = engine!!.answers()
         try {
-            ports.onExport(ids, answers)
-            val erase = "When you have checked your forms, select Erase everything to remove your " +
-                "answers from this computer. The downloaded forms stay in your downloads folder."
-            val msg = "Downloaded ${ids.joinToString(" and ")}. $erase"
-            statusText = msg
-            ports.announce(msg, true)
+            ports.onExport(ids, answers, languages)
+            val erase = msg("erase_advice")
+            val shownErase = msg("erase_advice", emptyMap(), "screen")
+            val message = msg(
+                "downloaded",
+                mapOf("forms" to ids.joinToString(msg("forms_joiner")), "erase" to erase),
+            )
+            statusText = msg(
+                "downloaded",
+                mapOf("forms" to ids.joinToString(msg("forms_joiner", emptyMap(), "screen")), "erase" to shownErase),
+                "screen",
+            )
+            ports.announce(message, true)
             awaitSpeakSegments(listOf(
-                if (ids.size > 1) ports.say.text("BOTH_DOWNLOADED") else ports.say.text("DOWNLOADED"),
-                erase
+                if (ids.size > 1) out(ports.say.text("BOTH_DOWNLOADED")) else out(ports.say.text("DOWNLOADED")),
+                erase,
             ))
             emit()
         } catch (e: Exception) {
-            val msg = "The PDF could not be created. Your answers are safe — try saving them as a file instead."
-            statusText = msg
-            ports.announce(msg, true)
+            val message = msg("pdf_failed")
+            statusText = msg("pdf_failed", emptyMap(), "screen")
+            ports.announce(message, true)
         }
     }
 
@@ -1206,10 +1352,10 @@ class TurnController(private val ports: Ports, schema: Schema) {
         ports.timers.clearTimeout(idleTimer)
         engine!!.reset()
         ports.audio.releaseMic()
-        val msg = "Everything has been erased from this device."
-        ports.announce(msg, true)
-        ports.speech.speak(msg, interrupt = false)
-        statusText = msg
+        val message = msg("erased_everything")
+        ports.announce(message, true)
+        ports.speech.speak(message, interrupt = false, lang = outputLang())
+        statusText = msg("erased_everything", emptyMap(), "screen")
         panel = "setup"
         emit()
     }
@@ -1219,10 +1365,11 @@ class TurnController(private val ports: Ports, schema: Schema) {
     private suspend fun handleSttError(err: SttError) {
         ports.audio.earcon("error")
         val table = ports.say.table("ERRORS")
-        val msg = table[err.kind] ?: table["unknown"]!!
-        statusText = msg
-        ports.announce(msg, true)
-        ports.speech.speak(msg, interrupt = false)
+        val source = table[err.kind] ?: table["unknown"]!!
+        val message = out(source)
+        statusText = screen(source)
+        ports.announce(message, true)
+        ports.speech.speak(message, interrupt = false, lang = outputLang())
         if (mode == "handsfree") queueListen()
     }
 
@@ -1260,25 +1407,27 @@ class TurnController(private val ports: Ports, schema: Schema) {
         saveSession()
         statusText = ""
 
-        val msg = "For your security, I cleared your Social Security and bank numbers from this page " +
-            "after ${Math.round(IDLE_LOCK_MS / 60000.0)} minutes without activity. " +
-            "I will ask for them again before your forms are ready."
+        val minutes = Math.round(IDLE_LOCK_MS / 60000.0)
+        val message = msg("idle_cleared", mapOf("minutes" to minutes))
 
         if (panel == "review") {
-            reviewIntro = msg
-            ports.announce(msg, true)
-            ports.speech.speak(msg, interrupt = false)
+            reviewIntro = msg("idle_cleared", mapOf("minutes" to minutes), "screen")
+            ports.announce(message, true)
+            ports.speech.speak(message, interrupt = false, lang = outputLang())
             emit()
             return
         }
         if (midAnswer) {
-            if (correcting != null) { returnToReview(msg); return }
+            if (correcting != null) {
+                returnToReview(pair("idle_cleared", mapOf("minutes" to minutes)))
+                return
+            }
             pending = null
-            askCurrent(prefix = msg)
+            askCurrent(prefix = message)
             return
         }
-        ports.announce(msg, true)
-        ports.speech.speak(msg, interrupt = false)
+        ports.announce(message, true)
+        ports.speech.speak(message, interrupt = false, lang = outputLang())
         // The last snapshot the screen holds carries the answers, numbers
         // included; replace it, or the cleared number lives on in the UI's copy.
         emit()
@@ -1315,15 +1464,15 @@ class TurnController(private val ports: Ports, schema: Schema) {
         }
         if (code == "Escape" && ports.audio.isRecording()) {
             ports.audio.cancelRecording()
-            statusText = "Cancelled."
-            ports.announce("Cancelled", true)
+            statusText = msg("cancelled", emptyMap(), "screen")
+            ports.announce(msg("cancelled"), true)
             emit()
             return Json.Obj().also { it["cancelled"] = Json.True }
         }
         if (code == "KeyT") return Json.Obj().also { it["useTextLane"] = Json.True }
         if (code == "KeyH" && !voiceDisabled) {
             mode = if (mode == "handsfree") "voice" else "handsfree"
-            ports.announce(if (mode == "handsfree") "Hands free mode on" else "Hands free mode off", true)
+            ports.announce(msg(if (mode == "handsfree") "handsfree_on" else "handsfree_off"), true)
             if (mode == "handsfree") queueListen()
             return null
         }
@@ -1344,7 +1493,7 @@ class TurnController(private val ports: Ports, schema: Schema) {
             if (landed != null) {
                 panel = "interview"
                 clearCorrectionState()
-                askCurrent(prefix = ports.say.text("FILL_IN_MISSING"))
+                askCurrent(prefix = out(ports.say.text("FILL_IN_MISSING")))
                 return
             }
         }
@@ -1377,8 +1526,8 @@ class TurnController(private val ports: Ports, schema: Schema) {
             o["sectionLabel"] = Json.Str(sectionLabel)
             o["questionText"] = Json.Str(if (q != null) questionTextContent else "")
             o["hintText"] = Json.Str(
-                if (readBackOpen() || panel == "review") hintTextContent
-                else (q?.hint ?: hintTextContent)
+                if (readBackOpen() || panel == "review" || q?.hint == null) hintTextContent
+                else screen(q.hint)
             )
             o["statusText"] = Json.Str(statusText)
             o["readbackOpen"] = Json.bool(readBackOpen())
@@ -1388,6 +1537,8 @@ class TurnController(private val ports: Ports, schema: Schema) {
             o["reviewIntro"] = Json.Str(reviewIntro)
             o["answers"] = engine!!.answers()
             o["revealSensitive"] = Json.bool(revealSensitive)
+            o["languages"] = languages.toJson()
+            o["sttUnavailable"] = Json.bool(!ports.i18n.sttInstalled(languages.input))
             o["lane"] = Json.Str(if (lastInputWasText || mode == "text") "text" else "voice")
             o["focus"] = Json.Str(focus ?: (if (panel == "review") "fix" else ""))
             o["section"] = progressJson

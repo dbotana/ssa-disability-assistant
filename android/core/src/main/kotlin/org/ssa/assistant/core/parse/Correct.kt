@@ -1,5 +1,6 @@
 package org.ssa.assistant.core.parse
 
+import org.ssa.assistant.core.I18n
 import org.ssa.assistant.core.js.js
 import org.ssa.assistant.core.js.jsEscape
 import org.ssa.assistant.core.js.jsLower
@@ -39,7 +40,7 @@ data class Target(
     val value: Any? = null,
 )
 
-class Correct(private val schema: Schema) {
+class Correct(private val schema: Schema, private val i18n: I18n = I18n(schema)) {
 
     private val nodes: List<Node> = flatten(schema.sections)
     private val loopNodes: Map<String, Node> = nodes.filter { it.type == "loop" }.associateBy { it.id ?: "" }
@@ -58,10 +59,37 @@ class Correct(private val schema: Schema) {
         js("^(go to|jump to|take me to)\\s+", true)
     )
 
-    private fun normalizeText(s: String?): String = jsTrim(jsLower(s ?: "")
-        .replace(js("[\u2019']"), "'")
-        .replace(js("[^a-z0-9'\\s]"), " ")
-        .replace(js("\\s+"), " "))
+    private fun normalizeText(s: String?, lang: String = "en"): String = jsTrim(
+        (if (lang == "en") jsLower(s ?: "") else i18n.fold(s, lang))
+            .replace(js("[\u2019']"), "'")
+            .replace(js("[^a-z0-9'\\s]"), " ")
+            .replace(js("\\s+"), " ")
+    )
+
+    /**
+     * French and Lingala name the field the way the prompt does, after the same
+     * filler and correction verb an English phrase carries.
+     */
+    private fun stripLocalized(phrase: String?, lang: String): String {
+        if (lang == "en") return stripLeadIn(phrase)
+        var out = (phrase ?: "").trim()
+        val tables = i18n.lexicon(lang)
+        val patterns = mutableListOf<String>()
+        val commands = tables["commands"]?.asObject()
+        (commands?.get("correct")?.asArray()?.items ?: emptyList()).mapNotNullTo(patterns) { it.asString() }
+        (tables["filler"]?.asArray()?.items ?: emptyList()).mapNotNullTo(patterns) { it.asString() }
+        for (i in 0 until 4) {
+            val before = out
+            for (source in patterns) {
+                if (source == "\\?") continue
+                try {
+                    out = out.replaceFirst(js("^${source}\\b[\\s,]*", true), "").trim()
+                } catch (_: Exception) { /* ignore a bad table entry */ }
+            }
+            if (out == before) break
+        }
+        return out
+    }
 
     /** Strip lead-in verbs so "change my phone number" matches "phone number". */
     fun stripLeadIn(phrase: String?): String {
@@ -160,9 +188,11 @@ class Correct(private val schema: Schema) {
         if (t.loopId == null) t.label else "${t.label} for ${t.itemLabel} ${t.itemNumber}"
 
     /** Score how well a phrase names one target. Higher is better; 0 is no match. */
-    private fun scoreTarget(phrase: String, target: Target): Int {
-        val names = (listOf(target.label) + (aliases[target.id] ?: emptyList()) + listOf(target.prompt))
-            .map { normalizeText(it) }
+    private fun scoreTarget(phrase: String, target: Target, lang: String = "en"): Int {
+        val names = (listOf(target.label) + (aliases[target.id] ?: emptyList()) + listOf(
+            target.prompt, i18n.translate(target.label, lang), i18n.translate(target.prompt, lang)
+        ))
+            .map { normalizeText(it, lang) }
             .filter { it.isNotEmpty() }
 
         var best = 0
@@ -181,7 +211,7 @@ class Correct(private val schema: Schema) {
 
         if (best == 0) {
             val overlap = contentWords(phrase).filter { w ->
-                normalizeText(target.label).contains(w) || normalizeText(target.prompt).contains(w)
+                normalizeText(target.label, lang).contains(w) || normalizeText(target.prompt, lang).contains(w)
             }
             if (overlap.isNotEmpty()) best = 50 + overlap.size * 10
         }
@@ -192,7 +222,7 @@ class Correct(private val schema: Schema) {
         normalizeText(phrase).split(" ").filter { w -> w.isNotEmpty() && !stop.contains(w) && w.length > 2 }
 
     /** Which loop group, if any, the phrase names. Returns a String? or List<String>. */
-    private fun loopHintFor(phrase: String, answers: Json.Obj, all: Boolean = false): Any? {
+    private fun loopHintFor(phrase: String, answers: Json.Obj, all: Boolean = false, lang: String = "en"): Any? {
         var hit: String? = null
         var hitLen = 0
         val ties = LinkedHashMap<String, Int>()
@@ -200,7 +230,7 @@ class Correct(private val schema: Schema) {
             val node = loopNodes[loopId] ?: continue
             if (!nodeActive(node, answers)) continue
             for (w in words) {
-                val n = normalizeText(w)
+                val n = normalizeText(w, lang)
                 if (!js("\\b${jsEscape(n)}\\b").test(phrase)) continue
                 if (n.length > (ties[loopId] ?: 0)) ties[loopId] = n.length
                 if (n.length > hitLen) {
@@ -247,21 +277,21 @@ class Correct(private val schema: Schema) {
     }
 
     /** Resolve a spoken phrase to a correction target. */
-    fun resolveTarget(phrase: String?, answers: Json.Obj): Resolution {
-        val cleaned = normalizeText(stripLeadIn(phrase))
+    fun resolveTarget(phrase: String?, answers: Json.Obj, lang: String = "en"): Resolution {
+        val cleaned = normalizeText(stripLocalized(phrase, lang), lang)
         if (cleaned.isEmpty()) return Resolution.None()
 
         val targets = buildTargets(answers)
         if (targets.isEmpty()) return Resolution.None()
 
-        val loopHintAny = loopHintFor(cleaned, answers)
+        val loopHintAny = loopHintFor(cleaned, answers, lang = lang)
         val loopHint = if (loopHintAny == null) null else loopHintAny as String
         val wanted = itemNumberFor(cleaned)
 
         data class Scored(val t: Target, val score: Int)
 
         var scored = targets.map { t ->
-            var score = scoreTarget(cleaned, t)
+            var score = scoreTarget(cleaned, t, lang)
             if (score > 0) {
                 if (loopHint != null) {
                     score += when {
@@ -318,8 +348,8 @@ class Correct(private val schema: Schema) {
     }
 
     /** Pick a target from a spoken reply to a disambiguation question. */
-    fun resolveChoice(phrase: String?, candidates: List<Target>?): Target? {
-        val cleaned = normalizeText(stripLeadIn(phrase))
+    fun resolveChoice(phrase: String?, candidates: List<Target>?, lang: String = "en"): Target? {
+        val cleaned = normalizeText(stripLocalized(phrase, lang), lang)
         if (cleaned.isEmpty() || candidates.isNullOrEmpty()) return null
 
         val n = itemNumberFor(cleaned, bare = true)
@@ -329,7 +359,7 @@ class Correct(private val schema: Schema) {
         var best: Target? = null
         var bestScore = 0
         for (c in candidates) {
-            val score = scoreTarget(cleaned, c)
+            val score = scoreTarget(cleaned, c, lang)
             if (score > bestScore) { bestScore = score; best = c }
         }
         return if (bestScore > 0) best else null

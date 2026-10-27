@@ -1,0 +1,38 @@
+# French on every channel: typed answers, a read-back kept with the space bar,
+# a localized skip, and no English prompt spoken.
+scenario: french interview
+steps:
+  - start:
+      mode: text
+      confirm: true
+      languages:
+        input: fr
+        output: fr
+        screen: fr
+        fill: fr
+  - expect:
+      panel: interview
+      question: "Quel formulaire"
+      unspoken: "Which form|Typing mode"
+  - type: adult disability starter kit
+  - expect:
+      answers:
+        forms: ssa
+      question: "prénom légal"
+      unspoken: "legal first name"
+  - type: Ada
+  - type: Lovelace
+  - type: 14 mars 1979
+  - expect:
+      readback: open
+      spoken: "1979"
+      unspoken: "Is that correct"
+  - press: Space
+  - expect:
+      readback: closed
+      answers:
+        date_of_birth: 1979-03-14
+  - type: passer
+  - expect:
+      unspoken: "legal|Is that"
+      question: "État|province"

@@ -11,6 +11,8 @@
 // Because the draw list is data, it is golden-pinned and both renderers must
 // produce it identically — L1 parity from the plan.
 
+import { message } from './i18n/index.js';
+
 export const PAGE = { w: 612, h: 792 };          // US Letter
 export const M = { top: 56, bottom: 56, left: 54, right: 54 };
 export const CONTENT_W = PAGE.w - M.left - M.right;
@@ -53,7 +55,7 @@ function wrap(str, width, metrics, size) {
  *     { op:'rule', x, y, width, thickness }
  *   Coordinates are PDF space, from the bottom-left.
  */
-export function layoutAddendum(content, { regular, bold }) {
+export function layoutAddendum(content, { regular, bold, lang = 'en' }) {
   const pages = [];
   let page = null;
   let y = 0;
@@ -178,7 +180,7 @@ export function layoutAddendum(content, { regular, bold }) {
   const records = (columns, rows, label, { startAt = 1 } = {}) => {
     rows.forEach((row, idx) => {
       need(34);
-      text(`${titleCase(label)} ${startAt + idx}`, { size: 11, f: bold });
+      text(message('table_caption', { label: titleCase(label), number: startAt + idx }, lang), { size: 11, f: bold });
       y -= 17;
       columns.forEach((col, i) => fieldRow(col.label, row[i]));
       y -= 4;
@@ -192,7 +194,7 @@ export function layoutAddendum(content, { regular, bold }) {
       for (const block of section.blocks) {
         if (block.kind === 'table') {
           if (block.empty) {
-            paragraph(`No ${block.label} recorded.`, { size: 10 });
+            paragraph(message('no_recorded', { label: block.label }, lang), { size: 10 });
             y -= 4;
             continue;
           }
@@ -209,7 +211,7 @@ export function layoutAddendum(content, { regular, bold }) {
   if (content.prepared) { paragraph(content.prepared, { size: 9 }); }
 
   if ((content.overflowText?.length ?? 0) || (content.tables?.length ?? 0)) {
-    heading('Continued from the form');
+    heading(message('continued_from_form', {}, lang));
     for (const { label, value } of content.overflowText ?? []) fieldRow(label, value);
     for (const t of content.tables ?? []) {
       paragraph(t.title, { size: 11 });
@@ -222,17 +224,19 @@ export function layoutAddendum(content, { regular, bold }) {
   // Footers are stamped on pages this layout created, in the replayer: the
   // draw list records them so both renderers agree. Carried alongside so the
   // replayer needs only the draw list.
-  finish(content.footer ?? [], pages);
+  finish(content.footer ?? [], pages, lang);
 
   return { pages };
 }
 
-function finish(footerLines, pages) {
+function finish(footerLines, pages, lang = 'en') {
   const [first, second] = footerLines;
   pages.forEach((page, i) => {
     page.push({
       op: 'text', x: M.left, y: 32,
-      text: `${first ?? 'Additional information'} — page ${i + 1} of ${pages.length}`,
+      text: first
+        ? `${first} — page ${i + 1} of ${pages.length}`
+        : message('addendum_footer', { page: i + 1, pages: pages.length }, lang),
       size: 8, font: 'regular', color: MUTED
     });
     if (second) {

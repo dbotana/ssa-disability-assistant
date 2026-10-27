@@ -1,5 +1,6 @@
 package org.ssa.assistant.core.forms
 
+import org.ssa.assistant.core.I18n
 import org.ssa.assistant.core.js.js
 import org.ssa.assistant.core.js.jsTrim
 import org.ssa.assistant.core.js.test
@@ -34,9 +35,9 @@ fun my(value: Any?): String {
 fun anyDate(value: Any?): String =
     if (js("^\\d{4}-\\d{2}-\\d{2}$").test(value?.toString() ?: "")) mdy(value) else my(value)
 
-fun yesNo(value: Any?): String = when (value) {
-    true -> "Yes"
-    false -> "No"
+fun yesNo(value: Any?, lang: String = "en", i18n: I18n? = null): String = when (value) {
+    true -> if (lang == "en") "Yes" else (i18n ?: I18n.default).translate("Yes", lang)
+    false -> if (lang == "en") "No" else (i18n ?: I18n.default).translate("No", lang)
     else -> ""
 }
 

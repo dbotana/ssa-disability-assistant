@@ -6,6 +6,10 @@
 // VoiceOver and NVDA, so there is exactly one.
 
 import { choiceLabel } from './choice.js';
+import {
+  translate, formatDate as dateIn, formatMonthYear as monthYearIn,
+  formatMoney as moneyIn, formatTimeRemaining as timeIn
+} from './i18n/index.js';
 
 let politeEl = null;
 let assertiveEl = null;
@@ -44,64 +48,72 @@ export function spellDigits(value, groups = null) {
 
 /**
  * Human-readable rendering of a stored value, for read-back and the summary.
- * `options` is the question's option list, for choice answers.
+ * `options` is the question's option list, for choice answers. English is the
+ * original code, untouched; other languages translate the words but never the
+ * digits, which are read one at a time in every language.
  */
-export function speakableValue(value, type, options = null) {
-  if (value == null || value === '') return 'not answered';
-  if (type === 'yesno') return value === true ? 'yes' : 'no';
-  if (type === 'choice') return choiceLabel(options, value).toLowerCase();
+export function speakableValue(value, type, options = null, lang = 'en') {
+  if (value == null || value === '') {
+    return lang === 'en' ? 'not answered' : translate('not answered', lang);
+  }
+  if (type === 'yesno') {
+    const word = value === true ? 'Yes' : 'No';
+    return lang === 'en' ? word.toLowerCase() : translate(word, lang).toLowerCase();
+  }
+  if (type === 'choice') return choiceLabel(options, value, lang).toLowerCase();
   if (type === 'zip') return spellDigits(value, [5]);
   if (type === 'ssn') return spellDigits(value, [3, 2, 4]);
   if (type === 'routing') return spellDigits(value, [3, 3, 3]);
   if (type === 'account' || type === 'phone') return spellDigits(value, [3, 3]);
-  if (type === 'date') return formatDate(value);
-  if (type === 'monthyear') return formatMonthYear(value);
-  if (type === 'money') return `${Number(value).toLocaleString()} dollars`;
+  if (type === 'date') return formatDate(value, lang);
+  if (type === 'monthyear') return formatMonthYear(value, lang);
+  if (type === 'money') {
+    return lang === 'en'
+      ? `${Number(value).toLocaleString()} dollars`
+      : moneyIn(value, lang);
+  }
   return String(value);
+}
+
+export function formatDate(iso, lang = 'en') {
+  if (lang === 'en') {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso));
+    if (!m) return String(iso);
+    return `${MONTHS[+m[2] - 1]} ${+m[3]}, ${m[1]}`;
+  }
+  return dateIn(iso, lang);
+}
+
+export function formatMonthYear(value, lang = 'en') {
+  if (lang === 'en') {
+    if (String(value).toLowerCase() === 'present') return 'still ongoing';
+    const m = /^(\d{4})-(\d{2})$/.exec(String(value));
+    if (!m) return String(value);
+    return `${MONTHS[+m[2] - 1]} ${m[1]}`;
+  }
+  return monthYearIn(value, lang);
+}
+
+export function formatTimeRemaining(seconds, lang = 'en') {
+  if (lang === 'en') {
+    if (seconds == null || !Number.isFinite(seconds) || seconds < 0) return null;
+    if (seconds < 60) return 'less than a minute';
+    const minutes = seconds / 60;
+    if (minutes < 2.5) return 'about two minutes';
+    if (minutes < 60) {
+      const step = Math.max(5, Math.round(minutes / 5) * 5);
+      return `about ${step} minutes`;
+    }
+    const halves = Math.round(minutes / 30) / 2;
+    if (halves <= 1) return 'about an hour';
+    const whole = Math.floor(halves);
+    if (!(halves % 1)) return `about ${whole} hours`;
+    return whole === 1
+      ? 'about an hour and a half'
+      : `about ${whole} and a half hours`;
+  }
+  return timeIn(seconds, lang);
 }
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'];
-
-export function formatDate(iso) {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso));
-  if (!m) return String(iso);
-  return `${MONTHS[+m[2] - 1]} ${+m[3]}, ${m[1]}`;
-}
-
-export function formatMonthYear(value) {
-  if (String(value).toLowerCase() === 'present') return 'still ongoing';
-  const m = /^(\d{4})-(\d{2})$/.exec(String(value));
-  if (!m) return String(value);
-  return `${MONTHS[+m[2] - 1]} ${m[1]}`;
-}
-
-/**
- * A spoken estimate of time remaining, or null when there is nothing honest
- * to say. Callers fall back to the percentage.
- *
- * Rounded hard on purpose. The estimate is a median of at most a dozen
- * samples extrapolated over dozens of questions, and it is wrong by minutes;
- * reading out "about 23 minutes" claims a precision it does not have and
- * invites the user to notice when it slips. Buckets that grow with the
- * estimate — five-minute steps under an hour, half-hours above — degrade
- * quietly instead, and "less than a minute" covers the tail where a
- * percentage would be reading 99 for a while.
- */
-export function formatTimeRemaining(seconds) {
-  if (seconds == null || !Number.isFinite(seconds) || seconds < 0) return null;
-  if (seconds < 60) return 'less than a minute';
-  const minutes = seconds / 60;
-  if (minutes < 2.5) return 'about two minutes';
-  if (minutes < 60) {
-    const step = Math.max(5, Math.round(minutes / 5) * 5);
-    return `about ${step} minutes`;
-  }
-  const halves = Math.round(minutes / 30) / 2;
-  if (halves <= 1) return 'about an hour';
-  const whole = Math.floor(halves);
-  if (!(halves % 1)) return `about ${whole} hours`;
-  return whole === 1
-    ? 'about an hour and a half'
-    : `about ${whole} and a half hours`;
-}

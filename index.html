@@ -12,7 +12,7 @@
      header on every file. tests/no-network.js checks both. -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; connect-src 'self'; media-src 'self' blob:; img-src 'self' data:; style-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
-<title>Voice Assistant for Disability Forms</title>
+<title data-i18n="page.title">Voice Assistant for Disability Forms</title>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -21,81 +21,66 @@
 <div id="live-polite" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
 <div id="live-assertive" class="visually-hidden" aria-live="assertive" aria-atomic="true"></div>
 
-<a class="skip-link" href="#main">Skip to the interview</a>
+<a class="skip-link" href="#main" data-i18n="page.skip">Skip to the interview</a>
 
 <header>
-  <h1>Disability Forms by Voice</h1>
-  <p class="tagline">Answer by voice. Get Social Security's Adult Disability Starter Kit,
-    Maine's Developmental Services Intake Application, or both, filled in and ready to use.</p>
+  <h1 data-i18n="header.title">Disability Forms by Voice</h1>
+  <p class="tagline" data-i18n="header.tagline">Answer by voice. Get Social Security's Adult Disability Starter Kit, Maine's Developmental Services Intake Application, or both, filled in and ready to use.</p>
 </header>
 
 <main id="main" tabindex="-1">
 
   <!-- ---------- Setup ---------- -->
   <section id="setup-panel" aria-labelledby="setup-heading">
-    <h2 id="setup-heading">Before we start</h2>
+    <h2 id="setup-heading" data-i18n="setup.heading">Before we start</h2>
 
     <div class="callout" role="note">
-      <h3>Please read this first</h3>
-      <p>
-        Everything happens on this computer. When you speak, your words are
-        turned into text here, by a speech model stored with this program — the
-        recording is never sent anywhere. Your answers are saved in this browser
-        only, and nothing is sent to any company or server.
-      </p>
-      <p>
-        If you choose a PIN below, your answers are saved in this browser,
-        encrypted with it, so you can stop and come back. Your Social Security
-        number and bank numbers are never saved: if you stop partway, you will
-        be asked for them again.
-        <strong>Use this on a device you trust and do not use it on a shared or
-        public computer.</strong> You can say <em>skip</em> at any sensitive
-        question and fill it in by hand later.
-      </p>
-      <p>
-        The first question asks which form you are filling out. This tool fills
-        in the forms for you to review, sign, and send yourself. It does not
-        send anything to the Social Security Administration or to Maine's
-        Department of Health and Human Services.
-      </p>
+      <h3 data-i18n="setup.note_heading">Please read this first</h3>
+      <p data-i18n="setup.note_p1">Everything happens on this computer. When you speak, your words are turned into text here, by a speech model stored with this program — the recording is never sent anywhere. Your answers are saved in this browser only, and nothing is sent to any company or server.</p>
+      <p data-i18n="setup.note_p2">If you choose a PIN below, your answers are saved in this browser, encrypted with it, so you can stop and come back. Your Social Security number and bank numbers are never saved: if you stop partway, you will be asked for them again. <strong>Use this on a device you trust and do not use it on a shared or public computer.</strong> You can say <em>skip</em> at any sensitive question and fill it in by hand later.</p>
+      <p data-i18n="setup.note_p3">The first question asks which form you are filling out. This tool fills in the forms for you to review, sign, and send yourself. It does not send anything to the Social Security Administration or to Maine's Department of Health and Human Services.</p>
     </div>
 
+    <fieldset class="field" id="language-field">
+      <legend data-i18n="language.legend">Language</legend>
+      <label for="lang-input" data-i18n="language.input">What language will you speak or type?</label>
+      <select id="lang-input"></select>
+      <label for="lang-output" data-i18n="language.output">What language should I read aloud?</label>
+      <select id="lang-output"></select>
+      <label for="lang-screen" data-i18n="language.screen">What language should the screen use?</label>
+      <select id="lang-screen"></select>
+      <label for="lang-fill" data-i18n="language.fill">What language should the filled-in form use?</label>
+      <select id="lang-fill"></select>
+      <p id="stt-note" class="help" role="status"></p>
+    </fieldset>
+
     <fieldset class="field">
-      <legend>How do you want to answer?</legend>
+      <legend data-i18n="mode.legend">How do you want to answer?</legend>
       <label class="radio">
         <input type="radio" name="mode" value="voice" checked>
-        Voice — hold the space bar to talk
+        <span data-i18n="mode.voice">Voice — hold the space bar to talk</span>
       </label>
       <label class="radio">
         <input type="radio" name="mode" value="handsfree">
-        Hands free — I start listening after each question
+        <span data-i18n="mode.handsfree">Hands free — I start listening after each question</span>
       </label>
       <label class="radio">
         <input type="radio" name="mode" value="text">
-        Typing — start with the keyboard
+        <span data-i18n="mode.text">Typing — start with the keyboard</span>
       </label>
-      <p class="help">
-        This only sets how the interview starts. Speaking and typing are both
-        available on every question, and you can move between them whenever you
-        like.
-      </p>
+      <p class="help" data-i18n="mode.help">This only sets how the interview starts. Speaking and typing are both available on every question, and you can move between them whenever you like.</p>
     </fieldset>
 
     <div class="field">
       <label class="radio">
         <input type="checkbox" id="confirm-answers" checked>
-        Read each answer back and wait for me to confirm it
+        <span data-i18n="confirm.label">Read each answer back and wait for me to confirm it</span>
       </label>
-      <p class="help">
-        With this on I repeat what I heard after every answer, and you press the
-        space bar (or say yes) to keep it. Turn it off to move faster if you can
-        read the screen — your Social Security number, bank numbers and dates are
-        always read back either way, because a wrong digit there is costly.
-      </p>
+      <p class="help" data-i18n="confirm.help">With this on I repeat what I heard after every answer, and you press the space bar (or say yes) to keep it. Turn it off to move faster if you can read the screen — your Social Security number, bank numbers and dates are always read back either way, because a wrong digit there is costly.</p>
     </div>
 
     <div class="field">
-      <label for="save-pin">PIN to protect your saved answers</label>
+      <label for="save-pin" data-i18n="pin.label">PIN to protect your saved answers</label>
       <!-- A password field so it is not shown on screen. The data-* attributes
            keep password managers from offering to store it: the PIN is only
            useful if it lives in the user's head, not beside the answers. -->
@@ -104,46 +89,32 @@
              data-gramm="false" data-gramm_editor="false" data-enable-grammarly="false"
              data-lt-active="false" data-1p-ignore data-lpignore="true" data-bwignore
              aria-describedby="save-pin-help">
-      <p id="save-pin-help" class="help">
-        At least 4 characters; longer is safer. Your answers are saved on this
-        computer, encrypted with this PIN, so you can finish later — you will
-        need it to continue. Leave it blank to save nothing: your answers will
-        be lost when you close this page. Saved answers are deleted after 7
-        days.
-      </p>
+      <p id="save-pin-help" class="help" data-i18n="pin.help">At least 4 characters; longer is safer. Your answers are saved on this computer, encrypted with this PIN, so you can finish later — you will need it to continue. Leave it blank to save nothing: your answers will be lost when you close this page. Saved answers are deleted after 7 days.</p>
     </div>
 
     <div class="field">
       <label class="radio">
         <input type="checkbox" id="show-sensitive">
-        Show my Social Security and bank numbers on screen
+        <span data-i18n="sensitive.label">Show my Social Security and bank numbers on screen</span>
       </label>
-      <p class="help">
-        Off, they show only their last four digits, so they cannot be read
-        over your shoulder or in a screen recording. They are always read
-        aloud in full, so you can check every digit.
-      </p>
+      <p class="help" data-i18n="sensitive.help">Off, they show only their last four digits, so they cannot be read over your shoulder or in a screen recording. They are always read aloud in full, so you can check every digit.</p>
     </div>
 
     <div class="field" id="import-row">
-      <label for="import-file">Continue from a file you saved</label>
+      <label for="import-file" data-i18n="import.label">Continue from a file you saved</label>
       <input type="file" id="import-file" accept="application/json,.json"
              aria-describedby="import-help">
-      <p id="import-help" class="help">
-        If you saved your answers as a file on another device, choose it here to
-        pick up where you left off. This replaces any answers saved on this
-        device.
-      </p>
+      <p id="import-help" class="help" data-i18n="import.help">If you saved your answers as a file on another device, choose it here to pick up where you left off. This replaces any answers saved on this device.</p>
       <p id="import-status" role="status" class="help"></p>
     </div>
 
     <div id="resume-row" hidden>
       <p id="resume-text"></p>
-      <button type="button" id="resume-button" class="secondary">Resume my saved session</button>
-      <button type="button" id="discard-button" class="secondary">Start over instead</button>
+      <button type="button" id="resume-button" class="secondary" data-i18n="resume.button">Resume my saved session</button>
+      <button type="button" id="discard-button" class="secondary" data-i18n="discard.button">Start over instead</button>
     </div>
 
-    <button type="button" id="start-button" class="primary">Start the interview</button>
+    <button type="button" id="start-button" class="primary" data-i18n="start.button">Start the interview</button>
     <p id="setup-status" class="help" role="status"></p>
   </section>
 
@@ -163,12 +134,12 @@
          leaves the text box ready. -->
     <div class="controls">
       <button type="button" id="talk-button" class="primary talk"
-              aria-describedby="lane-help">
+              aria-describedby="lane-help" data-i18n="interview.talk">
         Hold to talk
       </button>
 
       <div id="text-entry" class="field" hidden>
-        <label for="text-answer">Or type your answer</label>
+        <label for="text-answer" data-i18n="interview.answer_label">Or type your answer</label>
         <!-- spellcheck off: Chrome's Enhanced Spell Check and Edge's Microsoft
              Editor send the text of a checked field to Google or Microsoft.
              The data-* attributes opt out of the Grammarly and LanguageTool
@@ -179,70 +150,64 @@
                data-gramm="false" data-gramm_editor="false" data-enable-grammarly="false"
                data-lt-active="false"
                aria-describedby="lane-help">
-        <button type="button" id="text-submit" class="primary">Submit</button>
+        <button type="button" id="text-submit" class="primary" data-i18n="interview.submit">Submit</button>
       </div>
 
-      <p id="lane-help" class="help">
-        Hold the space bar (or the button) to speak, or press <kbd>T</kbd> to
-        type. Press <kbd>Escape</kbd> to leave the text box and use the space
-        bar again. When I read an answer back, tap <kbd>Space</kbd> to keep it
-        or press <kbd>N</kbd> to answer again — you only have to speak if I got
-        it wrong.
-      </p>
+      <p id="lane-help" class="help" data-i18n="interview.lane_help">Hold the space bar (or the button) to speak, or press <kbd>T</kbd> to type. Press <kbd>Escape</kbd> to leave the text box and use the space bar again. When I read an answer back, tap <kbd>Space</kbd> to keep it or press <kbd>N</kbd> to answer again — you only have to speak if I got it wrong.</p>
     </div>
 
     <!-- Shown only while an answer is being read back. The space bar does the
          same thing, and is what most people will use; these are here so the
          choice is visible rather than remembered. -->
     <div class="readback-controls" id="readback-controls" hidden>
-      <button type="button" id="accept-readback" class="primary">Yes, that's right (Space)</button>
-      <button type="button" id="reject-readback" class="secondary">No, answer again (N)</button>
+      <button type="button" id="accept-readback" class="primary" data-i18n="readback.accept">Yes, that's right (Space)</button>
+      <button type="button" id="reject-readback" class="secondary" data-i18n="readback.reject">No, answer again (N)</button>
     </div>
 
     <div class="secondary-controls">
-      <button type="button" data-command="repeat" class="secondary">Repeat (Enter)</button>
-      <button type="button" data-command="back" class="secondary">Go back (B)</button>
-      <button type="button" data-command="skip" class="secondary">Skip (S)</button>
-      <button type="button" data-command="where" class="secondary">Where am I (W)</button>
-      <button type="button" data-command="correct" class="secondary">Change an answer (C)</button>
-      <button type="button" data-command="finish" class="secondary">Finish early</button>
+      <button type="button" data-command="repeat" class="secondary" data-i18n="commands.repeat">Repeat (Enter)</button>
+      <button type="button" data-command="back" class="secondary" data-i18n="commands.back">Go back (B)</button>
+      <button type="button" data-command="skip" class="secondary" data-i18n="commands.skip">Skip (S)</button>
+      <button type="button" data-command="where" class="secondary" data-i18n="commands.where">Where am I (W)</button>
+      <button type="button" data-command="correct" class="secondary" data-i18n="commands.correct">Change an answer (C)</button>
+      <button type="button" data-command="finish" class="secondary" data-i18n="commands.finish">Finish early</button>
     </div>
 
     <details class="help-details">
-      <summary>Things you can say at any time</summary>
+      <summary data-i18n="details.summary">Things you can say at any time</summary>
       <ul>
-        <li><strong>Space</strong> or <strong>Yes</strong> — after I read back what I heard, to keep it</li>
-        <li><strong>N</strong> or <strong>No</strong> — answer again, without hearing the question repeated</li>
-        <li><strong>Repeat that</strong> — hear the question again</li>
-        <li><strong>Go back</strong> — return to the previous question</li>
-        <li><strong>Skip this</strong> — leave it blank and move on</li>
-        <li><strong>Where am I</strong> — hear your progress</li>
-        <li><strong>Read back my answers</strong> — hear what you have given so far</li>
-        <li><strong>Save and quit</strong> — stop and keep your place</li>
-        <li><strong>Add another condition</strong> — from the review screen, to put a new entry on a list</li>
-        <li><strong>Start over</strong> — erase everything and begin again</li>
+        <li data-i18n="details.keep"><strong>Space</strong> or <strong>Yes</strong> — after I read back what I heard, to keep it</li>
+        <li data-i18n="details.again"><strong>N</strong> or <strong>No</strong> — answer again, without hearing the question repeated</li>
+        <li data-i18n="details.repeat"><strong>Repeat that</strong> — hear the question again</li>
+        <li data-i18n="details.back"><strong>Go back</strong> — return to the previous question</li>
+        <li data-i18n="details.skip"><strong>Skip this</strong> — leave it blank and move on</li>
+        <li data-i18n="details.where"><strong>Where am I</strong> — hear your progress</li>
+        <li data-i18n="details.readback"><strong>Read back my answers</strong> — hear what you have given so far</li>
+        <li data-i18n="details.save"><strong>Save and quit</strong> — stop and keep your place</li>
+        <li data-i18n="details.add"><strong>Add another condition</strong> — from the review screen, to put a new entry on a list</li>
+        <li data-i18n="details.restart"><strong>Start over</strong> — erase everything and begin again</li>
       </ul>
     </details>
   </section>
 
   <!-- ---------- Review and export ---------- -->
   <section id="review-panel" aria-labelledby="review-heading" hidden>
-    <h2 id="review-heading">Your forms are ready</h2>
+    <h2 id="review-heading" data-i18n="review.heading">Your forms are ready</h2>
     <p id="review-intro"></p>
 
     <!-- One button per form chosen at the start; main.js shows the right ones. -->
     <div class="secondary-controls">
-      <button type="button" id="download-all" class="primary" hidden>Download both forms (2 PDFs)</button>
-      <button type="button" id="download-ssa" class="primary" hidden>Download the Adult Disability Starter Kit (PDF)</button>
-      <button type="button" id="download-ds" class="primary" hidden>Download the Developmental Services Intake Application (PDF)</button>
-      <button type="button" id="download-json" class="secondary">Save my answers as a file</button>
-      <button type="button" id="read-back" class="secondary">Read my answers aloud</button>
-      <button type="button" id="fix-answer" class="secondary">Change an answer</button>
+      <button type="button" id="download-all" class="primary" hidden data-i18n="review.download_all">Download both forms (2 PDFs)</button>
+      <button type="button" id="download-ssa" class="primary" hidden data-i18n="review.download_ssa">Download the Adult Disability Starter Kit (PDF)</button>
+      <button type="button" id="download-ds" class="primary" hidden data-i18n="review.download_ds">Download the Developmental Services Intake Application (PDF)</button>
+      <button type="button" id="download-json" class="secondary" data-i18n="review.download_json">Save my answers as a file</button>
+      <button type="button" id="read-back" class="secondary" data-i18n="review.read_back">Read my answers aloud</button>
+      <button type="button" id="fix-answer" class="secondary" data-i18n="review.fix">Change an answer</button>
     </div>
 
     <div id="summary" class="summary"></div>
 
-    <button type="button" id="clear-data" class="danger">Erase everything from this device</button>
+    <button type="button" id="clear-data" class="danger" data-i18n="review.clear">Erase everything from this device</button>
   </section>
 
 </main>

@@ -1,11 +1,14 @@
 package org.ssa.assistant.core.parse
 
+import org.ssa.assistant.core.I18n
 import org.ssa.assistant.core.Option
 import org.ssa.assistant.core.js.js
 import org.ssa.assistant.core.js.jsEscape
 import org.ssa.assistant.core.js.jsLower
 import org.ssa.assistant.core.js.jsTrim
 import org.ssa.assistant.core.js.test
+import org.ssa.assistant.core.json.asArray
+import org.ssa.assistant.core.json.asString
 
 /**
  * Port of src/choice.js: multiple-choice answers, the one place that turns
@@ -15,6 +18,10 @@ import org.ssa.assistant.core.js.test
  * or null. A negation never matches, "never married" is not also "married",
  * and a lone letter counts only when it is the whole answer. Patterns are the
  * reference's, in JS syntax, through [js].
+ *
+ * Non-English matching folds case and strips diacritics (D5), and adds the
+ * translated label to the names an option answers to. Values, letters and
+ * English labels always keep working, so a mixed-channel setup is safe.
  */
 
 // "Never" is deliberately absent: "never married" is an answer, not a negation.
@@ -27,29 +34,68 @@ private val LETTER_WORDS = mapOf(
     "f" to "f", "ef" to "f", "m" to "m", "em" to "m"
 )
 
-private fun normalize(s: String?): String = jsTrim(jsLower(s ?: "")
-    .replace(js("[\u2019']"), "'")
-    .replace(js("[^a-z0-9'\\s-]"), " ")
-    .replace("-", " ")
-    .replace(js("\\s+"), " "))
+private fun normalize(s: String?, lang: String = "en", i18n: I18n = I18n.default): String {
+    if (lang != "en") {
+        // Lingala's open vowels are what users write on a phone keyboard too
+        // ("fomele" for "fɔmɛlɛ"), so fold them before the strip that would
+        // otherwise turn ɛ/ɔ into spaces.
+        val folded = when (lang) {
+            "ln" -> i18n.fold(s, lang).replace("\u025B", "e").replace("\u0254", "o")
+            else -> i18n.fold(s, lang)
+        }
+        return jsTrim(folded
+            .replace(js("[\u2019']"), " ")
+            .replace(js("[^a-z0-9\\s-]"), " ")
+            .replace("-", " ")
+            .replace(js("\\s+"), " "))
+    }
+    return jsTrim(jsLower(s ?: "")
+        .replace(js("[\u2019']"), "'")
+        .replace(js("[^a-z0-9'\\s-]"), " ")
+        .replace("-", " ")
+        .replace(js("\\s+"), " "))
+}
+
+private fun tableStrings(tables: org.ssa.assistant.core.json.Json.Obj, key: String): List<String> =
+    (tables[key]?.asArray()?.items ?: emptyList()).mapNotNull { it.asString() }
 
 /**
  * The option a free-form answer names, or null. Ported 1:1 from
  * matchChoice() in src/choice.js — the same rule order, so the goldens agree.
  */
-fun matchChoice(options: List<Option>?, text: String?): Option? {
+fun matchChoice(
+    options: List<Option>?,
+    text: String?,
+    lang: String = "en",
+    i18n: I18n? = null,
+): Option? {
     if (options.isNullOrEmpty()) return null
-    var s = normalize(text)
+    val table = i18n ?: I18n.default
+    val tables = table.lexicon(lang)
+    val lead: Regex? = if (lang == "en") LEAD
+    else tableStrings(tables, "lead").firstOrNull()?.let { source ->
+        try { js(source) } catch (_: Exception) { null }
+    }
+    val negation: Regex = if (lang == "en") NEGATION
+    else {
+        val sources = tableStrings(tables, "negation")
+        if (sources.isNotEmpty()) {
+            try { js(sources.joinToString("|")) } catch (_: Exception) { NEGATION }
+        } else NEGATION
+    }
+
+    var s = normalize(text, lang, table)
     for (i in 0 until 3) {
-        val next = jsTrim(s.replaceFirst(LEAD, ""))
+        val next = lead?.let { jsTrim(s.replaceFirst(it, "")) } ?: s
         if (next == s) break
         s = next
     }
     if (s.isEmpty()) return null
 
-    // Exact value or label: "both", "B", "Needs supervision".
+    // Exact value, letter, English label, or translated label.
     for (o in options) {
-        if (s == normalize(o.value) || s == normalize(o.label)) return o
+        val names = listOf(o.value, o.label, table.translate(o.label, lang))
+        if (names.any { s == normalize(it, lang, table) }) return o
     }
 
     // A lone letter, optionally introduced: "b", "letter b", "the letter bee".
@@ -63,7 +109,7 @@ fun matchChoice(options: List<Option>?, text: String?): Option? {
         }
     }
 
-    if (NEGATION.test(s)) return null
+    if (negation.test(s)) return null
 
     // Phrase search: every alias found in the answer, dropping any match
     // sitting inside a longer one.
@@ -71,11 +117,14 @@ fun matchChoice(options: List<Option>?, text: String?): Option? {
 
     val found = mutableListOf<Found>()
     for (o in options) {
-        for (phrase in listOf(o.label) + o.aliases) {
-            val p = normalize(phrase)
+        for (phrase in listOf(o.label, table.translate(o.label, lang)) + o.aliases) {
+            val p = normalize(phrase, lang, table)
             if (p.isEmpty()) continue
-            val re = js("\\b${jsEscape(p)}\\b")
-            re.findAll(s).forEach { m -> found.add(Found(o, m.range.first, m.range.last + 1)) }
+            val re = js("(?:^|\\s)${jsEscape(p)}(?:$|\\s)")
+            re.findAll(s).forEach { m ->
+                val start = m.range.first + (if (m.value.startsWith(" ")) 1 else 0)
+                found.add(Found(o, start, start + p.length))
+            }
         }
     }
     val kept = found.filter { f ->
@@ -101,14 +150,23 @@ fun optionFor(options: List<Option>?, value: Any?): Option? {
     return options.firstOrNull { o -> o.value == value?.toString() }
 }
 
-fun choiceLabel(options: List<Option>?, value: Any?): String {
+/** Printable label for a stored choice value; the raw value if unknown. */
+fun choiceLabel(
+    options: List<Option>?,
+    value: Any?,
+    lang: String = "en",
+    i18n: I18n? = null,
+): String {
     if (value == null || value == "") return ""
-    return optionFor(options, value)?.label ?: value.toString()
+    val option = optionFor(options, value) ?: return value.toString()
+    return (i18n ?: I18n.default).translate(option.label, lang)
 }
 
 /** "independent, needs supervision, or total care" — for spoken hints. */
-fun optionsSentence(options: List<Option>?): String {
-    val labels = (options ?: emptyList()).map { it.label.lowercase() }
-    if (labels.size <= 2) return labels.joinToString(" or ")
-    return "${labels.dropLast(1).joinToString(", ")}, or ${labels.last()}"
+fun optionsSentence(options: List<Option>?, lang: String = "en", i18n: I18n? = null): String {
+    val table = i18n ?: I18n.default
+    val labels = (options ?: emptyList()).map { table.translate(it.label, lang).lowercase() }
+    val connector = table.lexicon(lang)["connector"]?.asString() ?: "or"
+    if (labels.size <= 2) return labels.joinToString(" $connector ")
+    return "${labels.dropLast(1).joinToString(", ")}, $connector ${labels.last()}"
 }

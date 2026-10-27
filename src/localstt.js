@@ -9,6 +9,8 @@
 // Every promise this module returns settles. A blind user left waiting on a
 // turn that silently died has no prompt, no error, and no way to know.
 
+import { sttFor } from './i18n/index.js';
+
 const TARGET_RATE = 16000;           // what Whisper was trained on
 const LOAD_TIMEOUT_MS = 180000;      // slow disk, slow CPU, first compile
 const TRANSCRIBE_TIMEOUT_MS = 90000; // a 60 s digit capture on a slow machine
@@ -16,15 +18,30 @@ const TRANSCRIBE_TIMEOUT_MS = 90000; // a 60 s digit capture on a slow machine
 export class SttError extends Error {
   constructor(message, { kind = 'unknown' } = {}) {
     super(message);
-    this.kind = kind;   // empty | model | unsupported | unknown
+    this.kind = kind;   // empty | model | unsupported | unavailable | unknown
   }
 }
 
 let worker = null;
-let ready = null;
+const readyByModel = new Map();
 let nextId = 1;
 let onProgress = null;
 const waiting = new Map();
+
+const UNAVAILABLE = 'Voice answers in this language need a speech model that is not installed on this computer. '
+  + 'You can type your answers.';
+
+const packFor = (lang = 'en') => sttFor(lang);
+
+/** Can voice answers in this language work with the models on disk? */
+export function available(lang = 'en') {
+  return !!packFor(lang).installed;
+}
+
+function packFields(lang) {
+  const pack = packFor(lang);
+  return { model: pack.model, language: pack.language, multilingual: pack.multilingual };
+}
 
 /** Can this browser run the local model at all? */
 export function isSupported() {
@@ -61,7 +78,7 @@ function ensureWorker() {
     failAll(new SttError('The speech model could not start.', { kind: 'model' }));
     worker?.terminate();
     worker = null;
-    ready = null;
+    readyByModel.clear();
   };
   return worker;
 }
@@ -82,18 +99,30 @@ function call(message, { transfer = [], timeoutMs }) {
 }
 
 /**
- * Start the model and resolve when it is ready. Safe to call repeatedly; a
- * failed load is forgotten so the next call tries again.
+ * Start the model a language needs and resolve when it is ready. Safe to call
+ * repeatedly; a failed load is forgotten so the next call tries again.
+ *
+ * A language whose pack is not on disk rejects at once with `unavailable`,
+ * before a worker is even created: no model, no network, no waiting.
+ *
  * @param {(p:{file:string, loaded:number, total:number}) => void} progress
+ * @param {string} lang the input channel's language
  */
-export function load(progress = null) {
+export function load(progress = null, lang = 'en') {
   if (progress) onProgress = progress;
+  const pack = packFor(lang);
+  if (!pack.installed) {
+    return Promise.reject(new SttError(UNAVAILABLE, { kind: 'unavailable' }));
+  }
   if (!isSupported()) {
     return Promise.reject(new SttError('This browser cannot run the speech model.', { kind: 'unsupported' }));
   }
-  ready ??= call({ type: 'load' }, { timeoutMs: LOAD_TIMEOUT_MS })
-    .catch(err => { ready = null; throw err; });
-  return ready;
+  if (!readyByModel.has(pack.model)) {
+    const pending = call({ type: 'load', ...packFields(lang) }, { timeoutMs: LOAD_TIMEOUT_MS })
+      .catch(err => { readyByModel.delete(pack.model); throw err; });
+    readyByModel.set(pack.model, pending);
+  }
+  return readyByModel.get(pack.model);
 }
 
 /**
@@ -128,9 +157,9 @@ export function cleanTranscript(text) {
 }
 
 /** Transcribe one captured answer. Rejects with an SttError. */
-export async function transcribe(blob) {
+export async function transcribe(blob, lang = 'en') {
   if (!blob?.size) throw new SttError('I did not hear anything.', { kind: 'empty' });
-  await load();
+  await load(null, lang);
 
   let audio;
   try {
@@ -141,7 +170,7 @@ export async function transcribe(blob) {
   if (!audio.length) throw new SttError('I did not hear anything.', { kind: 'empty' });
 
   const { text } = await call(
-    { type: 'transcribe', audio },
+    { type: 'transcribe', ...packFields(lang), audio },
     { transfer: [audio.buffer], timeoutMs: TRANSCRIBE_TIMEOUT_MS }
   );
   const clean = cleanTranscript(text);

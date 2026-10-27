@@ -2151,6 +2151,236 @@
       "optionsKey": null,
       "questionKey": null,
       "result": null
+    },
+    {
+      "type": "yesno",
+      "input": "oui",
+      "lang": "fr",
+      "optionsKey": null,
+      "questionKey": null,
+      "result": {
+        "value": true,
+        "confidence": 1
+      }
+    },
+    {
+      "type": "yesno",
+      "input": "non",
+      "lang": "fr",
+      "optionsKey": null,
+      "questionKey": null,
+      "result": {
+        "value": false,
+        "confidence": 1
+      }
+    },
+    {
+      "type": "yesno",
+      "input": "oui, merci",
+      "lang": "fr",
+      "optionsKey": null,
+      "questionKey": null,
+      "result": null
+    },
+    {
+      "type": "yesno",
+      "input": "ɛɛ",
+      "lang": "ln",
+      "optionsKey": null,
+      "questionKey": null,
+      "result": {
+        "value": true,
+        "confidence": 1
+      }
+    },
+    {
+      "type": "yesno",
+      "input": "te",
+      "lang": "ln",
+      "optionsKey": null,
+      "questionKey": null,
+      "result": {
+        "value": false,
+        "confidence": 1
+      }
+    },
+    {
+      "type": "date",
+      "input": "14 mars 1979",
+      "lang": "fr",
+      "optionsKey": null,
+      "questionKey": null,
+      "result": {
+        "value": "1979-03-14",
+        "confidence": 1
+      }
+    },
+    {
+      "type": "date",
+      "input": "le 14 mars 1979",
+      "lang": "fr",
+      "optionsKey": null,
+      "questionKey": null,
+      "result": {
+        "value": "1979-03-14",
+        "confidence": 1
+      }
+    },
+    {
+      "type": "date",
+      "input": "1er janvier 1980",
+      "lang": "fr",
+      "optionsKey": null,
+      "questionKey": null,
+      "result": {
+        "value": "1980-01-01",
+        "confidence": 1
+      }
+    },
+    {
+      "type": "date",
+      "input": "14/3/1979",
+      "lang": "fr",
+      "optionsKey": null,
+      "questionKey": null,
+      "result": {
+        "value": "1979-03-14",
+        "confidence": 1
+      }
+    },
+    {
+      "type": "date",
+      "input": "14 sanza ya misato 1979",
+      "lang": "ln",
+      "optionsKey": null,
+      "questionKey": null,
+      "result": {
+        "value": "1979-03-14",
+        "confidence": 1
+      }
+    },
+    {
+      "type": "zip",
+      "input": "zéro quatre un zéro un",
+      "lang": "fr",
+      "optionsKey": null,
+      "questionKey": null,
+      "result": {
+        "value": "04101",
+        "confidence": 1
+      }
+    },
+    {
+      "type": "zip",
+      "input": "moko mibale misato minei mitano",
+      "lang": "ln",
+      "optionsKey": null,
+      "questionKey": null,
+      "result": {
+        "value": "12345",
+        "confidence": 1
+      }
+    },
+    {
+      "type": "phone",
+      "input": "zéro quatre un cinq cinq cinq un deux trois quatre",
+      "lang": "fr",
+      "optionsKey": null,
+      "questionKey": null,
+      "result": {
+        "value": "0415551234",
+        "confidence": 1
+      }
+    },
+    {
+      "type": "choice",
+      "input": "Les deux formulaires",
+      "lang": "fr",
+      "optionsKey": null,
+      "questionKey": "forms",
+      "result": {
+        "value": "both",
+        "confidence": 1
+      }
+    },
+    {
+      "type": "choice",
+      "input": "Ba fɔmɛlɛ mibale",
+      "lang": "ln",
+      "optionsKey": null,
+      "questionKey": "forms",
+      "result": {
+        "value": "both",
+        "confidence": 1
+      }
+    },
+    {
+      "type": "choice",
+      "input": "ba fomele mibale",
+      "lang": "ln",
+      "optionsKey": null,
+      "questionKey": "forms",
+      "result": {
+        "value": "both",
+        "confidence": 1
+      }
+    },
+    {
+      "type": "monthyear",
+      "input": "toujours",
+      "lang": "fr",
+      "optionsKey": null,
+      "questionKey": null,
+      "result": {
+        "value": "present",
+        "confidence": 1
+      }
+    },
+    {
+      "type": "monthyear",
+      "input": "encore",
+      "lang": "fr",
+      "optionsKey": null,
+      "questionKey": null,
+      "result": {
+        "value": "present",
+        "confidence": 1
+      }
+    },
+    {
+      "type": "monthyear",
+      "input": "sikawa",
+      "lang": "ln",
+      "optionsKey": null,
+      "questionKey": null,
+      "result": {
+        "value": "present",
+        "confidence": 1
+      }
+    },
+    {
+      "type": "number",
+      "input": "quatorze",
+      "lang": "fr",
+      "optionsKey": null,
+      "questionKey": null,
+      "result": null
+    },
+    {
+      "type": "number",
+      "input": "douze",
+      "lang": "fr",
+      "optionsKey": null,
+      "questionKey": null,
+      "result": null
+    },
+    {
+      "type": "number",
+      "input": "zomi na mibale",
+      "lang": "ln",
+      "optionsKey": null,
+      "questionKey": null,
+      "result": null
     }
   ],
   "typed": [

@@ -5,6 +5,8 @@
 // 03/14/1979, 555-123-4567, Yes. These helpers do that conversion, and
 // nothing here knows which form it is writing for.
 
+import { translate } from '../i18n/index.js';
+
 /** "1979-03-14" -> "03/14/1979". Anything else passes through. */
 export function mdy(value) {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value ?? ''));
@@ -23,9 +25,9 @@ export function anyDate(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(String(value ?? '')) ? mdy(value) : my(value);
 }
 
-export function yesNo(value) {
-  if (value === true) return 'Yes';
-  if (value === false) return 'No';
+export function yesNo(value, lang = 'en') {
+  if (value === true) return translate('Yes', lang);
+  if (value === false) return translate('No', lang);
   return '';
 }
 
@@ -84,7 +86,12 @@ function encodable(ch) {
 }
 
 /** Letters with a stroke have no Unicode decomposition to fall back on. */
-const STROKED = { Ł: 'L', ł: 'l', Đ: 'D', đ: 'd', Ħ: 'H', ħ: 'h', ı: 'i', Ŧ: 'T', ŧ: 't' };
+const STROKED = {
+  Ł: 'L', ł: 'l', Đ: 'D', đ: 'd', Ħ: 'H', ħ: 'h', ı: 'i', Ŧ: 'T', ŧ: 't',
+  // Lingala's open vowels (D7) have no WinAnsi form; "e"/"o" is how they are
+  // commonly written when the character set is limited.
+  ɛ: 'e', Ɛ: 'E', ɔ: 'o', Ɔ: 'O'
+};
 
 /**
  * The closest thing to `value` that Helvetica can draw. Accented letters

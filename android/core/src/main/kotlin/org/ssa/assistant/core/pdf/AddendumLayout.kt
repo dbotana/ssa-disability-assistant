@@ -1,6 +1,7 @@
 package org.ssa.assistant.core.pdf
 
 import kotlin.math.max
+import org.ssa.assistant.core.I18n
 import org.ssa.assistant.core.js.js
 import org.ssa.assistant.core.json.Json
 import org.ssa.assistant.core.json.asArray
@@ -102,7 +103,17 @@ object AddendumLayout {
      * metrics produce the draw lists. Coordinates are PDF space, from the
      * bottom-left.
      */
-    fun layout(content: Content, regular: Metrics, bold: Metrics): List<List<Op>> {
+    fun layout(
+        content: Content,
+        regular: Metrics,
+        bold: Metrics,
+        lang: String = "en",
+        i18n: I18n? = null,
+    ): List<List<Op>> {
+        /** English keeps the original literals; other languages use the catalogue. */
+        fun msg(key: String, vars: Map<String, Any?>, english: String): String =
+            if (lang == "en") english else (i18n ?: I18n.default).message(key, vars, lang)
+
         val pages = mutableListOf<MutableList<Op>>()
         var page: MutableList<Op>? = null
         var y = 0.0
@@ -175,7 +186,15 @@ object AddendumLayout {
         fun records(columns: List<Json.Obj>, rows: List<Json>, label: String, startAt: Int = 1) {
             rows.forEachIndexed { idx, row ->
                 need(34.0)
-                text("${titleCase(label)} ${startAt + idx}", size = 11.0, f = bold)
+                text(
+                    msg(
+                        "table_caption",
+                        mapOf("label" to titleCase(label), "number" to startAt + idx),
+                        "${titleCase(label)} ${startAt + idx}",
+                    ),
+                    size = 11.0,
+                    f = bold,
+                )
                 y -= 17.0
                 val cells = row.asArray()?.items ?: emptyList()
                 columns.forEachIndexed { i, col ->
@@ -259,7 +278,11 @@ object AddendumLayout {
                     if (block["kind"]?.asString() == "table") {
                         val rows = block["rows"]?.asArray()?.items ?: emptyList()
                         if ((block["empty"] as? Json)?.let { it !== Json.False && it !== Json.Null } ?: false) {
-                            paragraph("No ${block["label"]?.asString() ?: ""} recorded.", size = 10.0)
+                            val label = block["label"]?.asString() ?: ""
+                            paragraph(
+                                msg("no_recorded", mapOf("label" to label), "No $label recorded."),
+                                size = 10.0,
+                            )
                             y -= 4.0
                             continue
                         }
@@ -280,7 +303,7 @@ object AddendumLayout {
         content.prepared?.let { paragraph(it, size = 9.0) }
 
         if (content.overflowText.isNotEmpty() || content.tables.isNotEmpty()) {
-            heading("Continued from the form")
+            heading(msg("continued_from_form", emptyMap(), "Continued from the form"))
             for (t in content.overflowText) {
                 fieldRow(t["label"]?.asString() ?: "", t["value"]?.asString() ?: "")
             }
@@ -299,17 +322,31 @@ object AddendumLayout {
 
         // Footers are stamped on pages this layout created, in the replayer:
         // the draw list records them so both renderers agree.
-        finish(content.footer, pages)
+        finish(content.footer, pages, lang, i18n)
         return pages
     }
 
-    private fun finish(footerLines: List<String>, pages: List<MutableList<Op>>) {
+    private fun finish(
+        footerLines: List<String>,
+        pages: List<MutableList<Op>>,
+        lang: String = "en",
+        i18n: I18n? = null,
+    ) {
         val first = footerLines.getOrNull(0)
         val second = footerLines.getOrNull(1)
         pages.forEachIndexed { i, page ->
+            val fallback = if (lang == "en") {
+                "Additional information — page ${i + 1} of ${pages.size}"
+            } else {
+                (i18n ?: I18n.default).message(
+                    "addendum_footer",
+                    mapOf("page" to i + 1, "pages" to pages.size),
+                    lang,
+                )
+            }
             page.add(Op.Text(
                 Margin.LEFT, 32.0,
-                "${first ?: "Additional information"} — page ${i + 1} of ${pages.size}",
+                if (first != null) "$first — page ${i + 1} of ${pages.size}" else fallback,
                 8.0, "regular", MUTED
             ))
             if (second != null) {

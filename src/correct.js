@@ -13,6 +13,7 @@
 
 import { SECTIONS, RATING_GROUPS, flatten, nodeActive } from './schema.js';
 import { shortLabel } from './summary.js';
+import { translate, fold, lexicon } from './i18n/index.js';
 
 /**
  * Extra spoken forms per question id, beyond the label and the prompt.
@@ -212,12 +213,39 @@ const LEAD_INS = [
   /^(go to|jump to|take me to)\s+/i
 ];
 
-const normalizeText = s => String(s ?? '')
-  .toLowerCase()
+const normalizeText = (s, lang = 'en') => (lang === 'en'
+  ? String(s ?? '').toLowerCase()
+  : fold(s, lang))
   .replace(/[’']/g, "'")
   .replace(/[^a-z0-9'\s]/g, ' ')
   .replace(/\s+/g, ' ')
   .trim();
+
+/**
+ * French and Lingala name the field the way the prompt does, after the same
+ * filler and correction verb an English phrase carries ("changer ma date de
+ * naissance"). English keeps the original lead-in pass, untouched.
+ */
+function stripLocalized(phrase, lang) {
+  if (lang === 'en') return stripLeadIn(phrase);
+  let out = String(phrase ?? '').trim();
+  const tables = lexicon(lang);
+  const patterns = [
+    ...(tables.commands?.correct ?? []),
+    ...(tables.filler ?? [])
+  ];
+  for (let i = 0; i < 4; i++) {
+    const before = out;
+    for (const source of patterns) {
+      if (source === '\\?') continue;
+      try {
+        out = out.replace(new RegExp(`^${source}\\b[\\s,]*`, 'i'), '').trim();
+      } catch { /* ignore a bad table entry */ }
+    }
+    if (out === before) break;
+  }
+  return out;
+}
 
 /** Strip lead-in verbs so "change my phone number" matches "phone number". */
 export function stripLeadIn(phrase) {
@@ -295,12 +323,14 @@ export function describeTarget(t) {
  * Longer alias phrases score above shorter ones so that "date of birth" beats
  * a bare "date", and an exact phrase beats a substring.
  */
-function scoreTarget(phrase, target) {
+function scoreTarget(phrase, target, lang = 'en') {
   const names = [
     target.label,
     ...(ALIASES[target.id] ?? []),
-    target.prompt
-  ].map(normalizeText).filter(Boolean);
+    target.prompt,
+    translate(target.label, lang),
+    translate(target.prompt, lang)
+  ].map(n => normalizeText(n, lang)).filter(Boolean);
 
   let best = 0;
   for (const name of names) {
@@ -408,8 +438,8 @@ function itemNumberFor(phrase, { bare = false } = {}) {
  *        | {ok:false, reason:'none'}
  *        | {ok:false, reason:'ambiguous', candidates:object[]}
  */
-export function resolveTarget(phrase, answers = {}) {
-  const cleaned = normalizeText(stripLeadIn(phrase));
+export function resolveTarget(phrase, answers = {}, { lang = 'en' } = {}) {
+  const cleaned = normalizeText(stripLocalized(phrase, lang), lang);
   if (!cleaned) return { ok: false, reason: 'none' };
 
   const targets = buildTargets(answers);
@@ -419,7 +449,7 @@ export function resolveTarget(phrase, answers = {}) {
   const wanted = itemNumberFor(cleaned);
 
   let scored = targets.map(t => {
-    let score = scoreTarget(cleaned, t);
+    let score = scoreTarget(cleaned, t, lang);
     if (!score) return { t, score: 0 };
     if (loopHint) {
       // Naming the group is strong evidence when field ids repeat across loops.
@@ -507,8 +537,8 @@ export function resolveTarget(phrase, answers = {}) {
  * Pick a target from a spoken reply to a disambiguation question — either an
  * ordinal ("the second one") or a repeat of one candidate's name.
  */
-export function resolveChoice(phrase, candidates) {
-  const cleaned = normalizeText(stripLeadIn(phrase));
+export function resolveChoice(phrase, candidates, { lang = 'en' } = {}) {
+  const cleaned = normalizeText(stripLocalized(phrase, lang), lang);
   if (!cleaned || !candidates?.length) return null;
 
   const n = itemNumberFor(cleaned, { bare: true });
@@ -518,7 +548,7 @@ export function resolveChoice(phrase, candidates) {
   let best = null;
   let bestScore = 0;
   for (const c of candidates) {
-    const score = scoreTarget(cleaned, c);
+    const score = scoreTarget(cleaned, c, lang);
     if (score > bestScore) { bestScore = score; best = c; }
   }
   return bestScore > 0 ? best : null;

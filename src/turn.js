@@ -21,6 +21,7 @@
 
 import { localCommand } from './commands.js';
 import { SECTIONS, SENSITIVE_TYPES } from './schema.js';
+import * as defaultI18n from './i18n/index.js';
 
 export const MIN_CAPTURE_MS = 350;
 export const QUIET_PEAK = 0.05;
@@ -81,7 +82,8 @@ export function isEmptyTranscript(text, peak) {
 export function createTurnController(ports) {
   const {
     createEngine, say, parseLocal, normalize, speakable, formatTimeRemaining, correct, store,
-    speech, audio, stt, announce, onState, onExport = async () => {}, onReadBack = async () => {}
+    speech, audio, stt, announce, onState, onExport = async () => {}, onReadBack = async () => {},
+    i18n = defaultI18n
   } = ports;
   let engine = null;
   const clock = ports.clock ?? (() => Date.now());
@@ -91,7 +93,32 @@ export function createTurnController(ports) {
   // too. The three disagree on units: milliseconds here, seconds for the
   // engine, a Date for the parser.
   const parseNow = () => new Date(clock());
-  const parse = (question, text, opts = {}) => parseLocal(question, text, { ...opts, now: parseNow });
+
+  // -- languages ---------------------------------------------------------------
+  //
+  // Four channels, resolved independently (D2). `languages` is set on start;
+  // until then English keeps every path exactly as it was.
+  let languages = i18n.normalizeSettings();
+  const screen = text => i18n.translate(text, languages.screen);
+  const out = text => i18n.translate(text, languages.output);
+  const msg = (key, vars = {}, channel = 'output') =>
+    i18n.message(key, vars, languages[channel]);
+  const inputLang = () => languages.input;
+  const outputLang = () => languages.output;
+
+  const parse = (question, text, opts = {}) =>
+    parseLocal(question, text, { ...opts, now: parseNow, lang: inputLang() });
+  const command = text => localCommand(text, inputLang());
+  const speakValue = (value, type, options) =>
+    speakable(value, type, options, outputLang());
+  const screenValue = (value, type, options) =>
+    speakable(value, type, options, languages.screen);
+  /** A message pair for text that is both spoken and shown (review notes). */
+  const pair = (key, vars, screenVars = vars) => ({
+    spoken: msg(key, vars),
+    shown: msg(key, screenVars, 'screen')
+  });
+  const sayPair = text => ({ spoken: out(text), shown: screen(text) });
 
   // -- state -----------------------------------------------------------------
 
@@ -134,7 +161,7 @@ export function createTurnController(ports) {
       panel,
       sectionLabel,
       questionText: q ? questionText() : '',
-      hintText: readBackOpen() || panel === 'review' ? hintText() : (q?.hint ?? hintText()),
+      hintText: readBackOpen() || panel === 'review' || !q?.hint ? hintText() : screen(q.hint),
       statusText: statusText,
       readbackOpen: readBackOpen(),
       inputMasked: !revealSensitive && isSensitive(q),
@@ -143,6 +170,8 @@ export function createTurnController(ports) {
       reviewIntro,
       answers: engine.answers(),
       revealSensitive,
+      languages: { ...languages },
+      sttUnavailable: !i18n.sttFor(languages.input).installed,
       lane: lastInputWasText || mode === 'text' ? 'text' : 'voice',
       focus: focus ?? (panel === 'review' ? 'fix' : null),
       section: engine.progress(),
@@ -208,34 +237,39 @@ export function createTurnController(ports) {
 
     const segments = [];
     if (correcting) {
-      sectionLabel = `Changing an answer — ${q.sectionTitle}`;
+      sectionLabel = msg('changing_answer', { section: screen(q.sectionTitle) }, 'screen');
     } else if (adding) {
-      sectionLabel = `Adding a ${adding.itemLabel} — ${q.sectionTitle}`;
+      sectionLabel = msg('adding_item', {
+        item: screen(adding.itemLabel), section: screen(q.sectionTitle)
+      }, 'screen');
     } else if (announceSection || q.section !== lastSection) {
       const p = engine.progress();
       if (p.sectionCount) {
-        segments.push(`Section ${p.sectionNumber} of ${p.sectionCount}.`, `${q.sectionTitle}.`);
-        sectionLabel = `Section ${p.sectionNumber} of ${p.sectionCount} — ${q.sectionTitle}`;
+        segments.push(msg('section_of', { number: p.sectionNumber, count: p.sectionCount }));
+        segments.push(`${out(q.sectionTitle)}.`);
+        sectionLabel = msg('section_label_with_count', {
+          number: p.sectionNumber, count: p.sectionCount, title: screen(q.sectionTitle)
+        }, 'screen');
       } else {
-        segments.push(`${q.sectionTitle}.`);
-        sectionLabel = q.sectionTitle;
+        segments.push(`${out(q.sectionTitle)}.`);
+        sectionLabel = screen(q.sectionTitle);
       }
       lastSection = q.section;
-      const left = formatTimeRemaining(p.secondsRemaining);
+      const left = formatTimeRemaining(p.secondsRemaining, outputLang());
       if (left && left !== lastSpokenEstimate) {
-        segments.push(`${left} left.`);
+        segments.push(msg('time_left', { time: left }));
         lastSpokenEstimate = left;
       }
     }
-    if (q.warn && !correcting) segments.push(q.warn);
+    if (q.warn && !correcting) segments.push(out(q.warn));
     if (!correcting && q.loopPhase === 'field' && q.itemNumber > 1 && isFirstFieldOfItem(q)) {
-      segments.push(`${titleCase(q.itemLabel)} ${q.itemNumber}.`);
+      segments.push(msg('item_number', { item: out(titleCase(q.itemLabel)), number: q.itemNumber }));
     }
     if (prefix) segments.push(prefix);
-    segments.push(q.prompt);
+    segments.push(out(q.prompt));
 
-    questionTextContent = q.prompt;
-    hintTextContent = q.hint || '';
+    questionTextContent = screen(q.prompt);
+    hintTextContent = q.hint ? screen(q.hint) : '';
     reviewIntro = '';
     await speakSegments(segments);
 
@@ -246,14 +280,16 @@ export function createTurnController(ports) {
     lastSegments = segments.filter(Boolean);
     lastSpoken = lastSegments.join(' ');
     for (const [i, text] of lastSegments.entries()) {
-      await speech.speak(text, { interrupt: i === 0 });
+      await speech.speak(text, { interrupt: i === 0, lang: outputLang() });
     }
   }
 
   function progressText() {
     const p = engine.progress();
-    const left = formatTimeRemaining(p.secondsRemaining);
-    return left ? `${p.percent}% done · ${left} left` : `${p.percent}% done`;
+    const left = formatTimeRemaining(p.secondsRemaining, languages.screen);
+    return left
+      ? msg('progress_line', { percent: p.percent, time: left }, 'screen')
+      : msg('progress_only', { percent: p.percent }, 'screen');
   }
 
   function resumeListening() {
@@ -283,8 +319,9 @@ export function createTurnController(ports) {
     return starting;
   }
 
-  async function startNow({ mode: startMode = 'voice', confirm = true, reveal = false, saved = null, withheldFrom = null } = {}) {
+  async function startNow({ mode: startMode = 'voice', confirm = true, reveal = false, saved = null, withheldFrom = null, languages: chosen = null } = {}) {
     mode = startMode;
+    languages = i18n.normalizeSettings(chosen ?? undefined);
     confirmEachAnswer = confirm;
     revealSensitive = reveal;
     engine = createEngine(saved?.state ?? null, { now: () => clock() / 1000 });
@@ -297,18 +334,28 @@ export function createTurnController(ports) {
     panel = 'interview';
     lastInputWasText = mode === 'text';
 
-    await speech.speak(introFor(mode));
+    // A language whose speech pack is not installed keeps typed answers and
+    // closes the voice lane, with an explanation (D5/decision 1). The input,
+    // screen and output languages remain independent even here.
+    if (!i18n.sttFor(languages.input).installed && mode !== 'text') {
+      voiceDisabled = true;
+      mode = 'text';
+      lastInputWasText = true;
+      const unavailable = msg('stt_unavailable');
+      announce(unavailable, true);
+      await speech.speak(unavailable, { lang: outputLang() });
+    }
+
+    await speech.speak(out(introFor(mode)), { lang: outputLang() });
     if (!store.isPersisting()) {
-      const msg = 'You did not set a PIN, so nothing is being saved. '
-        + 'If you close this page, your answers will be lost.';
-      announce(msg, true);
-      await speech.speak(msg);
+      const noPin = msg('no_pin_warning');
+      announce(noPin, true);
+      await speech.speak(noPin, { lang: outputLang() });
     }
     if (withheld.length) {
-      const msg = 'For your security, your Social Security and bank numbers were not saved when you '
-        + 'stopped last time. I will ask for them again before your forms are ready.';
-      announce(msg, true);
-      await speech.speak(msg);
+      const msgText = msg('withheld_warning');
+      announce(msgText, true);
+      await speech.speak(msgText, { lang: outputLang() });
     }
     touchActivity();
     await askCurrent({ announceSection: true });
@@ -324,12 +371,12 @@ export function createTurnController(ports) {
   async function onTalkDown() {
     if (busy || voiceDisabled || audio.isRecording()) return;
     lastInputWasText = false;
-    statusText = 'Listening…';
+    statusText = msg('listening', {}, 'screen');
     emit({});
     try {
       await audio.startRecording({});
     } catch {
-      announce('The microphone is not available. Switching to typing.', true);
+      announce(msg('microphone_unavailable'), true);
       disableVoice();
     }
   }
@@ -342,7 +389,7 @@ export function createTurnController(ports) {
 
   async function listenHandsFree() {
     if (busy || voiceDisabled || mode !== 'handsfree') return;
-    statusText = 'Listening…';
+    statusText = msg('listening', {}, 'screen');
     emit({});
     // Nobody reads out nine digits without breathing. Digit fields get a
     // silence window long enough to group them in.
@@ -385,7 +432,7 @@ export function createTurnController(ports) {
       return;
     }
     busy = true;
-    statusText = 'Transcribing…';
+    statusText = msg('transcribing', {}, 'screen');
     emit({});
     try {
       const asked = askedQuestion();
@@ -405,16 +452,16 @@ export function createTurnController(ports) {
       // again rather than read back — and "the right shape" includes the
       // length, because a capture that ended after the first group of an SSN
       // is a clean, parseable "555".
-      if (needsAccurateDigits(asked) && !localCommand(transcript)
+      if (needsAccurateDigits(asked) && !command(transcript)
           && !namesSomethingToDelete(transcript)
           && !digitsSurviveNormalize(asked, transcript)) {
-        statusText = `You said: ${transcript}`;
+        statusText = msg('you_said', { text: transcript }, 'screen');
         emit({});
-        await reask(say.REASK.unsure);
+        await reask(out(say.REASK.unsure));
         return;
       }
 
-      statusText = `You said: ${transcript}`;
+      statusText = msg('you_said', { text: transcript }, 'screen');
       emit({});
       await handleTranscript(transcript);
     } catch (err) {
@@ -453,7 +500,7 @@ export function createTurnController(ports) {
 
     // Navigation words are matched on the voice path too, not only when typed.
     if (!pending) {
-      const cmd = localCommand(transcript);
+      const cmd = command(transcript);
       if (cmd) { statusText = ''; await runCommand(cmd); return; }
     }
 
@@ -470,15 +517,15 @@ export function createTurnController(ports) {
       const yn = parse({ ...q, type: 'yesno', prompt: 'Is that correct?' }, transcript);
       if (yn?.value === true) { await acceptReadBack(); return; }
       if (yn?.value === false) { await rejectReadBack(); return; }
-      const cmd = localCommand(transcript);
+      const cmd = command(transcript);
       if (cmd) { statusText = ''; await runCommand(cmd); return; }
-      await reask(say.REASK.yesno);
+      await reask(out(say.REASK.yesno));
       return;
     }
 
     const local = parse(q, transcript);
     if (!local) {
-      await reask(q.hint ? `${say.REASK.generic} ${q.hint}` : say.REASK.generic);
+      await reask(q.hint ? `${out(say.REASK.generic)} ${out(q.hint)}` : out(say.REASK.generic));
       return;
     }
     const result = normalize(local, q);
@@ -486,7 +533,7 @@ export function createTurnController(ports) {
     if (result.command) { await runCommand(result.command); return; }
 
     if (result.needsClarification || result.value == null) {
-      await reask(result.clarifyPrompt || say.REASK.generic);
+      await reask(result.clarifyPrompt ? out(result.clarifyPrompt) : out(say.REASK.generic));
       return;
     }
 
@@ -495,9 +542,9 @@ export function createTurnController(ports) {
     // that is how a misheard digit is caught.
     if (q.confirm || confirmEachAnswer) {
       pending = { question: q, value: result.value };
-      const readBack = `I heard ${speakable(result.value, q.type, q.options)}. Is that correct?`;
-      questionTextContent = readBack;
-      hintTextContent = ACCEPT_HINT;
+      const readBack = msg('readback_heard', { value: speakValue(result.value, q.type, q.options) });
+      questionTextContent = msg('readback_heard', { value: screenValue(result.value, q.type, q.options) }, 'screen');
+      hintTextContent = msg('accept_hint', {}, 'screen');
       announce(readBack);
       // Through speakSegments, so `repeat` replays the read-back rather than
       // the question it is about.
@@ -517,7 +564,7 @@ export function createTurnController(ports) {
     touchActivity();
     const asked = correcting?.question ?? engine.current();
     statusText = !confirmEachAnswer && asked && value != null
-      ? `Recorded: ${speakable(value, asked.type, asked.options)}`
+      ? msg('recorded', { value: screenValue(value, asked.type, asked.options) }, 'screen')
       : '';
     if (correcting) { finishCorrection(value); return; }
     engine.submit(value);
@@ -532,9 +579,9 @@ export function createTurnController(ports) {
 
   async function reask(message) {
     const q = engine.current();
-    const hint = q?.hint ? ` ${q.hint}` : '';
+    const hint = q?.hint ? ` ${out(q.hint)}` : '';
     announce(message + hint, true);
-    await speech.speak(message + hint);
+    await speech.speak(message + hint, { lang: outputLang() });
     resumeListening();
   }
 
@@ -556,12 +603,12 @@ export function createTurnController(ports) {
     // repeating the whole prompt before every retry is what makes a misheard
     // answer feel expensive. The question goes back on screen, and `repeat`
     // replays it rather than "go ahead".
-    questionTextContent = q.prompt;
-    hintTextContent = q.hint || '';
-    announce(say.ANSWER_AGAIN, true);
-    await speakSegments([say.ANSWER_AGAIN]);
-    lastSegments = [q.prompt];
-    lastSpoken = q.prompt;
+    questionTextContent = screen(q.prompt);
+    hintTextContent = q.hint ? screen(q.hint) : '';
+    announce(out(say.ANSWER_AGAIN), true);
+    await speakSegments([out(say.ANSWER_AGAIN)]);
+    lastSegments = [out(q.prompt)];
+    lastSpoken = out(q.prompt);
     resumeListening();
   }
 
@@ -574,14 +621,13 @@ export function createTurnController(ports) {
     busy = true;
     try {
       if (pending) {
-        const yes = /^(y|yes|yeah|correct|right)$/i.test(t);
-        const no = /^(n|no|nope|wrong)$/i.test(t);
-        if (yes) { await acceptReadBack(); return; }
-        if (no) { await rejectReadBack(); return; }
+        const yn = parse({ ...pending.question, type: 'yesno', prompt: 'Is that correct?' }, t);
+        if (yn?.value === true) { await acceptReadBack(); return; }
+        if (yn?.value === false) { await rejectReadBack(); return; }
         // As on the spoken path: a command still wins over the read-back.
-        const cmd = localCommand(t);
+        const cmd = command(t);
         if (cmd) { await runCommand(cmd); return; }
-        await reask(say.REASK.yesno);
+        await reask(out(say.REASK.yesno));
         return;
       }
 
@@ -597,7 +643,7 @@ export function createTurnController(ports) {
 
   /** A typed answer: parsed locally, or taken as written for free text. */
   async function handleTypedDirect(text) {
-    const cmd = localCommand(text);
+    const cmd = command(text);
     if (cmd) { await runCommand(cmd); return; }
 
     if (!pending && namesSomethingToDelete(text)) {
@@ -609,11 +655,10 @@ export function createTurnController(ports) {
     if (!q) return;
 
     if (pending) {
-      const yes = /^(y|yes|yeah|correct|right)$/i.test(text);
-      const no = /^(n|no|nope|wrong)$/i.test(text);
-      if (yes) { await acceptReadBack(); return; }
-      if (no) { await rejectReadBack(); return; }
-      await reask(say.REASK.yesno);
+      const yn = parse({ ...q, type: 'yesno', prompt: 'Is that correct?' }, text);
+      if (yn?.value === true) { await acceptReadBack(); return; }
+      if (yn?.value === false) { await rejectReadBack(); return; }
+      await reask(out(say.REASK.yesno));
       return;
     }
 
@@ -626,14 +671,14 @@ export function createTurnController(ports) {
     );
     if (result.command) { await runCommand(result.command); return; }
     if (result.needsClarification || result.value == null) {
-      await reask(result.clarifyPrompt || say.REASK.notRight);
+      await reask(result.clarifyPrompt ? out(result.clarifyPrompt) : out(say.REASK.notRight));
       return;
     }
     if (q.confirm) {
       pending = { question: q, value: result.value };
-      const readBack = `I have ${speakable(result.value, q.type, q.options)}. Is that correct? Type yes or no.`;
-      questionTextContent = readBack;
-      hintTextContent = ACCEPT_HINT;
+      const readBack = msg('readback_typed', { value: speakValue(result.value, q.type, q.options) });
+      questionTextContent = msg('readback_typed', { value: screenValue(result.value, q.type, q.options) }, 'screen');
+      hintTextContent = msg('accept_hint', {}, 'screen');
       announce(readBack);
       await speakSegments([readBack]);
       emit({});
@@ -658,7 +703,7 @@ export function createTurnController(ports) {
     pending = null;
 
     if (correcting && (cmd === 'back' || cmd === 'skip')) {
-      await returnToReview(say.UNCHANGED);
+      await returnToReview(sayPair(say.UNCHANGED));
       return;
     }
     if ((correcting || inCorrectionPrompt()) && !KEEPS_CORRECTION.has(cmd)) {
@@ -675,7 +720,7 @@ export function createTurnController(ports) {
         engine.back();
         saveSession();
         if (adding && !stillAdding()) { await finishAddition(); return; }
-        await askCurrent({ prefix: say.GOING_BACK });
+        await askCurrent({ prefix: out(say.GOING_BACK) });
         return;
       case 'skip':
         engine.skip();
@@ -685,14 +730,15 @@ export function createTurnController(ports) {
         return;
       case 'where': {
         const p = engine.progress();
-        const left = formatTimeRemaining(p.secondsRemaining);
+        const left = formatTimeRemaining(p.secondsRemaining, outputLang());
         const where = p.sectionCount
-          ? `You are in section ${p.sectionNumber} of ${p.sectionCount}, ${p.sectionTitle}.`
-          : 'You are at the start, choosing which form to fill out.';
-        const msg = `${where} About ${p.percent} percent done`
-          + (left ? `, ${left} left at the pace you have been going.` : '.');
-        announce(msg, true);
-        await speech.speak(msg);
+          ? msg('where_section', { number: p.sectionNumber, count: p.sectionCount, title: out(p.sectionTitle) })
+          : msg('where_start');
+        const message = left
+          ? msg('where_done_left', { where, percent: p.percent, time: left })
+          : msg('where_done', { where, percent: p.percent });
+        announce(message, true);
+        await speech.speak(message, { lang: outputLang() });
         if (mode === 'handsfree') queueListen();
         return;
       }
@@ -706,22 +752,22 @@ export function createTurnController(ports) {
       case 'save_quit':
         if (saveSession()) {
           await store.flush();
-          await speech.speak(say.SAVED);
-          statusText = 'Saved, encrypted with your PIN. Your place is kept on this device.';
+          const saved = out(say.SAVED);
+          await speech.speak(saved, { lang: outputLang() });
+          statusText = msg('saved_ok', {}, 'screen');
           emit({});
         } else {
-          const msg = 'Nothing is being saved, because no PIN was set when you started. '
-            + 'If you close this page, your answers will be lost.';
-          statusText = msg;
-          announce(msg, true);
-          await speech.speak(msg);
+          const nothing = msg('nothing_saved');
+          statusText = msg('nothing_saved', {}, 'screen');
+          announce(nothing, true);
+          await speech.speak(nothing, { lang: outputLang() });
         }
         return;
       case 'restart':
         engine.reset();
         store.clearState();
         withheld = [];
-        await speech.speak(say.STARTING_OVER);
+        await speech.speak(out(say.STARTING_OVER), { lang: outputLang() });
         await askCurrent({ announceSection: true });
         return;
       case 'clear_data':
@@ -732,7 +778,7 @@ export function createTurnController(ports) {
         return;
       case 'help':
       default:
-        await speech.speak(say.HELP);
+        await speech.speak(out(say.HELP), { lang: outputLang() });
         if (mode === 'handsfree') queueListen();
     }
   }
@@ -759,15 +805,13 @@ export function createTurnController(ports) {
     clearCorrectionState();
     awaitingFieldName = true;
 
-    sectionLabel = 'Changing an answer';
-    const msg = say.WHICH_FIELD;
-    questionTextContent = 'Which answer would you like to change?';
-    hintTextContent = 'Name a field, such as "my date of birth" or "the first job\'s employer". '
-      + 'To put a new entry on a list, say "add another condition". '
-      + 'To delete a whole entry, say "remove the second provider".';
-    lastSpoken = msg;
-    announce(msg);
-    await speech.speak(msg);
+    sectionLabel = msg('change_answer_label', {}, 'screen');
+    const message = out(say.WHICH_FIELD);
+    questionTextContent = msg('which_answer', {}, 'screen');
+    hintTextContent = msg('which_answer_hint', {}, 'screen');
+    lastSpoken = message;
+    announce(message);
+    await speech.speak(message, { lang: outputLang() });
     emit({});
     resumeListening();
   }
@@ -780,7 +824,7 @@ export function createTurnController(ports) {
     }
 
     if (/^(never ?mind|cancel|nothing|stop|go back|back|done|no)\b/i.test(text.trim())) {
-      await returnToReview('No changes made.');
+      await returnToReview(pair('no_changes'));
       return;
     }
 
@@ -788,7 +832,7 @@ export function createTurnController(ports) {
     if (choosingItem) {
       const picked = pickItem(text, choosingItem.candidates);
       if (!picked) {
-        await sayAndListen('I did not catch which one. ' + itemOptions(choosingItem));
+        await sayAndListen(msg('did_not_catch_options', { options: itemOptions(choosingItem) }));
         return;
       }
       const { loopId } = choosingItem;
@@ -799,10 +843,9 @@ export function createTurnController(ports) {
 
     // Answering "did you mean A or B?"
     if (choosing) {
-      const picked = correct.resolveChoice(text, choosing.candidates);
+      const picked = correct.resolveChoice(text, choosing.candidates, { lang: inputLang() });
       if (!picked) {
-        await sayAndListen('I did not catch which one. '
-          + optionsSentence(choosing.candidates));
+        await sayAndListen(msg('did_not_catch_options', { options: optionsSentence(choosing.candidates) }));
         return;
       }
       choosing = null;
@@ -820,52 +863,48 @@ export function createTurnController(ports) {
       if (add.reason !== 'none') { await beginAddition(add); return; }
     }
 
-    const result = correct.resolveTarget(text, engine.answers());
+    const result = correct.resolveTarget(text, engine.answers(), { lang: inputLang() });
 
     if (result.ok) { await beginCorrection(result.target); return; }
 
     if (result.reason === 'ambiguous') {
       choosing = { candidates: result.candidates };
-      await sayAndListen(`I found more than one answer like that. ${optionsSentence(result.candidates)}`);
+      await sayAndListen(msg('did_you_mean', { list: optionsList(result.candidates) }));
       return;
     }
 
-    await sayAndListen('I could not find an answer by that name. '
-      + 'You can name it the way I asked it, for example, my date of birth, '
-      + 'or say never mind to go back.');
+    await sayAndListen(msg('not_found_answer'));
+  }
+
+  function optionsList(candidates) {
+    return candidates.map((c, i) => `${i + 1}. ${out(correct.describeTarget(c))}`).join('. ');
   }
 
   function optionsSentence(candidates) {
-    const list = candidates
-      .map((c, i) => `${i + 1}. ${correct.describeTarget(c)}`)
-      .join('. ');
-    return `Did you mean: ${list}. Say the number, or the name.`;
+    return msg('did_you_mean', { list: optionsList(candidates) });
   }
 
   // -- adding a loop entry ------------------------------------------------------
 
   async function beginAddition(add) {
     if (add.reason === 'ambiguous') {
-      const names = add.candidates.map(c => c.itemLabel);
-      await sayAndListen(`I can add to more than one list. Did you mean a `
-        + `${names.join(', or a ')}? Say which one, or say never mind to go back.`);
+      const names = add.candidates.map(c => out(c.itemLabel));
+      await sayAndListen(msg('add_ambiguous', { names: names.join(', or a ') }));
       return;
     }
     if (add.reason === 'full') {
-      await sayAndListen(`That is as many ${add.itemLabel} entries as I can take. `
-        + 'You can change one of them instead, or say never mind to go back.');
+      await sayAndListen(msg('add_full', { item: out(add.itemLabel) }));
       return;
     }
 
     const { loopId, itemLabel, nextNumber } = add;
     if (!engine.jumpTo(loopId)) {
-      await sayAndListen('I could not open that list. Try naming a different one, or say never mind.');
+      await sayAndListen(msg('add_open_failed'));
       return;
     }
     const q = engine.submit(true);
     if (!q || q.loopId !== loopId || q.loopPhase !== 'field') {
-      await sayAndListen(`I could not start a new ${itemLabel}. `
-        + 'Try naming a different one, or say never mind.');
+      await sayAndListen(msg('add_start_failed', { item: out(itemLabel) }));
       return;
     }
 
@@ -874,7 +913,7 @@ export function createTurnController(ports) {
     adding = { loopId, itemLabel, startCount: nextNumber - 1 };
     saveSession();
 
-    await askCurrent(q.itemNumber > 1 ? {} : { prefix: `Adding a new ${itemLabel}.` });
+    await askCurrent(q.itemNumber > 1 ? {} : { prefix: msg('adding_new', { item: out(itemLabel) }) });
   }
 
   async function finishAddition() {
@@ -882,11 +921,13 @@ export function createTurnController(ports) {
     const added = (engine.answers()[loopId]?.length ?? 0) - startCount;
     adding = null;
     saveSession();
-    await returnToReview(
-      added === 1 ? `I added ${itemLabel} ${startCount + 1}.`
-        : added > 1 ? `I added ${added} entries.`
-          : `No ${itemLabel} was added.`
-    );
+    const number = startCount + 1;
+    const addedNote = added === 1
+      ? pair('added_one', { item: out(itemLabel), number },
+          { item: screen(itemLabel), number })
+      : added > 1 ? pair('added_many', { count: added })
+        : pair('added_none', { item: out(itemLabel) }, { item: screen(itemLabel) });
+    await returnToReview(addedNote);
   }
 
   // -- deleting a loop entry -------------------------------------------------------
@@ -908,24 +949,22 @@ export function createTurnController(ports) {
     if (r.ok) { await confirmDelete(r.loopId, r); return; }
 
     if (r.reason === 'empty') {
-      await sayAndListen(`There is no ${r.itemLabel} recorded to remove. `
-        + 'You can name something else, or say never mind to go back.');
+      await sayAndListen(msg('no_item_to_remove', { item: out(r.itemLabel) }));
       return;
     }
 
     if (r.reason === 'ambiguous') {
       choosingItem = { loopId: r.loopId, itemLabel: r.itemLabel, candidates: r.candidates };
-      await sayAndListen(`Which ${r.itemLabel} should I remove? ${itemOptions(choosingItem)}`);
+      await sayAndListen(msg('which_item_remove', { item: out(r.itemLabel), options: itemOptions(choosingItem) }));
       return;
     }
 
-    await sayAndListen('I could not tell what to remove. You can say, for example, '
-      + 'remove the second provider, or delete that last job. Say never mind to go back.');
+    await sayAndListen(msg('could_not_tell_remove'));
   }
 
   function itemOptions({ candidates }) {
-    const list = candidates.map(c => correct.describeItem(c)).join('. ');
-    return `${list}. Say the number, or the name.`;
+    const list = candidates.map(c => out(correct.describeItem(c))).join('. ');
+    return msg('say_number_or_name', { list });
   }
 
   function pickItem(text, candidates) {
@@ -943,21 +982,24 @@ export function createTurnController(ports) {
     choosingItem = null;
     confirmingDelete = { loopId, item };
 
-    const what = correct.describeItem(item);
-    const msg = `Remove ${what}? This erases every answer recorded for that `
-      + `${item.itemLabel}, and I cannot bring it back. Say yes to remove it, or no to keep it.`;
-    questionTextContent = `Remove ${what}?`;
-    hintTextContent = 'Say yes to remove it, or no to keep it.';
-    await sayAndListen(msg);
+    const what = out(correct.describeItem(item));
+    const shownWhat = screen(correct.describeItem(item));
+    const message = msg('remove_confirm', { what, item: out(item.itemLabel) });
+    questionTextContent = msg('remove_question', { what: shownWhat }, 'screen');
+    hintTextContent = msg('remove_hint', {}, 'screen');
+    await sayAndListen(message);
   }
 
   async function handleDeleteConfirmation(text) {
     const s = text.trim();
-    const yes = /^(y|yes|yeah|yep|correct|right|do it|remove it|delete it)\b/i.test(s);
-    const no = /^(n|no|nope|nah|keep it|cancel|never ?mind|stop)\b/i.test(s);
+    const yn = parse({ type: 'yesno', prompt: 'Is that correct?' }, text);
+    const yes = yn?.value === true
+      || /^(y|yes|yeah|yep|correct|right|do it|remove it|delete it)\b/i.test(s);
+    const no = yn?.value === false
+      || /^(n|no|nope|nah|keep it|cancel|never ?mind|stop)\b/i.test(s);
 
     if (!yes && !no) {
-      await sayAndListen('Please say yes to remove it, or no to keep it.');
+      await sayAndListen(msg('keep_or_remove'));
       return;
     }
 
@@ -965,15 +1007,19 @@ export function createTurnController(ports) {
     confirmingDelete = null;
 
     if (no) {
-      await returnToReview(`I kept ${correct.describeItem(item)}.`);
+      await returnToReview(pair('kept_item',
+        { what: out(correct.describeItem(item)) },
+        { what: screen(correct.describeItem(item)) }));
       return;
     }
 
     const removed = engine.removeItem(loopId, item.index);
     saveSession();
     await returnToReview(removed
-      ? `I removed ${correct.describeItem(item)}.`
-      : 'That entry could not be removed.');
+      ? pair('removed_item',
+          { what: out(correct.describeItem(item)) },
+          { what: screen(correct.describeItem(item)) })
+      : pair('remove_failed'));
   }
 
   // -- correcting an answer ---------------------------------------------------------
@@ -982,7 +1028,7 @@ export function createTurnController(ports) {
     const restore = engine.cursorSnapshot();
     const q = engine.jumpTo(target.id, target.loopIndex ?? 0, target.loopId ?? null);
     if (!q) {
-      await sayAndListen('I could not open that answer. Try naming a different one, or say never mind.');
+      await sayAndListen(msg('could_not_open_answer'));
       return;
     }
 
@@ -991,11 +1037,12 @@ export function createTurnController(ports) {
     pending = null;
 
     const current = target.value;
+    const what = out(correct.describeTarget(target));
     const heard = current == null || current === ''
-      ? `${correct.describeTarget(target)} is blank right now.`
-      : `Right now ${correct.describeTarget(target)} is ${speakable(current, target.type, target.options)}.`;
+      ? msg('target_blank', { what })
+      : msg('target_current', { what, value: speakValue(current, target.type, target.options) });
 
-    await askCurrent({ prefix: `${heard} What should it be instead?` });
+    await askCurrent({ prefix: msg('what_instead', { heard }) });
   }
 
   function finishCorrection(value) {
@@ -1010,7 +1057,7 @@ export function createTurnController(ports) {
       saveSession();
       if (next) {
         clearCorrectionState();
-        speech.speak(say.FORMS_CHANGED);
+        speech.speak(out(say.FORMS_CHANGED), { lang: outputLang() });
         askCurrent({ announceSection: true });
         return;
       }
@@ -1018,39 +1065,46 @@ export function createTurnController(ports) {
 
     saveSession();
 
-    const what = correct.describeTarget(t);
+    const what = out(correct.describeTarget(t));
+    const spokenValue = speakValue(value, t.type, t.options);
+    const shownValue = screenValue(value, t.type, t.options);
     returnToReview(ok
-      ? `${titleCase(what)} is now ${speakable(value, t.type, t.options)}.`
-      : 'That answer could not be changed.', { about: t });
+      ? pair('now_value',
+          { what: titleCase(what), value: spokenValue },
+          { what: titleCase(screen(correct.describeTarget(t))), value: shownValue })
+      : pair('change_failed'), { about: t });
   }
 
   async function returnToReview(note, { about = null } = {}) {
+    const spokenNote = typeof note === 'string' ? note : note?.spoken ?? '';
+    const screenNote = typeof note === 'string' ? note : note?.shown ?? spokenNote;
+
     if (resumeAfterPrompt) {
       clearCorrectionState();
       saveSession();
-      await askCurrent({ prefix: `${note} Back to your question.` });
+      await askCurrent({ prefix: msg('back_to_question', { note: spokenNote }) });
       return;
     }
-    if (await askNextWithheld(note)) return;
+    if (await askNextWithheld(spokenNote)) return;
 
     clearCorrectionState();
     panel = 'review';
 
     const missing = engine.missingRequired();
-    const tail = missing.length
-      ? ` ${missing.length} required ${missing.length === 1 ? 'answer is' : 'answers are'} still blank.`
-      : '';
-    const msg = `${note}${tail} You can change another answer, or download your forms.`;
-    reviewIntro = `${note}${tail} You can change another answer, or download your forms.`;
-    announce(msg, true);
-    await speech.speak(msg);
+    const tailKey = missing.length === 1 ? 'missing_tail_one' : 'missing_tail_many';
+    const tail = missing.length ? msg(tailKey, { count: missing.length }) : '';
+    const shownTail = missing.length ? msg(tailKey, { count: missing.length }, 'screen') : '';
+    const message = msg('review_note', { note: spokenNote, tail });
+    reviewIntro = msg('review_note', { note: screenNote, tail: shownTail }, 'screen');
+    announce(message, true);
+    await speech.speak(message, { lang: outputLang() });
     emit({ focus: 'fix' });
   }
 
-  async function sayAndListen(msg) {
-    lastSpoken = msg;
-    announce(msg, true);
-    await speech.speak(msg);
+  async function sayAndListen(message) {
+    lastSpoken = message;
+    announce(message, true);
+    await speech.speak(message, { lang: outputLang() });
     resumeListening();
   }
 
@@ -1064,12 +1118,20 @@ export function createTurnController(ports) {
 
     const missing = engine.missingRequired();
     const intro = missing.length
-      ? `Your answers are ready. ${missing.length} required ${missing.length === 1 ? 'answer is' : 'answers are'} still blank: ${missing.map(m => m.prompt).join(' ')} You can change an answer, or download your forms as they are.`
-      : say.ALL_DONE;
+      ? msg(missing.length === 1 ? 'finish_missing_one' : 'finish_missing_many', {
+        count: missing.length,
+        prompts: missing.map(m => out(m.prompt)).join(' ')
+      })
+      : out(say.ALL_DONE);
 
-    reviewIntro = intro;
+    reviewIntro = missing.length
+      ? msg(missing.length === 1 ? 'finish_missing_one' : 'finish_missing_many', {
+        count: missing.length,
+        prompts: missing.map(m => screen(m.prompt)).join(' ')
+      }, 'screen')
+      : screen(say.ALL_DONE);
     announce(intro, true);
-    await speakSegments([intro, say.DOWNLOAD_HINT]);
+    await speakSegments([intro, out(say.DOWNLOAD_HINT)]);
     emit({ focus: 'download' });
   }
 
@@ -1090,9 +1152,11 @@ export function createTurnController(ports) {
       correcting = { target, question: q, restore };
       panel = 'interview';
       const why = w.idle
-        ? 'I cleared this while the page was not in use.'
-        : 'This was not saved when you stopped last time, for your security.';
-      const which = target.loopId ? ` This one is for ${target.itemLabel} ${target.itemNumber}.` : '';
+        ? msg('cleared_idle')
+        : msg('not_saved_again');
+      const which = target.loopId
+        ? msg('this_one_is', { item: out(target.itemLabel), number: target.itemNumber })
+        : '';
       await askCurrent({ prefix: `${note ? `${note} ` : ''}${why}${which}` });
       return true;
     }
@@ -1102,21 +1166,25 @@ export function createTurnController(ports) {
   /** Fill the chosen forms. Returns the controller to the review screen. */
   async function exportForms(ids) {
     touchActivity();
-    if (await askNextWithheld('Before I fill in your forms, I need a number again.')) return;
+    if (await askNextWithheld(msg('before_fill'))) return;
     const answers = engine.answers();
     try {
-      await onExport({ forms: ids, answers });
-      const erase = 'When you have checked your forms, select Erase everything to remove your '
-        + 'answers from this computer. The downloaded forms stay in your downloads folder.';
-      const msg = `Downloaded ${ids.join(' and ')}. ${erase}`;
-      statusText = msg;
-      announce(msg, true);
-      await speakSegments([ids.length > 1 ? say.BOTH_DOWNLOADED : say.DOWNLOADED, erase]);
+      await onExport({ forms: ids, answers, languages: { ...languages } });
+      const erase = msg('erase_advice');
+      const shownErase = msg('erase_advice', {}, 'screen');
+      const message = msg('downloaded', {
+        forms: ids.join(msg('forms_joiner')), erase
+      });
+      statusText = msg('downloaded', {
+        forms: ids.join(msg('forms_joiner', {}, 'screen')), erase: shownErase
+      }, 'screen');
+      announce(message, true);
+      await speakSegments([ids.length > 1 ? out(say.BOTH_DOWNLOADED) : out(say.DOWNLOADED), erase]);
       emit({});
     } catch {
-      const msg = 'The PDF could not be created. Your answers are safe — try saving them as a file instead.';
-      statusText = msg;
-      announce(msg, true);
+      const message = msg('pdf_failed');
+      statusText = msg('pdf_failed', {}, 'screen');
+      announce(message, true);
     }
   }
 
@@ -1127,10 +1195,10 @@ export function createTurnController(ports) {
     timers.clearTimeout(idleTimer);
     engine.reset();
     audio.releaseMic?.();
-    const msg = 'Everything has been erased from this device.';
-    announce(msg, true);
-    speech.speak(msg);
-    statusText = msg;
+    const message = msg('erased_everything');
+    announce(message, true);
+    speech.speak(message, { lang: outputLang() });
+    statusText = msg('erased_everything', {}, 'screen');
     panel = 'setup';
     emit({});
   }
@@ -1140,10 +1208,10 @@ export function createTurnController(ports) {
   async function handleSttError(err) {
     audio.earcon?.('error');
     const kind = err?.kind ?? 'unknown';
-    const msg = say.ERRORS[kind] ?? say.ERRORS.unknown;
-    statusText = msg;
-    announce(msg, true);
-    await speech.speak(msg);
+    const message = out(say.ERRORS[kind] ?? say.ERRORS.unknown);
+    statusText = screen(say.ERRORS[kind] ?? say.ERRORS.unknown);
+    announce(message, true);
+    await speech.speak(message, { lang: outputLang() });
     if (mode === 'handsfree') queueListen();
   }
 
@@ -1173,25 +1241,26 @@ export function createTurnController(ports) {
     saveSession();
     statusText = '';
 
-    const msg = 'For your security, I cleared your Social Security and bank numbers from this page '
-      + `after ${Math.round(IDLE_LOCK_MS / 60000)} minutes without activity. `
-      + 'I will ask for them again before your forms are ready.';
+    const message = msg('idle_cleared', { minutes: Math.round(IDLE_LOCK_MS / 60000) });
 
     if (panel === 'review') {
-      reviewIntro = msg;
-      announce(msg, true);
-      await speech.speak(msg);
+      reviewIntro = msg('idle_cleared', { minutes: Math.round(IDLE_LOCK_MS / 60000) }, 'screen');
+      announce(message, true);
+      await speech.speak(message, { lang: outputLang() });
       emit({});
       return;
     }
     if (midAnswer) {
-      if (correcting) { await returnToReview(msg); return; }
+      if (correcting) {
+        await returnToReview(pair('idle_cleared', { minutes: Math.round(IDLE_LOCK_MS / 60000) }));
+        return;
+      }
       pending = null;
-      await askCurrent({ prefix: msg });
+      await askCurrent({ prefix: message });
       return;
     }
-    announce(msg, true);
-    await speech.speak(msg);
+    announce(message, true);
+    await speech.speak(message, { lang: outputLang() });
     // The last snapshot the screen holds carries the answers, numbers
     // included; replace it, or the cleared number lives on in the UI's copy.
     emit({});
@@ -1224,15 +1293,15 @@ export function createTurnController(ports) {
     }
     if (code === 'Escape' && audio.isRecording()) {
       audio.cancelRecording();
-      statusText = 'Cancelled.';
-      announce('Cancelled', true);
+      statusText = msg('cancelled', {}, 'screen');
+      announce(msg('cancelled'), true);
       emit({});
       return { cancelled: true };
     }
     if (code === 'KeyT') return { useTextLane: true };
     if (code === 'KeyH' && !voiceDisabled) {
       mode = mode === 'handsfree' ? 'voice' : 'handsfree';
-      announce(mode === 'handsfree' ? 'Hands free mode on' : 'Hands free mode off', true);
+      announce(msg(mode === 'handsfree' ? 'handsfree_on' : 'handsfree_off'), true);
       if (mode === 'handsfree') queueListen();
       return null;
     }
@@ -1253,7 +1322,7 @@ export function createTurnController(ports) {
       if (landed) {
         panel = 'interview';
         clearCorrectionState();
-        await askCurrent({ prefix: say.FILL_IN_MISSING });
+        await askCurrent({ prefix: out(say.FILL_IN_MISSING) });
         return;
       }
     }

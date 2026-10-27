@@ -18,6 +18,7 @@
 
 import { findQuestion, hasForm, RATING_GROUPS } from '../schema.js';
 import { choiceLabel } from '../choice.js';
+import { translate } from '../i18n/index.js';
 import { text, mdy, my, yesNo, phone, ssn, zip, join, items } from './common.js';
 
 export const TEMPLATE = 'forms/maine-developmental-services-intake-2025-06-18.pdf';
@@ -71,6 +72,15 @@ const MARITAL_OPTIONS = findQuestion('marital_status')?.options ?? [];
 /** "Keeping up relationships: Family", for addendum labels. */
 const ACTIVITY_LABELS = Object.fromEntries(RATING_GROUPS.flatMap(g =>
   g.activities.map(act => [act.key, `${g.title}: ${act.label}`])));
+const ACTIVITY_PARTS = Object.fromEntries(RATING_GROUPS.flatMap(g =>
+  g.activities.map(act => [act.key, { group: g.title, label: act.label }])));
+
+/** "Daily living activities: Eating", with both halves translated. */
+function localizeActivity(key, lang) {
+  const part = ACTIVITY_PARTS[key];
+  if (!part) return key;
+  return `${translate(part.group, lang)}: ${translate(part.label, lang)}`;
+}
 
 /**
  * Marital status, as the DS form wants it.
@@ -82,15 +92,15 @@ const ACTIVITY_LABELS = Object.fromEntries(RATING_GROUPS.flatMap(g =>
  * "Separated" cannot be told apart from married in that history, so an active
  * marriage always reads as married.
  */
-export function maritalStatus(a) {
-  if (!hasForm(a, 'ssa')) return choiceLabel(MARITAL_OPTIONS, a.marital_status);
+export function maritalStatus(a, lang = 'en') {
+  if (!hasForm(a, 'ssa')) return choiceLabel(MARITAL_OPTIONS, a.marital_status, lang);
   if (!Array.isArray(a.marriages)) return '';
   const list = a.marriages;
-  if (!list.length) return 'Never married';
-  if (list.some(m => m.still_active === true)) return 'Married';
+  if (!list.length) return translate('Never married', lang);
+  if (list.some(m => m.still_active === true)) return translate('Married', lang);
   const last = list[list.length - 1];
-  if (last.spouse_died === true) return 'Widowed';
-  if (last.still_active === false) return 'Divorced';
+  if (last.spouse_died === true) return translate('Widowed', lang);
+  if (last.still_active === false) return translate('Divorced', lang);
   return '';
 }
 
@@ -134,10 +144,10 @@ function employmentHistory(a) {
     .join('; ');
 }
 
-function specialEducation(a) {
+function specialEducation(a, lang = 'en') {
   const parts = [];
-  if (typeof a.special_ed === 'boolean') parts.push(`Special education: ${yesNo(a.special_ed)}`);
-  if (typeof a.has_504_plan === 'boolean') parts.push(`504 plan: ${yesNo(a.has_504_plan)}`);
+  if (typeof a.special_ed === 'boolean') parts.push(`Special education: ${yesNo(a.special_ed, lang)}`);
+  if (typeof a.has_504_plan === 'boolean') parts.push(`504 plan: ${yesNo(a.has_504_plan, lang)}`);
   return parts.join('; ');
 }
 
@@ -147,15 +157,15 @@ function specialEducation(a) {
  * @param {{ today?: Date }} opts  the date written at the top of page 1
  * @returns {{ text, labels, radios, checks, tables }}
  */
-export function map(answers, { today = new Date() } = {}) {
+export function map(answers, { today = new Date(), lang = 'en' } = {}) {
   const a = answers ?? {};
   const out = {};
   const labels = {};
-  const put = (field, value, label) => {
+  const put = (field, value, label, translated = false) => {
     const v = text(value);
     if (!v) return;
     out[field] = v;
-    labels[field] = label;
+    labels[field] = translated ? label : translate(label, lang);
   };
 
   const name = join([a.first_name, a.last_name], ' ');
@@ -175,11 +185,11 @@ export function map(answers, { today = new Date() } = {}) {
   put('State 1', a.home_state, 'State');
   put('Zip 1', zip(a.home_zip), 'Zip');
   put('Phone 1', phone(a.applicant_phone), 'Phone number');
-  put('Marital Status', maritalStatus(a), 'Marital status');
+  put('Marital Status', maritalStatus(a, lang), 'Marital status');
   put('Email 1', a.applicant_email, 'Email');
   put('Place of Birth', join([a.birth_city, a.birth_state, a.birth_country]), 'Place of birth');
   put('Primary Language 1', a.primary_language, 'Primary language');
-  put('Deaf or hard of hearing 1', yesNo(a.deaf_hoh), 'Deaf or hard of hearing');
+  put('Deaf or hard of hearing 1', yesNo(a.deaf_hoh, lang), 'Deaf or hard of hearing');
 
   // Section 2: someone completing it for the applicant.
   if (a.for_self === false) {
@@ -238,10 +248,10 @@ export function map(answers, { today = new Date() } = {}) {
       put(CONFIRMED_DX(i + 1), dx, `Confirmed diagnosis ${i + 1}`));
     if (confirmed.length > CONFIRMED_DX_ROWS) {
       tables.push({
-        title: '5b. Diagnoses confirmed by psychological evaluation, continued',
-        itemLabel: 'diagnosis',
+        title: translate('5b. Diagnoses confirmed by psychological evaluation, continued', lang),
+        itemLabel: translate('diagnosis', lang),
         startAt: CONFIRMED_DX_ROWS + 1,
-        columns: [{ label: 'Confirmed diagnosis' }],
+        columns: [{ label: translate('Confirmed diagnosis', lang) }],
         rows: confirmed.slice(CONFIRMED_DX_ROWS).map(dx => [dx])
       });
     }
@@ -256,21 +266,23 @@ export function map(answers, { today = new Date() } = {}) {
   for (const [key, suffix] of Object.entries(RATING_FIELDS)) {
     const level = a[`${key}_level`];
     if (!level) continue;
-    const label = ACTIVITY_LABELS[key] ?? key;
-    put(`Letter${suffix}`, level, `${label} — rating`);
-    if (level !== 'A') put(`Explanation${suffix}`, a[`${key}_explain`], `${label} — explanation`);
+    const label = ACTIVITY_LABELS[key] ? localizeActivity(key, lang) : key;
+    put(`Letter${suffix}`, level, `${label} — ${translate('rating', lang)}`, true);
+    if (level !== 'A') {
+      put(`Explanation${suffix}`, a[`${key}_explain`], `${label} — ${translate('explanation', lang)}`, true);
+    }
   }
 
   // 13: education.
-  put('Are you currently attending school', yesNo(a.in_school), 'Currently attending school');
+  put('Are you currently attending school', yesNo(a.in_school, lang), 'Currently attending school');
   if (a.in_school === true) put('Anticipated graduation date', my(a.graduation_date), 'Anticipated graduation date');
   put('Highest grade completed', a.education_level, 'Highest grade completed');
   put('Name of school', a.education_school, 'Name of school');
-  put('Have you ever received Special Education andor 504 Plan', specialEducation(a), 'Special education or 504 plan');
-  put('Have you had a Psychoeducational Evaluation', yesNo(a.psychoed_eval), 'Psychoeducational evaluation');
+  put('Have you ever received Special Education andor 504 Plan', specialEducation(a, lang), 'Special education or 504 plan');
+  put('Have you had a Psychoeducational Evaluation', yesNo(a.psychoed_eval, lang), 'Psychoeducational evaluation');
 
   // 14: employment.
-  put('Are you currently employed', yesNo(a.currently_employed), 'Currently employed');
+  put('Are you currently employed', yesNo(a.currently_employed, lang), 'Currently employed');
   put('Employment History', employmentHistory(a), 'Employment history');
   put('Involvement with VR', a.vr_involvement, 'Involvement with Vocational Rehabilitation');
   put('Volunteer experiences', a.volunteer_experience, 'Volunteer experiences');

@@ -86,6 +86,38 @@
       "answers": {}
     },
     {
+      "scenario": "french interview",
+      "languages": {
+        "input": "fr",
+        "output": "fr",
+        "screen": "fr",
+        "fill": "fr"
+      },
+      "spoken": [
+        "Mode saisie. Je pose une question, vous tapez la réponse et appuyez sur Entrée. Le bouton maintenir pour parler reste disponible quand vous préférez parler. Vous pouvez taper passer, retour ou répéter à tout moment.",
+        "Choix de votre formulaire.",
+        "Quel formulaire remplissons-nous aujourd'hui : l'Adult Disability Starter Kit de la Social Security, la demande d'admission aux Developmental Services du Maine, ou les deux ?",
+        "Section 2 sur 20.",
+        "Informations de base vous concernant.",
+        "Quel est votre prénom légal ?",
+        "Quel est votre nom légal ?",
+        "Quelle est votre date de naissance ? Donnez le jour, le mois, puis l'année.",
+        "J'ai 14 mars 1979. Est-ce correct ? Tapez oui ou non.",
+        "Dans quelle ville êtes-vous né ?",
+        "Dans quel État ou province êtes-vous né ?"
+      ],
+      "announced": [
+        "J'ai 14 mars 1979. Est-ce correct ? Tapez oui ou non."
+      ],
+      "answers": {
+        "forms": "ssa",
+        "first_name": "Ada",
+        "last_name": "Lovelace",
+        "date_of_birth": "1979-03-14",
+        "birth_city": null
+      }
+    },
+    {
       "scenario": "the idle lock clears the numbers and asks for them again",
       "spoken": [
         "Typing mode. I will ask a question, you type the answer and press Enter. The hold to talk button is still there whenever you would rather speak. You can type skip, back, or repeat at any time.",
@@ -124,6 +156,27 @@
         "birth_state": "Maine",
         "birth_country": "United States",
         "ssn": null
+      }
+    },
+    {
+      "scenario": "mixed channels",
+      "languages": {
+        "input": "en",
+        "output": "fr",
+        "screen": "en",
+        "fill": "ln"
+      },
+      "spoken": [
+        "Mode saisie. Je pose une question, vous tapez la réponse et appuyez sur Entrée. Le bouton maintenir pour parler reste disponible quand vous préférez parler. Vous pouvez taper passer, retour ou répéter à tout moment.",
+        "Choix de votre formulaire.",
+        "Quel formulaire remplissons-nous aujourd'hui : l'Adult Disability Starter Kit de la Social Security, la demande d'admission aux Developmental Services du Maine, ou les deux ?",
+        "Section 2 sur 20.",
+        "Informations de base vous concernant.",
+        "Quel est votre prénom légal ?"
+      ],
+      "announced": [],
+      "answers": {
+        "forms": "ssa"
       }
     },
     {

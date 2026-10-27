@@ -10,6 +10,7 @@
 import { buildReport } from './summary.js';
 import { toWinAnsi } from './forms/common.js';
 import { layoutAddendum, COLORS } from './addendum.js';
+import { translate, message, formatDate } from './i18n/index.js';
 
 let pdfLibPromise = null;
 
@@ -101,13 +102,20 @@ export const WORKSHEET = {
  * en-US way whatever the machine's locale ("Prepared 10/8/2026"), so the
  * golden and the Android worksheet can agree on it.
  */
-export function worksheetContent(answers, { heading = WORKSHEET.heading, now = () => new Date() } = {}) {
+export function worksheetContent(answers, {
+  heading = null, now = () => new Date(), lang = 'en'
+} = {}) {
+  const title = heading ?? translate(WORKSHEET.heading, lang);
+  const d = now();
+  const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   return {
-    title: heading,
-    intro: WORKSHEET.intro,
-    prepared: `Prepared ${now().toLocaleDateString('en-US')}`,
-    sections: buildReport(answers),
-    footer: WORKSHEET.footer
+    title,
+    intro: WORKSHEET.intro.map(line => translate(line, lang)),
+    prepared: lang === 'en'
+      ? `Prepared ${d.toLocaleDateString('en-US')}`
+      : message('worksheet_prepared', { date: formatDate(iso, lang) }, lang),
+    sections: buildReport(answers, { lang }),
+    footer: WORKSHEET.footer.map(line => translate(line, lang))
   };
 }
 
@@ -118,25 +126,27 @@ export function worksheetContent(answers, { heading = WORKSHEET.heading, now = (
  * worksheet than an error. `now` supplies the "prepared on" date.
  */
 export async function buildWorksheet(PDFLib, answers, {
-  heading = WORKSHEET.heading, now = () => new Date()
+  heading = null, now = () => new Date(), lang = 'en'
 } = {}) {
+  const title = heading ?? translate(WORKSHEET.heading, lang);
   const doc = await PDFLib.PDFDocument.create();
-  doc.setTitle(heading);
-  doc.setSubject(WORKSHEET.subject);
-  doc.setCreator(WORKSHEET.creator);
+  doc.setTitle(title);
+  doc.setSubject(translate(WORKSHEET.subject, lang));
+  doc.setCreator(translate(WORKSHEET.creator, lang));
 
   const font = await doc.embedFont(PDFLib.StandardFonts.Helvetica);
   const bold = await doc.embedFont(PDFLib.StandardFonts.HelveticaBold);
-  const drawList = layoutAddendum(worksheetContent(answers, { heading, now }), fontMetrics(font, bold));
+  const drawList = layoutAddendum(
+    worksheetContent(answers, { heading: title, now, lang }), { ...fontMetrics(font, bold), lang });
 
   renderAddendum(doc, PDFLib, drawList, { font, bold });
   return doc.save();
 }
 
 /** Build the fallback worksheet and hand it to the user. Returns the filename. */
-export async function downloadWorksheet(answers, filename) {
+export async function downloadWorksheet(answers, filename, { lang = 'en' } = {}) {
   const PDFLib = await loadPdfLib();
-  const bytes = await buildWorksheet(PDFLib, answers);
+  const bytes = await buildWorksheet(PDFLib, answers, { lang });
   const blob = new Blob([bytes], { type: 'application/pdf' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

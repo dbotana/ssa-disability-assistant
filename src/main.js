@@ -22,22 +22,62 @@ import * as say from './phrases.js';
 import { parseLocal } from './parse.js';
 import * as localstt from './localstt.js';
 import { createTurnController } from './turn.js';
+import {
+  CHANNELS, LANGUAGES, UI, loadSettings, saveSettings, normalizeSettings,
+  translate, message, sttFor
+} from './i18n/index.js';
+import { applyUi } from './i18n/dom.js';
 
 const el = id => document.getElementById(id);
 
 const ui = {};
 let turn = null;
+let languages = loadSettings();
 // A session read from an imported file, held in memory only until the
 // resume it sets up. It may hold sensitive answers; it is never written to
 // storage as it is.
 let importedSession = null;       // { savedAt, state, withheld }
 
+// -- languages -------------------------------------------------------------
+
+/** Show the saved choice in each of the four selects. */
+function syncLanguageSelects() {
+  for (const channel of CHANNELS) {
+    const select = el(`lang-${channel}`);
+    if (select) select.value = languages[channel];
+  }
+}
+
+/**
+ * A channel changed. Save it, then repaint the page in the screen language
+ * (the speech-model note depends on the input language too). The interview
+ * reads `languages` when it starts, so this is only useful on the setup panel.
+ */
+function onLanguageChange(event) {
+  const channel = event.target?.id?.replace(/^lang-/, '');
+  if (!CHANNELS.includes(channel)) return;
+  languages = normalizeSettings({ ...languages, [channel]: event.target.value });
+  saveSettings(languages);
+  applyUi(document, languages.screen, languages.input);
+  syncLanguageSelects();
+}
+
+/** The screen language, for text this browser adapter writes itself. */
+const uiLang = () => languages.screen;
+const spokenLang = () => languages.output;
+const uiMessage = (key, vars) => message(key, vars, uiLang());
+const spokenMessage = (key, vars) => message(key, vars, spokenLang());
+
 // -- boot ------------------------------------------------------------------
 
 function boot() {
+  applyUi(document, languages.screen, languages.input);
+  syncLanguageSelects();
   initA11y();
-  // Warm the pre-synthesized clip index before the first question.
-  speech.loadManifest();
+  // Warm the pre-synthesized clip index before the first question. Only
+  // English has a clip pack; other languages use an on-device voice, and
+  // speech.js fetches the manifest the first time English is spoken.
+  if (languages.output === 'en') speech.loadManifest();
   Object.assign(ui, {
     setup: el('setup-panel'),
     interview: el('interview-panel'),
@@ -80,9 +120,13 @@ function boot() {
     store.clearState();
     importedSession = null;
     ui.resumeRow.hidden = true;
-    announce('Saved session erased. Ready to start fresh.', true);
+    announce(spokenMessage('discard_announce'), true);
   });
   ui.importFile?.addEventListener('change', onImportFile);
+
+  for (const channel of CHANNELS) {
+    el(`lang-${channel}`)?.addEventListener('change', onLanguageChange);
+  }
 
   ui.talk.addEventListener('pointerdown', onTalkDown);
   ui.talk.addEventListener('pointerup', onTalkUp);
@@ -104,7 +148,7 @@ function boot() {
   el('download-ds').addEventListener('click', () => turn?.exportForms(['ds']));
   el('download-json').addEventListener('click', () => {
     downloadJson(turn.snapshot().answers, turn.engineState());
-    announce('Your answers were saved as a file.', true);
+    announce(spokenMessage('saved_file_announce'), true);
   });
   el('clear-data').addEventListener('click', () => {
     turn?.clearEverything();
@@ -113,7 +157,10 @@ function boot() {
     setImportStatus('');
     ui.resumeRow.hidden = true;
   });
-  el('read-back').addEventListener('click', () => speech.speak(summaryText(turn.snapshot().answers)));
+  el('read-back').addEventListener('click', () => {
+    const lang = turn.snapshot().languages?.output ?? spokenLang();
+    speech.speak(summaryText(turn.snapshot().answers, { lang }), { lang });
+  });
   el('fix-answer').addEventListener('click', () => turn?.startReview());
 
   document.addEventListener('keydown', onKeyDown);
@@ -142,13 +189,20 @@ function makeTurn(saved) {
     stt: localstt,
     announce,
     onState: render,
-    onExport: async ({ forms, answers }) => {
+    onExport: async ({ forms, answers, languages: chosen }) => {
+      const screen = chosen?.screen ?? uiLang();
+      const fill = chosen?.fill ?? languages.fill;
       for (const id of forms) {
-        setStatus(`Filling in the ${FORM_TITLES[id]}…`);
-        await downloadForm(id, answers);
+        setStatus(message('filling_form', {
+          form: translate(FORM_TITLES[id], screen)
+        }, screen));
+        await downloadForm(id, answers, { lang: fill });
       }
     },
-    onReadBack: async answers => { speech.speak(summaryText(answers)); }
+    onReadBack: async answers => {
+      const lang = turn.snapshot().languages?.output ?? spokenLang();
+      speech.speak(summaryText(answers, { lang }), { lang });
+    }
   });
   return turn;
 }
@@ -174,7 +228,10 @@ function render(s) {
   }
 
   if (s.panel === 'review') {
-    renderSummary(ui.summary, s.answers, { reveal: s.revealSensitive });
+    renderSummary(ui.summary, s.answers, {
+      reveal: s.revealSensitive,
+      lang: s.languages?.screen ?? uiLang()
+    });
     showDownloadButtons();
   }
   if (s.focus === 'download') firstDownloadButton()?.focus();
@@ -221,7 +278,7 @@ async function start(resume) {
   try {
     saved = await openSession(resume, ui.pin?.value ?? '');
   } catch (err) {
-    const msg = err instanceof store.StoreError ? err.message : 'Your saved answers could not be opened.';
+    const msg = err instanceof store.StoreError ? err.message : uiMessage('session_open_failed');
     setSetupStatus(msg);
     announce(msg, true);
     ui.pin?.focus();
@@ -234,12 +291,12 @@ async function start(resume) {
     try {
       await audio.initMic();
     } catch (err) {
-      const msg = err.kind === 'denied'
-        ? 'Microphone access was blocked, so I switched to typing mode. You can allow the microphone in your browser settings and reload.'
-        : 'No microphone is available, so I switched to typing mode.';
+      const msg = uiMessage(err.kind === 'denied' ? 'mic_blocked' : 'no_mic');
       announce(msg, true);
       makeTurn(saved);
-      await turn.start({ mode: 'text', confirm: confirmEachAnswer, reveal: revealSensitive, saved });
+      await turn.start({
+        mode: 'text', confirm: confirmEachAnswer, reveal: revealSensitive, saved, languages
+      });
       return;
     }
   }
@@ -257,7 +314,7 @@ async function start(resume) {
   }
 
   makeTurn(saved);
-  await turn.start({ mode, confirm: confirmEachAnswer, reveal: revealSensitive, saved });
+  await turn.start({ mode, confirm: confirmEachAnswer, reveal: revealSensitive, saved, languages });
   turn.setConfirmEachAnswer(confirmEachAnswer);
 }
 
@@ -268,7 +325,7 @@ async function start(resume) {
 async function openSession(resume, pin) {
   if (pin && pin.length < store.MIN_PIN_LENGTH) {
     throw new store.StoreError(
-      `A PIN needs at least ${store.MIN_PIN_LENGTH} characters. Longer is safer.`, 'pin');
+      uiMessage('pin_too_short', { count: store.MIN_PIN_LENGTH }), 'pin');
   }
   store.forgetKey();
   let saved = null;
@@ -279,10 +336,9 @@ async function openSession(resume, pin) {
   } else if (resume) {
     if (store.savedSessionInfo()?.locked) {
       if (!pin) {
-        throw new store.StoreError(
-          'Your saved answers are protected. Enter your PIN, then select Resume.', 'pin');
+        throw new store.StoreError(uiMessage('saved_protected'), 'pin');
       }
-      setSetupStatus('Opening your saved answers…');
+      setSetupStatus(uiMessage('opening_saved'));
       return store.unlock(pin);
     }
     saved = store.takeLegacy();
@@ -291,7 +347,7 @@ async function openSession(resume, pin) {
     store.clearState();
   }
   if (pin) {
-    setSetupStatus('Protecting your answers with your PIN…');
+    setSetupStatus(uiMessage('protecting_answers'));
     await store.usePin(pin);
   }
   return saved;
@@ -308,21 +364,26 @@ function loadSpeechModel() {
     setStatus(text);
     if (ui.setupStatus) ui.setupStatus.textContent = text;
   };
-  show('Loading the speech model…');
-  announce('Loading the speech model.', true);
+  show(uiMessage('loading_model'));
+  announce(spokenMessage('loading_model_announce'), true);
   let lastPct = -1;
+  let showing = true;
   return localstt.load(({ file, loaded, total }) => {
     if (!total || !/\.onnx$/.test(file ?? '')) return;
     const pct = Math.floor((loaded / total) * 10) * 10;
-    if (pct !== lastPct) { lastPct = pct; show(`Loading the speech model… ${pct}%`); }
-  }).finally(() => {
-    if (ui.status?.textContent.startsWith('Loading the speech model')) setStatus('');
+    if (pct !== lastPct) {
+      lastPct = pct;
+      show(uiMessage('loading_model_pct', { percent: pct }));
+    }
+  }, languages.input).finally(() => {
+    if (showing) setStatus('');
+    showing = false;
     if (ui.setupStatus) ui.setupStatus.textContent = '';
   });
 }
 
 function speechModelFailed() {
-  const msg = 'The speech model could not start, so I switched to typing mode.';
+  const msg = uiMessage('speech_model_failed');
   setStatus(msg);
   announce(msg, true);
   turn?.disableVoice();
@@ -334,7 +395,7 @@ function onTalkDown(e) {
   e?.preventDefault();
   if (!ui.talk.hidden) {
     ui.talk.dataset.recording = 'true';
-    ui.talk.textContent = 'Listening — release to send';
+    ui.talk.textContent = uiMessage('listening_release');
   }
   turn?.onTalkDown();
 }
@@ -397,12 +458,12 @@ function onKeyUp(e) {
 function useTextLane() {
   ui.textEntry.hidden = false;
   ui.textAnswer.focus();
-  announce(say.TYPING_LANE, true);
+  announce(translate(say.TYPING_LANE, spokenLang()), true);
 }
 
 function resetTalkButton() {
   ui.talk.dataset.recording = 'false';
-  ui.talk.textContent = 'Hold to talk';
+  ui.talk.textContent = translate(UI['interview.talk'], uiLang());
 }
 
 // -- importing a saved file ---------------------------------------------------------
@@ -413,16 +474,17 @@ function showSavedSession() {
     : store.savedSessionInfo();
   if (!info) { ui.resumeRow.hidden = true; return; }
   const when = info.savedAt ? new Date(info.savedAt).toLocaleString() : null;
+  const lang = uiLang();
   let text;
   if (info.imported) {
-    text = `Your answers are loaded from your file${when ? `, saved on ${when}` : ''}.`;
+    text = message('loaded_from_file', {
+      when: when ? message('saved_on', { when }, lang) : ''
+    }, lang);
   } else {
-    text = `You have a saved session from ${when}.`
-      + (info.locked
-        ? ' It is protected: enter your PIN above, then select Resume.'
-        : ' An older version saved it without a PIN. Enter one above to protect it from now on.')
-      + ' Your Social Security and bank numbers are never saved, so you will be asked for them again.'
-      + ` Saved sessions are deleted after ${Math.round(store.MAX_AGE_MS / 86400000)} days.`;
+    text = message('saved_session_from', { when }, lang)
+      + message(info.locked ? 'saved_locked' : 'saved_legacy', {}, lang)
+      + message('saved_sensitive', {}, lang)
+      + message('saved_expiry', { days: Math.round(store.MAX_AGE_MS / 86400000) }, lang);
   }
   ui.resumeText.textContent = text;
   ui.resumeRow.hidden = false;
@@ -435,26 +497,22 @@ function setImportStatus(text) {
 async function onImportFile(event) {
   const file = event.target.files?.[0];
   if (!file) return;
-  setImportStatus('Reading your file\u2026');
+  setImportStatus(uiMessage('import_reading'));
   try {
     const { state, savedAt, rebuiltCursor } = await readExportFile(file);
     importedSession = { savedAt, state, withheld: [] };
     showSavedSession();
+    const lang = uiLang();
     const when = savedAt ? new Date(savedAt).toLocaleString() : null;
-    const msg = 'Your answers were loaded'
-      + (when ? ` from the file you saved on ${when}` : '')
-      + '. '
-      + (rebuiltCursor
-        ? 'That file did not record where you left off, so I will start at the first question you have not answered. '
-        : '')
-      + 'Choose how you want to answer, and a PIN if you want them saved, then select Resume my saved session.';
+    const msg = message('import_loaded', {
+      when: when ? message('import_loaded_when', { when }, lang) : '',
+      cursor: rebuiltCursor ? message('import_cursor', {}, lang) : ''
+    }, lang);
     setImportStatus(msg);
     announce(msg, true);
     ui.resume.focus();
   } catch (err) {
-    const msg = err instanceof ImportError
-      ? err.message
-      : 'That file could not be loaded. Choose the file you saved from this page.';
+    const msg = err instanceof ImportError ? err.message : uiMessage('import_failed');
     setImportStatus(msg);
     announce(msg, true);
   } finally {
@@ -465,9 +523,7 @@ async function onImportFile(event) {
 // -- misc ------------------------------------------------------------------
 
 window.addEventListener('error', e => {
-  announce(store.isPersisting()
-    ? 'Something went wrong. Your answers are saved on this device.'
-    : 'Something went wrong.', true);
+  announce(spokenMessage(store.isPersisting() ? 'error_saved' : 'error_plain'), true);
   console.error(e.error ?? e.message);
 });
 

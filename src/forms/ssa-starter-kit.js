@@ -14,6 +14,7 @@
 import { buildReport } from '../summary.js';
 import { findQuestion } from '../schema.js';
 import { choiceLabel } from '../choice.js';
+import { translate } from '../i18n/index.js';
 import { text, mdy, my, money, items } from './common.js';
 
 export const TEMPLATE = 'forms/ssa-adult-disability-starter-kit-64-110.pdf';
@@ -110,7 +111,7 @@ export const TABLES = [
       { label: 'Hours per day', field: numbered('Hours per day'), value: it => text(it.hours_per_day) },
       { label: 'Days per week', field: numbered('Days per week'), value: it => text(it.days_per_week) },
       { label: 'Rate of pay', field: numbered('Rate of pay amount'), value: it => money(it.pay_amount) },
-      { label: 'Frequency', field: numbered('Rate of pay frequency'), value: it => choiceLabel(PAY_OPTIONS, it.pay_frequency) }
+      { label: 'Frequency', field: numbered('Rate of pay frequency'), value: (it, lang) => choiceLabel(PAY_OPTIONS, it.pay_frequency, lang) }
     ]
   }
 ];
@@ -152,38 +153,40 @@ const ON_WORKSHEET = new Set(['conditions', 'providers', 'medications', 'tests']
  * Map an answer set onto the Starter Kit.
  * @returns {{ text, checks, tables, sections, labels }}
  */
-export function map(answers) {
+export function map(answers, { lang = 'en' } = {}) {
   const textFields = {};
   const labels = {};
   const tables = [];
 
   for (const t of TABLES) {
+    const title = translate(t.title, lang);
+    const itemLabel = translate(t.itemLabel, lang);
     const rows = items(answers, t.loop);
     rows.slice(0, t.capacity).forEach((item, i) => {
       for (const col of t.columns) {
-        const value = col.value(item);
+        const value = col.value(item, lang);
         if (!value) continue;
         const name = col.field(i + 1);
         textFields[name] = value;
-        labels[name] = `${t.title} — row ${i + 1}, ${col.label.toLowerCase()}`;
+        labels[name] = `${title} — row ${i + 1}, ${translate(col.label, lang).toLowerCase()}`;
       }
     });
     // Jobs are listed in full in the addendum (the worksheet has no employer
     // column), so their overflow does not need a table of its own.
     if (rows.length > t.capacity && t.loop !== 'jobs') {
       tables.push({
-        title: `${t.title}, continued`,
-        itemLabel: t.itemLabel,
+        title: translate(`${t.title}, continued`, lang),
+        itemLabel,
         startAt: t.capacity + 1,
-        columns: t.columns.map(c => ({ label: c.label })),
-        rows: rows.slice(t.capacity).map(item => t.columns.map(c => c.value(item)))
+        columns: t.columns.map(c => ({ label: translate(c.label, lang) })),
+        rows: rows.slice(t.capacity).map(item => t.columns.map(c => c.value(item, lang)))
       });
     }
   }
 
   const checks = CHECK_RULES.filter(([, rule]) => rule(answers)).map(([name]) => name);
 
-  const sections = buildReport(answers, { form: 'ssa' })
+  const sections = buildReport(answers, { form: 'ssa', lang })
     .map(section => ({
       ...section,
       blocks: section.blocks.filter(b => !(b.kind === 'table' && ON_WORKSHEET.has(b.id)))

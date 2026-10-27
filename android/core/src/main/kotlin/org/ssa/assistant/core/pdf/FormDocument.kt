@@ -2,6 +2,8 @@ package org.ssa.assistant.core.pdf
 
 import java.text.Normalizer
 import java.time.LocalDate
+import org.ssa.assistant.core.I18n
+import org.ssa.assistant.core.formatDate
 import org.ssa.assistant.core.forms.buildReport
 import org.ssa.assistant.core.forms.mapDsIntake
 import org.ssa.assistant.core.forms.mapSsaStarterKit
@@ -47,9 +49,16 @@ class WorksheetDocument(val title: String, val subject: String, val creator: Str
 object FormDocuments {
     const val CREATOR = "Voice Assistant for Disability Forms"
 
-    fun mapping(schema: Schema, formId: String, answers: Json.Obj, today: LocalDate): Mapping = when (formId) {
-        "ssa" -> mapSsaStarterKit(schema, answers)
-        "ds" -> mapDsIntake(schema, answers, today)
+    fun mapping(
+        schema: Schema,
+        formId: String,
+        answers: Json.Obj,
+        today: LocalDate,
+        lang: String = "en",
+        i18n: I18n = I18n(schema),
+    ): Mapping = when (formId) {
+        "ssa" -> mapSsaStarterKit(schema, answers, lang, i18n)
+        "ds" -> mapDsIntake(schema, answers, today, lang, i18n)
         else -> throw IllegalArgumentException("unknown form $formId")
     }
 
@@ -59,16 +68,23 @@ object FormDocuments {
      * character Helvetica lacks cannot fail the form), then the plan, then the
      * addendum when there is anything to put on one.
      */
-    fun plan(schema: Schema, formId: String, answers: Json.Obj, today: LocalDate): FormDocument {
+    fun plan(
+        schema: Schema,
+        formId: String,
+        answers: Json.Obj,
+        today: LocalDate,
+        lang: String = "en",
+        i18n: I18n = I18n(schema),
+    ): FormDocument {
         val spec = schema.formSpecs[formId] ?: throw IllegalArgumentException("schema.json has no formSpecs.$formId")
-        val raw = mapping(schema, formId, answers, today)
+        val raw = mapping(schema, formId, answers, today, lang, i18n)
         val text = LinkedHashMap<String, String>()
         raw.text.forEach { (k, v) -> text[k] = WinAnsi.toWinAnsi(v) }
         val manifest = TemplateManifest.forForm(formId)
         val plan = planFill(raw.copy(text = text), manifest, WinAnsiMetrics.REGULAR)
 
         val addendum = if (plan.overflowText.isNotEmpty() || plan.tables.isNotEmpty() || plan.sections.isNotEmpty()) {
-            AddendumLayout.layout(addendumContent(spec, plan), WinAnsiMetrics.REGULAR, WinAnsiMetrics.BOLD)
+            AddendumLayout.layout(addendumContent(spec, plan, lang, i18n), WinAnsiMetrics.REGULAR, WinAnsiMetrics.BOLD, lang, i18n)
         } else {
             emptyList()
         }
@@ -76,39 +92,77 @@ object FormDocuments {
     }
 
     /** The content fill.js hands layoutAddendum: the spec's wording plus the plan's overflow. */
-    fun addendumContent(spec: FormSpecInfo, plan: FillPlan): AddendumLayout.Content =
-        AddendumLayout.Content.fromJson(Json.Obj().also { o ->
-            o["title"] = spec.addendum["title"] ?: Json.Null
-            o["intro"] = spec.addendum["intro"] ?: Json.Arr()
+    fun addendumContent(
+        spec: FormSpecInfo,
+        plan: FillPlan,
+        lang: String = "en",
+        i18n: I18n? = null,
+    ): AddendumLayout.Content {
+        val table = i18n ?: I18n.default
+        fun translated(value: Json?): Json {
+            val s = value?.asString() ?: return value ?: Json.Null
+            return Json.Str(table.translate(s, lang))
+        }
+        fun translatedList(value: Json?): Json.Arr = Json.Arr(
+            ((value as? Json.Arr)?.items ?: emptyList())
+                .mapTo(mutableListOf()) { translated(it) }
+        )
+        return AddendumLayout.Content.fromJson(Json.Obj().also { o ->
+            o["title"] = translated(spec.addendum["title"])
+            o["intro"] = translatedList(spec.addendum["intro"])
             o["overflowText"] = Json.Arr(plan.overflowText.mapTo(mutableListOf()) { (label, value) ->
                 Json.Obj().also { e -> e["label"] = Json.Str(label); e["value"] = Json.Str(value) }
             })
             o["tables"] = Json.Arr(plan.tables.toMutableList())
             o["sections"] = Json.Arr(plan.sections.toMutableList())
-            o["footer"] = spec.addendum["footer"] ?: Json.Arr()
+            o["footer"] = translatedList(spec.addendum["footer"])
         })
+    }
 
     /**
      * buildWorksheet() in pdf.js: every answer on plain pages, for when a
      * form cannot be produced. "Prepared" is written M/D/YYYY, as en-US
      * toLocaleDateString() writes it.
      */
-    fun worksheet(schema: Schema, answers: Json.Obj, today: LocalDate): WorksheetDocument {
+    fun worksheet(
+        schema: Schema,
+        answers: Json.Obj,
+        today: LocalDate,
+        lang: String = "en",
+        i18n: I18n = I18n(schema),
+    ): WorksheetDocument {
         val w = schema.worksheet
-        val heading = w["heading"]?.asString() ?: "Disability Forms Worksheet"
+        val heading = i18n.translate(w["heading"]?.asString() ?: "Disability Forms Worksheet", lang)
         fun list(key: String): Json = w[key]?.asArray() ?: Json.Arr()
+        val translatedList = Json.Arr(
+            ((w["intro"] as? Json.Arr)?.items ?: emptyList()).mapTo(mutableListOf()) {
+                Json.Str(i18n.translate(it.asString() ?: "", lang))
+            }
+        )
+        val footer = Json.Arr(
+            ((w["footer"] as? Json.Arr)?.items ?: emptyList()).mapTo(mutableListOf()) {
+                Json.Str(i18n.translate(it.asString() ?: "", lang))
+            }
+        )
+        val iso = "${today.year}-${today.monthValue.toString().padStart(2, '0')}-" +
+            today.dayOfMonth.toString().padStart(2, '0')
+        val prepared = if (lang == "en") {
+            "Prepared ${today.monthValue}/${today.dayOfMonth}/${today.year}"
+        } else {
+            i18n.message("worksheet_prepared", mapOf("date" to formatDate(iso, lang)), lang)
+        }
         val content = AddendumLayout.Content.fromJson(Json.Obj().also { o ->
             o["title"] = Json.Str(heading)
-            o["intro"] = list("intro")
-            o["prepared"] = Json.Str("Prepared ${today.monthValue}/${today.dayOfMonth}/${today.year}")
-            o["sections"] = Json.Arr(buildReport(schema, answers).toMutableList<Json>())
-            o["footer"] = list("footer")
+            o["intro"] = translatedList
+            o["prepared"] = Json.Str(prepared)
+            o["sections"] = Json.Arr(buildReport(schema, answers, lang = lang, i18n = i18n).toMutableList<Json>())
+            o["footer"] = footer
         })
         return WorksheetDocument(
             title = heading,
-            subject = w["subject"]?.asString() ?: "",
-            creator = w["creator"]?.asString() ?: CREATOR,
-            pages = AddendumLayout.layout(content, WinAnsiMetrics.REGULAR, WinAnsiMetrics.BOLD)
+            subject = i18n.translate(w["subject"]?.asString() ?: "", lang),
+            creator = i18n.translate(w["creator"]?.asString() ?: CREATOR, lang),
+            pages = AddendumLayout.layout(content, WinAnsiMetrics.REGULAR, WinAnsiMetrics.BOLD, lang, i18n)
         )
     }
 

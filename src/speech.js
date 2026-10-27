@@ -19,6 +19,7 @@
 // the OpenAI TTS API and kept the audio in Cache Storage; both are gone.
 
 import { hashText, VOICE } from './ttshash.js';
+import { LANGUAGES } from './i18n/languages.js';
 
 let current = null;          // { audio } | { utterance }
 let queue = [];
@@ -51,14 +52,15 @@ export function loadManifest() {
 /**
  * Speak text. Resolves when playback finishes (or immediately if interrupted).
  * @param {object} opts
+ * @param {string} opts.lang the output channel's language; clips are English only
  * @param {boolean} opts.interrupt cancel anything currently playing
  */
-export function speak(text, { interrupt = true } = {}) {
+export function speak(text, { lang = 'en', interrupt = true } = {}) {
   if (!text) return Promise.resolve();
   if (interrupt) cancel();
 
   return new Promise(resolve => {
-    queue.push({ text, resolve });
+    queue.push({ text, lang, resolve });
     if (!speaking) drain();
   });
 }
@@ -68,7 +70,7 @@ async function drain() {
   while (queue.length) {
     const item = queue.shift();
     try {
-      await play(item.text);
+      await play(item.text, item.lang);
     } catch { /* nothing left to try; the live region still has the text */ }
     item.resolve();
   }
@@ -76,12 +78,17 @@ async function drain() {
 }
 
 /** One utterance: the recorded clip if there is one, else a local voice. */
-async function play(text) {
-  const key = await clipKey(text);
-  if (key && manifest.has(key)) {
-    try { return await playUrl(`audio/${key}.mp3`); } catch { /* fall through */ }
+async function play(text, lang) {
+  // A non-English utterance never plays an English clip, and never fetches
+  // the manifest (D11). The live region still carries the text if no voice
+  // exists for it.
+  if (lang === 'en') {
+    const key = await clipKey(text);
+    if (key && manifest.has(key)) {
+      try { return await playUrl(`audio/${key}.mp3`); } catch { /* fall through */ }
+    }
   }
-  return localSpeak(text);
+  return localSpeak(text, lang);
 }
 
 /** Hash for this utterance, or null when hashing is unavailable. */
@@ -110,24 +117,28 @@ function playUrl(src) {
 
 // -- the system voice ------------------------------------------------------
 
-let localVoice;   // undefined: not looked up yet; null: there is none
+let localVoices = new Map();   // lang -> voice | null; absent means not looked up
 let watchingVoices = false;
 
 /**
- * The on-device voice to use, preferring US English.
+ * The on-device voice to use for a language.
  *
  * Chrome fills getVoices() asynchronously, so an empty list on the first call
  * means "not yet", not "none": wait briefly for voiceschanged before deciding.
- * The decision is then kept — waiting on every utterance would add a second
- * and a half to each one on a machine with no voices — and looked at again
- * only if the browser says its voices changed.
+ * The decision is then kept per language — waiting on every utterance would
+ * add a second and a half to each one on a machine with no voices — and looked
+ * at again only if the browser says its voices changed.
+ *
+ * Preference: the language's own tags, then a prefix match, then its fallback
+ * chain (Lingala falls back to French, then English — D8). Only voices the
+ * browser reports as localService are ever considered.
  */
-async function pickLocalVoice() {
-  if (localVoice !== undefined) return localVoice;
+async function pickLocalVoice(lang = 'en') {
+  if (localVoices.has(lang)) return localVoices.get(lang);
   const synth = window.speechSynthesis;
   if (synth?.addEventListener && !watchingVoices) {
     watchingVoices = true;
-    synth.addEventListener('voiceschanged', () => { localVoice = undefined; });
+    synth.addEventListener('voiceschanged', () => { localVoices = new Map(); });
   }
   let voices = synth?.getVoices?.() ?? [];
   if (!voices.length && synth?.addEventListener) {
@@ -139,12 +150,35 @@ async function pickLocalVoice() {
     voices = synth.getVoices?.() ?? [];
   }
   const local = voices.filter(v => v.localService === true);
-  const us = v => /^en[-_]US$/i.test(v.lang);
-  localVoice = local.find(v => us(v) && v.default)
-    ?? local.find(us)
-    ?? local.find(v => /^en/i.test(v.lang))
-    ?? null;
-  return localVoice;
+  const spec = LANGUAGES[lang] ?? LANGUAGES.en;
+  const exact = (v, tags) => tags.some(t => String(v.lang ?? '').toLowerCase() === t.toLowerCase());
+  const forLanguage = code => {
+    const tags = LANGUAGES[code]?.voiceTags ?? [code];
+    return local.find(v => exact(v, tags) && v.default)
+      ?? local.find(v => exact(v, tags))
+      ?? local.find(v => new RegExp(`^${code}`, 'i').test(String(v.lang ?? '')));
+  };
+
+  let voice;
+  if (lang === 'en') {
+    // The original English preference, unchanged: US English first.
+    const us = v => /^en[-_]US$/i.test(String(v.lang ?? ''));
+    voice = local.find(v => us(v) && v.default)
+      ?? local.find(us)
+      ?? local.find(v => /^en/i.test(String(v.lang ?? '')))
+      ?? null;
+  } else {
+    voice = forLanguage(lang);
+    if (!voice) {
+      for (const fallback of spec.voiceFallback ?? []) {
+        voice = forLanguage(fallback);
+        if (voice) break;
+      }
+    }
+  }
+  voice = voice ?? null;
+  localVoices.set(lang, voice);
+  return voice;
 }
 
 /**
@@ -152,10 +186,10 @@ async function pickLocalVoice() {
  * voice exists the text is already in the live region, and a remote voice is
  * not an acceptable substitute.
  */
-async function localSpeak(text) {
+async function localSpeak(text, lang = 'en') {
   const synth = window.speechSynthesis;
   if (!synth || typeof SpeechSynthesisUtterance === 'undefined') return;
-  const voice = await pickLocalVoice();
+  const voice = await pickLocalVoice(lang);
   if (!voice) return;
   await new Promise(resolve => {
     const u = new SpeechSynthesisUtterance(text);

@@ -222,6 +222,7 @@ class TurnGoldenTest {
         val turn: TurnController = TurnController(object : TurnController.Ports {
             override val say = Phrases(schema)
             override val correct = Correct(schema)
+            override val i18n = I18n(schema)
             override val store = object : TurnController.StorePort {
                 override fun saveState(state: Json.Obj): Boolean { savedWrote += 1; return true }
                 override suspend fun flush() {}
@@ -235,7 +236,7 @@ class TurnGoldenTest {
                 override fun forgetKey() {}
             }
             override val speech = object : TurnController.SpeechPort {
-                override suspend fun speak(text: String, interrupt: Boolean) {
+                override suspend fun speak(text: String, interrupt: Boolean, lang: String) {
                     spoken.add(text)
                     recordSpoken.add(text)
                 }
@@ -279,7 +280,7 @@ class TurnGoldenTest {
                 recordAnnounced.add(text)
             }
             override val onState: (Json.Obj) -> Unit = { snapshots.add(it) }
-            override val onExport: suspend (List<String>, Json.Obj) -> Unit = { forms, _ ->
+            override val onExport: suspend (List<String>, Json.Obj, LanguageSettings) -> Unit = { forms, _, _ ->
                 exports.add(forms)
             }
             override val onReadBack: suspend (Json.Obj) -> Unit = {}
@@ -287,17 +288,22 @@ class TurnGoldenTest {
             override fun createEngine(saved: Json.Obj?, now: () -> Double): Engine =
                 Engine(schema, saved, now)
 
-            override fun parseLocal(question: Question, transcript: String, typed: Boolean, now: LocalDate) =
-                Parse.parseLocal(question, transcript, typed, now)
+            override fun parseLocal(
+                question: Question,
+                transcript: String,
+                typed: Boolean,
+                now: LocalDate,
+                lang: String,
+            ) = Parse.parseLocal(question, transcript, typed, now, lang, i18n)
 
             override fun normalize(result: org.ssa.assistant.core.parse.ParsedValue?, question: Question) =
                 Validate.normalize(result, question)
 
-            override fun speakable(value: Any?, type: String, options: List<Option>?) =
-                speakableValue(value, type, options)
+            override fun speakable(value: Any?, type: String, options: List<Option>?, lang: String) =
+                speakableValue(value, type, options, lang)
 
-            override fun formatTimeRemaining(sec: Int?) =
-                org.ssa.assistant.core.formatTimeRemaining(sec)
+            override fun formatTimeRemaining(sec: Int?, lang: String) =
+                org.ssa.assistant.core.formatTimeRemaining(sec, lang)
         }, schema)
 
         fun setTranscript(t: String) { nextTranscript = t }
@@ -366,10 +372,19 @@ class TurnGoldenTest {
                 val (state, withheld) = harness.savedSession(fixture, answers)
                 TurnController.SavedSession(state, withheld)
             } else null
+            val languages = (map["languages"] as? Map<*, *>)?.let { l ->
+                LanguageSettings(
+                    input = l["input"] as? String ?: "en",
+                    output = l["output"] as? String ?: "en",
+                    screen = l["screen"] as? String ?: "en",
+                    fill = l["fill"] as? String ?: "en",
+                )
+            }
             return TurnController.StartOptions(
                 mode = (map["mode"] as? String) ?: "voice",
                 confirm = (map["confirm"] as? Boolean) ?: true,
-                saved = saved
+                saved = saved,
+                languages = languages,
             )
         }
 

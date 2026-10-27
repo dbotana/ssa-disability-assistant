@@ -24,6 +24,7 @@ import org.ssa.assistant.core.schema.SchemaLoader
 class FillPlannerGoldenTest {
 
     private val schema = SchemaLoader.load()
+    private val i18n = I18n(schema)
     private val golden = Golden.load("fillplans")
     private val metrics = WrappedMetrics(HelveticaMetrics.HELVETICA)
     private val today = LocalDate.of(2026, 9, 19)   // NOW() in index.mjs, as a local date
@@ -67,9 +68,10 @@ class FillPlannerGoldenTest {
             val answers = p["answers"]!!.asObject()!!
             val where = "fillplans[$i] ${p["fixture"]?.asString()} $form"
 
+            val lang = p["lang"]?.asString() ?: "en"
             val mapping = when (form) {
-                "ssa" -> mapSsaStarterKit(schema, answers)
-                else -> mapDsIntake(schema, answers, today)
+                "ssa" -> mapSsaStarterKit(schema, answers, lang, i18n)
+                else -> mapDsIntake(schema, answers, today, lang, i18n)
             }
             val plan = planFill(mapping, TemplateManifest.forForm(form), metrics)
             Golden.assertTree("fillplans", where, planTree(plan), p["plan"]!!)

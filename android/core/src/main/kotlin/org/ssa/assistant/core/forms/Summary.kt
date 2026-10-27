@@ -1,5 +1,6 @@
 package org.ssa.assistant.core.forms
 
+import org.ssa.assistant.core.I18n
 import org.ssa.assistant.core.js.js
 import org.ssa.assistant.core.js.jsString
 import org.ssa.assistant.core.js.jsTrim
@@ -30,7 +31,13 @@ import org.ssa.assistant.core.formatMonthYear
  * Pass `form` to narrow it further to one form's questions, as the Starter
  * Kit's addendum does.
  */
-fun buildReport(schema: Schema, answers: Json.Obj, form: String? = null): List<Json.Obj> {
+fun buildReport(
+    schema: Schema,
+    answers: Json.Obj,
+    form: String? = null,
+    lang: String = "en",
+    i18n: I18n = I18n(schema),
+): List<Json.Obj> {
     val report = mutableListOf<Json.Obj>()
     for (section in schema.sections) {
         if (!sectionActive(section, answers)) continue
@@ -52,11 +59,11 @@ fun buildReport(schema: Schema, answers: Json.Obj, form: String? = null): List<J
                 blocks.add(Json.Obj().also { b ->
                     b["kind"] = Json.Str("table")
                     b["id"] = Json.Str(node.id ?: "")
-                    b["label"] = Json.Str(node.itemLabel ?: "")
+                    b["label"] = Json.Str(i18n.translate(node.itemLabel ?: "", lang))
                     b["columns"] = Json.Arr((node.fields ?: emptyList()).mapTo(mutableListOf()) { f ->
                         Json.Obj().also { c ->
                             c["id"] = f["id"] ?: Json.Null
-                            c["label"] = Json.Str(shortLabel(schema, f["prompt"]?.asString(), f["id"]?.asString()))
+                            c["label"] = Json.Str(i18n.translate(shortLabel(schema, f["prompt"]?.asString(), f["id"]?.asString()), lang))
                             c["type"] = f["type"] ?: Json.Null
                             // JS sets options: undefined, which JSON drops.
                             (f["options"] as? Json.Arr)?.let { c["options"] = it }
@@ -65,7 +72,7 @@ fun buildReport(schema: Schema, answers: Json.Obj, form: String? = null): List<J
                     b["rows"] = Json.Arr(loopItems.mapTo(mutableListOf()) { item ->
                         Json.Arr((node.fields ?: emptyList()).mapTo(mutableListOf()) { f ->
                             val raw = item.asObject()?.get(f["id"]?.asString())
-                            Json.Str(present(raw?.let { kotlinValue(it) }, f["type"]?.asString() ?: "text", optionsFromSchema(f["options"])))
+                            Json.Str(present(raw?.let { kotlinValue(it) }, f["type"]?.asString() ?: "text", optionsFromSchema(f["options"]), lang, i18n))
                         })
                     })
                     b["empty"] = Json.bool(loopItems.isEmpty())
@@ -78,11 +85,11 @@ fun buildReport(schema: Schema, answers: Json.Obj, form: String? = null): List<J
             blocks.add(Json.Obj().also { b ->
                 b["kind"] = Json.Str("field")
                 b["id"] = Json.Str(node.id ?: "")
-                b["label"] = Json.Str(shortLabel(schema, node.prompt, node.id))
+                b["label"] = Json.Str(i18n.translate(shortLabel(schema, node.prompt, node.id), lang))
                 b["type"] = Json.Str(type)
                 // JS sets options: undefined, which JSON drops.
                 (node.raw["options"] as? Json.Arr)?.let { b["options"] = it }
-                b["value"] = Json.Str(present(value, type, optionsFromSchema(node.raw["options"])))
+                b["value"] = Json.Str(present(value, type, optionsFromSchema(node.raw["options"]), lang, i18n))
                 b["answered"] = Json.bool(value != null && value != "")
             })
         }
@@ -90,7 +97,8 @@ fun buildReport(schema: Schema, answers: Json.Obj, form: String? = null): List<J
         if (blocks.isNotEmpty()) {
             report.add(Json.Obj().also { s ->
                 s["id"] = section["id"] ?: Json.Null
-                s["title"] = section["title"] ?: Json.Null
+                val title = section["title"]?.asString()
+                s["title"] = if (title == null) Json.Null else Json.Str(i18n.translate(title, lang))
                 s["blocks"] = Json.Arr(blocks.mapTo(mutableListOf()) { it })
             })
         }
@@ -109,23 +117,36 @@ internal fun kotlinValue(j: Json?): Any? = when (j) {
 }
 
 /** Printable rendering of a stored value. `options` is for choice answers. */
-fun present(value: Any?, type: String, options: List<org.ssa.assistant.core.Option>? = null): String {
+fun present(
+    value: Any?,
+    type: String,
+    options: List<org.ssa.assistant.core.Option>? = null,
+    lang: String = "en",
+    i18n: I18n? = null,
+): String {
     if (value == null || value == "") return ""
+    val table = i18n ?: I18n.default
     return when (type) {
-        "yesno" -> if (value == true) "Yes" else "No"
-        "choice" -> choiceLabel(options, value)
+        "yesno" -> if (lang == "en") {
+            if (value == true) "Yes" else "No"
+        } else {
+            table.message(if (value == true) "yes" else "no", emptyMap(), lang)
+        }
+        "choice" -> choiceLabel(options, value, lang, table)
         "zip" -> {
             val digits = value.toString().replace(js("\\D"), "")
             if (digits.length == 9) "${digits.substring(0, 5)}-${digits.substring(5)}" else digits.ifEmpty { jsString(value) }
         }
-        "money" -> "$" + enUsGrouped(
+        "money" -> if (lang == "en") "$" + enUsGrouped(
             (value as? Double) ?: (value as? Int)?.toDouble() ?: value.toString().toDoubleOrNull() ?: Double.NaN
-        )
+        ) else table.formatMoney(value, lang)
         "ssn" -> groupDigits(value, listOf(3, 2, 4), "-")
         "phone" -> groupDigits(value, listOf(3, 3, 4), "-")
         "routing", "account" -> value.toString().replace(js("\\D"), "")
-        "date" -> formatDate(value)
-        "monthyear" -> if (value.toString().lowercase() == "present") "Present" else formatMonthYear(value)
+        "date" -> formatDate(value, lang)
+        "monthyear" -> if (value.toString().lowercase() == "present") {
+            if (lang == "en") "Present" else table.message("present", emptyMap(), lang)
+        } else formatMonthYear(value, lang)
         else -> jsString(value)
     }
 }

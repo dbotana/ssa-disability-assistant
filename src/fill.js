@@ -22,6 +22,7 @@ import { buildManifest, parseDa } from './manifest.js';
 import { planFill } from './plan.js';
 import { layoutAddendum } from './addendum.js';
 import { loadPdfLib, downloadWorksheet, fontMetrics, renderAddendum } from './pdf.js';
+import { translate } from './i18n/index.js';
 import * as ssaKit from './forms/ssa-starter-kit.js';
 import * as dsIntake from './forms/ds-intake.js';
 
@@ -47,7 +48,7 @@ function daFontFor(fieldEntry) {
  *                 test failure, never expected at runtime
  *   overflowText  [{ label, value }] answers too long for their box
  */
-export async function fillTemplate(PDFLib, templateBytes, mapping, { title, addendum = null } = {}) {
+export async function fillTemplate(PDFLib, templateBytes, mapping, { title, addendum = null, lang = 'en' } = {}) {
   const { PDFDocument, StandardFonts } = PDFLib;
   const doc = await PDFDocument.load(templateBytes);
   const form = doc.getForm();
@@ -126,18 +127,18 @@ export async function fillTemplate(PDFLib, templateBytes, mapping, { title, adde
   if (addendum && (overflowText.length || tables.length || sections.length)) {
     const bold = await doc.embedFont(StandardFonts.HelveticaBold);
     const drawList = layoutAddendum({
-      title: addendum.title,
-      intro: addendum.intro ?? [],
+      title: translate(addendum.title, lang),
+      intro: (addendum.intro ?? []).map(line => translate(line, lang)),
       overflowText,
       tables,
       sections,
-      footer: addendum.footer ?? []
-    }, fontMetrics(font, bold));
+      footer: (addendum.footer ?? []).map(line => translate(line, lang))
+    }, { ...fontMetrics(font, bold), lang });
     renderAddendum(doc, PDFLib, drawList, { font, bold });
   }
 
   if (title) doc.setTitle(title);
-  doc.setCreator('Voice Assistant for Disability Forms');
+  doc.setCreator(translate('Voice Assistant for Disability Forms', lang));
 
   return { bytes: await doc.save(), missing, overflowText };
 }
@@ -158,7 +159,7 @@ const slug = s => String(s ?? '').trim().replace(/[^a-z0-9]+/gi, '-').replace(/^
  * downloaded instead, and `fallback` says so. `now` supplies the date stamp
  * in the filename.
  */
-export async function downloadForm(formId, answers, { now = () => new Date() } = {}) {
+export async function downloadForm(formId, answers, { now = () => new Date(), lang = 'en' } = {}) {
   const spec = FORMS[formId];
   if (!spec) throw new Error(`Unknown form: ${formId}`);
 
@@ -174,13 +175,14 @@ export async function downloadForm(formId, answers, { now = () => new Date() } =
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     template = await res.arrayBuffer();
   } catch {
-    await downloadWorksheet(answers, filename);
+    await downloadWorksheet(answers, filename, { lang });
     return { filename, fallback: true };
   }
 
-  const { bytes } = await fillTemplate(PDFLib, template, spec.map(answers), {
-    title: spec.TITLE,
-    addendum: spec.ADDENDUM
+  const { bytes } = await fillTemplate(PDFLib, template, spec.map(answers, { lang }), {
+    title: translate(spec.TITLE, lang),
+    addendum: spec.ADDENDUM,
+    lang
   });
   const blob = new Blob([bytes], { type: 'application/pdf' });
   const url = URL.createObjectURL(blob);

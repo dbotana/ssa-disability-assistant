@@ -4,6 +4,9 @@ import org.ssa.assistant.core.js.js
 import org.ssa.assistant.core.js.jsLower
 import org.ssa.assistant.core.js.jsTrim
 import org.ssa.assistant.core.js.test
+import org.ssa.assistant.core.json.asArray
+import org.ssa.assistant.core.json.asObject
+import org.ssa.assistant.core.json.asString
 
 /**
  * Port of src/commands.js: navigation commands, matched locally on both the
@@ -11,6 +14,10 @@ import org.ssa.assistant.core.js.test
  *
  * Anchored, so a command word appearing inside a real answer is not mistaken
  * for a command: "I skip meals" is an answer, "skip" is a command.
+ *
+ * English runs the original table. For French and Lingala the words come from
+ * the shared lexicon, after the language's filler is stripped and the text is
+ * folded (D5).
  */
 
 private val LOCAL_COMMANDS = listOf(
@@ -31,7 +38,7 @@ private val COMMAND_FILLER_LEAD =
     js("^(um|uh|er|ok|okay|well|hey|please|can you|could you|would you|i want to|i would like to|let us|lets)\\b[\\s,]*")
 private val COMMAND_FILLER_TAIL = js("[\\s,]*\\b(please|now|thanks|thank you)\\b[\\s.!?]*$")
 
-fun localCommand(text: String?): String? {
+fun localCommand(text: String?, lang: String = "en", i18n: I18n? = null): String? {
     var s = jsTrim(
         jsLower(text ?: "").trim().replace(js("[.!?]+$"), "")
     )
@@ -43,6 +50,47 @@ fun localCommand(text: String?): String? {
     }
     if (s.isEmpty()) return null
     for ((re, cmd) in LOCAL_COMMANDS) if (re.test(s)) return cmd
+    if (lang != "en") return nonEnglishCommand(text, lang, i18n ?: I18n.default)
+    return null
+}
+
+/**
+ * Fold a command word the way the transcript is folded. Apostrophes and
+ * hyphens become spaces, so "c'est tout" and "où en suis-je" reach the
+ * lexicon entries stored as "c est tout" and "ou en suis je".
+ */
+private fun normalizeCommand(text: String?, lang: String, i18n: I18n): String =
+    jsTrim(i18n.fold(text, lang)
+        .replace(js("[\u2019']"), " ")
+        .replace("-", " ")
+        .replace(js("\\s+"), " "))
+
+/** French and Lingala command words, from the lexicon. */
+private fun nonEnglishCommand(text: String?, lang: String, i18n: I18n): String? {
+    val tables = i18n.lexicon(lang)
+    var s = normalizeCommand(text, lang, i18n)
+    for (i in 0 until 3) {
+        val before = s
+        for (source in (tables["filler"]?.asArray()?.items ?: emptyList()).mapNotNull { it.asString() }) {
+            try {
+                s = s.replace(js(source), "").trim()
+            } catch (_: Exception) { /* ignore a bad table entry */ }
+        }
+        if (s == before) break
+    }
+    s = s.replace(js("[.!?]+$"), "").trim()
+    if (s.isEmpty()) return null
+
+    val commands = tables["commands"]?.asObject() ?: return null
+    for ((cmd, wordsRaw) in commands.entries) {
+        for (word in (wordsRaw.asArray()?.items ?: emptyList()).mapNotNull { it.asString() }) {
+            if (word == "\\?") {
+                if (s == "?") return cmd
+                continue
+            }
+            if (normalizeCommand(word, lang, i18n) == s) return cmd
+        }
+    }
     return null
 }
 

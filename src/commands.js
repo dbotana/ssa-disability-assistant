@@ -5,6 +5,12 @@
 // outside the anchors is only politeness and hesitation — the words people
 // actually put around a spoken instruction — never anything that could carry
 // meaning of its own.
+//
+// English runs the original table. For French and Lingala the words come from
+// the same lexicon the parser uses, after the language's filler is stripped
+// and the text is folded (D5).
+
+import { lexicon, fold } from './i18n/index.js';
 
 const LOCAL_COMMANDS = [
   [/^(repeat|repeat that|say (that )?again|again|one more time)$/, 'repeat'],
@@ -25,7 +31,44 @@ const COMMAND_FILLER = {
   tail: /[\s,]*\b(please|now|thanks|thank you)\b[\s.!?]*$/
 };
 
-export function localCommand(text) {
+const escapeRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * Fold a command word the way the transcript is folded. Apostrophes and
+ * hyphens become spaces, so "c'est tout" and "où en suis-je" reach the
+ * lexicon entries stored as "c est tout" and "ou en suis je".
+ */
+const normalizeCommand = (text, lang) => fold(text, lang)
+  .replace(/[’']/g, ' ')
+  .replace(/-/g, ' ')
+  .replace(/\s+/g, ' ')
+  .trim();
+
+function nonEnglishCommand(text, lang) {
+  const tables = lexicon(lang);
+  let s = normalizeCommand(text, lang);
+  for (let i = 0; i < 3; i++) {
+    const before = s;
+    for (const source of tables.filler ?? []) {
+      try { s = s.replace(new RegExp(source, 'g'), '').trim(); } catch { /* ignore a bad table entry */ }
+    }
+    if (s === before) break;
+  }
+  s = s.replace(/[.!?]+$/, '').trim();
+  if (!s) return null;
+  for (const [cmd, words] of Object.entries(tables.commands ?? {})) {
+    for (const word of words) {
+      if (word === '\\?') {
+        if (s === '?') return cmd;
+        continue;
+      }
+      if (normalizeCommand(word, lang) === s) return cmd;
+    }
+  }
+  return null;
+}
+
+export function localCommand(text, lang = 'en') {
   let s = String(text ?? '').toLowerCase().trim().replace(/[.!?]+$/, '');
   // Strip filler repeatedly: "ok, can you please repeat that" stacks three.
   for (let i = 0; i < 3; i++) {
@@ -35,6 +78,7 @@ export function localCommand(text) {
   }
   if (!s) return null;
   for (const [re, cmd] of LOCAL_COMMANDS) if (re.test(s)) return cmd;
+  if (lang !== 'en') return nonEnglishCommand(text, lang);
   return null;
 }
 

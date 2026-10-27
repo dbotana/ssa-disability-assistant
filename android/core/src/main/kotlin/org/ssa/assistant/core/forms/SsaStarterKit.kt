@@ -1,5 +1,6 @@
 package org.ssa.assistant.core.forms
 
+import org.ssa.assistant.core.I18n
 import org.ssa.assistant.core.Option
 import org.ssa.assistant.core.pdf.Mapping
 import org.ssa.assistant.core.json.Json
@@ -59,7 +60,7 @@ private fun fieldOf(item: Json.Obj?, id: String): Any? = item?.get(id)?.let { ko
 private data class ColumnSpec(
     val label: String,
     val field: (Int) -> String,
-    val value: (Json.Obj) -> String
+    val value: (Json.Obj, String, I18n) -> String
 )
 
 private data class TableSpec(
@@ -73,34 +74,34 @@ private data class TableSpec(
 /** The worksheet's five tables. */
 private fun tables(payOptions: List<Option>?): List<TableSpec> = listOf(
     TableSpec("conditions", "A. Medical conditions", "condition", 6, listOf(
-        ColumnSpec("Condition", firstOr(FIRST_ROW["condition"]!!, "Condition")) { it -> text(fieldOf(it, "name")) }
+        ColumnSpec("Condition", firstOr(FIRST_ROW["condition"]!!, "Condition")) { it, _, _ -> text(fieldOf(it, "name")) }
     )),
     TableSpec("providers", "B. Medical sources", "provider", 5, listOf(
-        ColumnSpec("Name of healthcare provider", firstOr(FIRST_ROW["provider"]!!, "Name of Healthcare provider")) { it -> text(fieldOf(it, "name")) },
-        ColumnSpec("Address", numbered("Address")) { it -> text(fieldOf(it, "address")) },
-        ColumnSpec("Phone number", numbered("Phone number")) { it -> phoneCell(fieldOf(it, "phone")) },
-        ColumnSpec("Date first seen or admission date", numbered("Date First Seen by Provider or Admission Date")) { it -> my(fieldOf(it, "first_seen")) },
-        ColumnSpec("Date last seen or discharge date", numbered("Date Last Seen by Provider or Discharge Date")) { it -> my(fieldOf(it, "last_seen")) }
+        ColumnSpec("Name of healthcare provider", firstOr(FIRST_ROW["provider"]!!, "Name of Healthcare provider")) { it, _, _ -> text(fieldOf(it, "name")) },
+        ColumnSpec("Address", numbered("Address")) { it, _, _ -> text(fieldOf(it, "address")) },
+        ColumnSpec("Phone number", numbered("Phone number")) { it, _, _ -> phoneCell(fieldOf(it, "phone")) },
+        ColumnSpec("Date first seen or admission date", numbered("Date First Seen by Provider or Admission Date")) { it, _, _ -> my(fieldOf(it, "first_seen")) },
+        ColumnSpec("Date last seen or discharge date", numbered("Date Last Seen by Provider or Discharge Date")) { it, _, _ -> my(fieldOf(it, "last_seen")) }
     )),
     TableSpec("medications", "C. Medicines", "medicine", 6, listOf(
-        ColumnSpec("Name of medicine", firstOr(FIRST_ROW["medicine"]!!, "Name of medicine")) { it -> text(fieldOf(it, "name")) },
-        ColumnSpec("Why you take it", numbered("Why you take it")) { it -> text(fieldOf(it, "reason")) },
-        ColumnSpec("Prescribed by", numbered("Prescribed by")) { it -> text(fieldOf(it, "prescribed_by")) }
+        ColumnSpec("Name of medicine", firstOr(FIRST_ROW["medicine"]!!, "Name of medicine")) { it, _, _ -> text(fieldOf(it, "name")) },
+        ColumnSpec("Why you take it", numbered("Why you take it")) { it, _, _ -> text(fieldOf(it, "reason")) },
+        ColumnSpec("Prescribed by", numbered("Prescribed by")) { it, _, _ -> text(fieldOf(it, "prescribed_by")) }
     )),
     TableSpec("tests", "D. Medical tests", "test", 5, listOf(
-        ColumnSpec("Name of test", firstOr(FIRST_ROW["test"]!!, "Name of test")) { it -> text(fieldOf(it, "name")) },
-        ColumnSpec("Provider who sent you", numbered("Provider who sent you")) { it -> text(fieldOf(it, "ordered_by")) },
-        ColumnSpec("Date", numbered("Date")) { it -> mdy(fieldOf(it, "date")) }
+        ColumnSpec("Name of test", firstOr(FIRST_ROW["test"]!!, "Name of test")) { it, _, _ -> text(fieldOf(it, "name")) },
+        ColumnSpec("Provider who sent you", numbered("Provider who sent you")) { it, _, _ -> text(fieldOf(it, "ordered_by")) },
+        ColumnSpec("Date", numbered("Date")) { it, _, _ -> mdy(fieldOf(it, "date")) }
     )),
     TableSpec("jobs", "E. Job history", "job", 5, listOf(
-        ColumnSpec("Job title", firstOr(FIRST_ROW["job"]!!, "Job title")) { it -> text(fieldOf(it, "job_title")) },
-        ColumnSpec("Type of business", numbered("Type of business")) { it -> text(fieldOf(it, "business_type")) },
-        ColumnSpec("From (month/year)", numbered("Date worked from month/year")) { it -> my(fieldOf(it, "start")) },
-        ColumnSpec("To (month/year)", numbered("Date worked to month/year")) { it -> my(fieldOf(it, "end")) },
-        ColumnSpec("Hours per day", numbered("Hours per day")) { it -> text(fieldOf(it, "hours_per_day")) },
-        ColumnSpec("Days per week", numbered("Days per week")) { it -> text(fieldOf(it, "days_per_week")) },
-        ColumnSpec("Rate of pay", numbered("Rate of pay amount")) { it -> money(fieldOf(it, "pay_amount")) },
-        ColumnSpec("Frequency", numbered("Rate of pay frequency")) { it -> choiceLabel(payOptions, fieldOf(it, "pay_frequency")) }
+        ColumnSpec("Job title", firstOr(FIRST_ROW["job"]!!, "Job title")) { it, _, _ -> text(fieldOf(it, "job_title")) },
+        ColumnSpec("Type of business", numbered("Type of business")) { it, _, _ -> text(fieldOf(it, "business_type")) },
+        ColumnSpec("From (month/year)", numbered("Date worked from month/year")) { it, _, _ -> my(fieldOf(it, "start")) },
+        ColumnSpec("To (month/year)", numbered("Date worked to month/year")) { it, _, _ -> my(fieldOf(it, "end")) },
+        ColumnSpec("Hours per day", numbered("Hours per day")) { it, _, _ -> text(fieldOf(it, "hours_per_day")) },
+        ColumnSpec("Days per week", numbered("Days per week")) { it, _, _ -> text(fieldOf(it, "days_per_week")) },
+        ColumnSpec("Rate of pay", numbered("Rate of pay amount")) { it, _, _ -> money(fieldOf(it, "pay_amount")) },
+        ColumnSpec("Frequency", numbered("Rate of pay frequency")) { it, lang, i18n -> choiceLabel(payOptions, fieldOf(it, "pay_frequency"), lang, i18n) }
     ))
 )
 
@@ -129,7 +130,12 @@ private fun checkRules(): List<Pair<String, (Json.Obj?) -> Boolean>> {
 }
 
 /** Map an answer set onto the Starter Kit. */
-fun mapSsaStarterKit(schema: Schema, answers: Json.Obj): Mapping {
+fun mapSsaStarterKit(
+    schema: Schema,
+    answers: Json.Obj,
+    lang: String = "en",
+    i18n: I18n = I18n(schema),
+): Mapping {
     val textFields = LinkedHashMap<String, String>()
     val labels = LinkedHashMap<String, String>()
     val tablesOut = mutableListOf<Json>()
@@ -137,30 +143,32 @@ fun mapSsaStarterKit(schema: Schema, answers: Json.Obj): Mapping {
     val payOptions = optionsFromSchema(findQuestion("pay_frequency", schema.sections)?.get("options"))
 
     for (t in tables(payOptions)) {
+        val title = i18n.translate(t.title, lang)
+        val itemLabel = i18n.translate(t.itemLabel, lang)
         val rows = items(answers, t.loop)
         rows.take(t.capacity).forEachIndexed { i, raw ->
             val item = raw.asObject() ?: Json.Obj()
             for (col in t.columns) {
-                val value = col.value(item)
+                val value = col.value(item, lang, i18n)
                 if (value.isEmpty()) continue
                 val name = col.field(i + 1)
                 textFields[name] = value
-                labels[name] = "${t.title} — row ${i + 1}, ${col.label.lowercase()}"
+                labels[name] = "$title — row ${i + 1}, ${i18n.translate(col.label, lang).lowercase()}"
             }
         }
         // Jobs are listed in full in the addendum (the worksheet has no
         // employer column), so their overflow does not need a table of its own.
         if (rows.size > t.capacity && t.loop != "jobs") {
             tablesOut.add(Json.Obj().also { o ->
-                o["title"] = Json.Str("${t.title}, continued")
-                o["itemLabel"] = Json.Str(t.itemLabel)
+                o["title"] = Json.Str(i18n.translate("${t.title}, continued", lang))
+                o["itemLabel"] = Json.Str(itemLabel)
                 o["startAt"] = Json.Num((t.capacity + 1).toDouble())
                 o["columns"] = Json.Arr(t.columns.mapTo(mutableListOf()) { c ->
-                    Json.Obj().also { j -> j["label"] = Json.Str(c.label) }
+                    Json.Obj().also { j -> j["label"] = Json.Str(i18n.translate(c.label, lang)) }
                 })
                 o["rows"] = Json.Arr(rows.drop(t.capacity).mapTo(mutableListOf()) { raw ->
                     Json.Arr(t.columns.mapTo(mutableListOf()) { c ->
-                        Json.Str(c.value(raw.asObject() ?: Json.Obj()))
+                        Json.Str(c.value(raw.asObject() ?: Json.Obj(), lang, i18n))
                     })
                 })
             })
@@ -169,7 +177,7 @@ fun mapSsaStarterKit(schema: Schema, answers: Json.Obj): Mapping {
 
     val checks = checkRules().filter { (_, rule) -> rule(answers) }.map { it.first }
 
-    val sections = buildReport(schema, answers, form = "ssa")
+    val sections = buildReport(schema, answers, form = "ssa", lang = lang, i18n = i18n)
         .map { section ->
             val blocks = section["blocks"]!!.asArray()!!.items.filter { b ->
                 val o = b.asObject() ?: Json.Obj()

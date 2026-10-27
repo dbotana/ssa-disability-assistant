@@ -23,6 +23,9 @@ import * as say from '../src/phrases.js';
 import * as ssaKit from '../src/forms/ssa-starter-kit.js';
 import * as dsIntake from '../src/forms/ds-intake.js';
 import { WORKSHEET } from '../src/pdf.js';
+import {
+  CHANNELS, DEFAULT_SETTINGS, LANGUAGES, MESSAGES, UI, STRINGS, LEXICONS, translationCorpus
+} from '../src/i18n/index.js';
 
 // What each form's PDF says about itself: its template, the filename prefix,
 // the document title, and the addendum's wording. The Android writer prints
@@ -54,6 +57,19 @@ const out = {
   labels: LABELS,
   formSpecs: { ssa: formSpec(ssaKit), ds: formSpec(dsIntake) },
   worksheet: WORKSHEET,
+  // The language table and both catalogues, keyed by their English source
+  // string (D1), so the Kotlin port resolves the same four channels from the
+  // same data instead of a hand-kept copy.
+  i18n: {
+    channels: CHANNELS,
+    defaults: DEFAULT_SETTINGS,
+    languages: LANGUAGES,
+    messages: MESSAGES,
+    ui: UI,
+    corpus: translationCorpus(),
+    strings: { fr: STRINGS.fr.strings, ln: STRINGS.ln.strings },
+    lexicon: LEXICONS
+  },
   // Every fixed string the interview speaks, by its name in phrases.js, so
   // the Android app reads the same words the clips in audio/ were made from
   // instead of a hand-kept copy. Maps stay maps (INTRO, REASK, ERRORS).

@@ -5,6 +5,9 @@ import org.ssa.assistant.core.js.js
 /**
  * Port of src/a11y.js's pure helpers: spoken read-backs and time estimates.
  * The DOM parts (announce, focus) have no Android equivalent here.
+ *
+ * English is the original code, untouched. Other languages delegate to the
+ * shared catalogue and formatters in [I18n].
  */
 
 private val MONTHS = listOf(
@@ -31,7 +34,8 @@ fun spellDigits(value: Any?, groups: List<Int>? = null): String {
 }
 
 /** Human-readable rendering of a stored value, for read-back and the summary. */
-fun speakableValue(value: Any?, type: String, options: List<Option>? = null): String {
+fun speakableValue(value: Any?, type: String, options: List<Option>? = null, lang: String = "en"): String {
+    if (lang != "en") return I18n.default.speakable(value, type, options, lang)
     if (value == null || value == "") return "not answered"
     return when (type) {
         "yesno" -> if (value == true) "yes" else "no"
@@ -47,7 +51,8 @@ fun speakableValue(value: Any?, type: String, options: List<Option>? = null): St
     }
 }
 
-fun formatDate(iso: Any?): String {
+fun formatDate(iso: Any?, lang: String = "en"): String {
+    if (lang != "en") return I18n.default.formatDate(iso, lang)
     val m = js("^(\\d{4})-(\\d{2})-(\\d{2})$").find(iso?.toString() ?: "")
         ?: return iso?.toString() ?: ""
     val month = m.groupValues[2].toInt()
@@ -56,7 +61,8 @@ fun formatDate(iso: Any?): String {
     return "${MONTHS[month - 1]} $day, ${m.groupValues[1]}"
 }
 
-fun formatMonthYear(value: Any?): String {
+fun formatMonthYear(value: Any?, lang: String = "en"): String {
+    if (lang != "en") return I18n.default.formatMonthYear(value, lang)
     val s = value?.toString() ?: ""
     if (s.lowercase() == "present") return "still ongoing"
     val m = js("^(\\d{4})-(\\d{2})$").find(s) ?: return s
@@ -70,7 +76,8 @@ fun formatMonthYear(value: Any?): String {
  * to say. Bucketed hard on purpose — five-minute steps under an hour,
  * half-hours above.
  */
-fun formatTimeRemaining(seconds: Int?): String? {
+fun formatTimeRemaining(seconds: Int?, lang: String = "en"): String? {
+    if (lang != "en") return I18n.default.formatTimeRemaining(seconds, lang)
     if (seconds == null || seconds < 0) return null
     if (seconds < 60) return "less than a minute"
     val minutes = seconds / 60.0

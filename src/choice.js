@@ -10,18 +10,40 @@
 // option. Two named, a negation, or nothing recognisable: null, and the caller
 // asks again or hands the transcript to the model. "Not the starter kit" must
 // never be read as "starter kit".
+//
+// Non-English matching folds case and strips diacritics (D5), and adds the
+// translated label to the names an option answers to. Values, letters and
+// English labels always keep working, so a mixed-channel setup is safe.
 
-// "Never" is deliberately absent: "never married" is an answer, not a negation.
+import { translate, fold, lexicon } from './i18n/index.js';
+
+/** "Never" is deliberately absent: "never married" is an answer, not a negation. */
 const NEGATION = /\b(not|no|nor|neither|without|cannot|(?:do|does|did|is|was|are|were|ca|wo|could|would|should)n'?t)\b/;
 const LEAD = /^(um|uh|er|well|so|okay|ok|i think|i would say|i'd say|probably|maybe|it is|it's|its|that is|that's|thats|i guess)\b[\s,]*/;
 
-const normalize = s => String(s ?? '')
-  .toLowerCase()
-  .replace(/[’']/g, "'")
-  .replace(/[^a-z0-9'\s-]/g, ' ')
-  .replace(/-/g, ' ')
-  .replace(/\s+/g, ' ')
-  .trim();
+const normalize = (s, lang = 'en') => {
+  if (lang !== 'en') {
+    // Lingala's open vowels are what users write on a phone keyboard too
+    // ("fomele" for "fɔmɛlɛ"), so fold them before the strip that would
+    // otherwise turn ɛ/ɔ into spaces.
+    const folded = lang === 'ln'
+      ? fold(s, lang).replace(/ɛ/g, 'e').replace(/ɔ/g, 'o')
+      : fold(s, lang);
+    return folded
+      .replace(/[’']/g, ' ')
+      .replace(/[^a-z0-9\s-]/g, ' ')
+      .replace(/-/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+  return String(s ?? '')
+    .toLowerCase()
+    .replace(/[’']/g, "'")
+    .replace(/[^a-z0-9'\s-]/g, ' ')
+    .replace(/-/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
 
 const escapeRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -35,19 +57,27 @@ const LETTER_WORDS = { a: 'a', ay: 'a', b: 'b', bee: 'b', be: 'b', c: 'c', see: 
  * Bare letters count only when they are the whole answer ("B", "letter B"),
  * because "a" is also the most common word in English.
  */
-export function matchChoice(options, text) {
+export function matchChoice(options, text, { lang = 'en' } = {}) {
   if (!Array.isArray(options) || !options.length) return null;
-  let s = normalize(text);
+  const tables = lexicon(lang);
+  const lead = lang === 'en' ? LEAD : (tables.lead?.[0] ? new RegExp(tables.lead[0]) : null);
+  const negation = lang === 'en' ? NEGATION : (tables.negation?.length
+    ? new RegExp(tables.negation.join('|'))
+    : NEGATION);
+
+  let s = normalize(text, lang);
   for (let i = 0; i < 3; i++) {
-    const next = s.replace(LEAD, '').trim();
+    const next = lead ? s.replace(lead, '').trim() : s;
     if (next === s) break;
     s = next;
   }
   if (!s) return null;
 
-  // Exact value or label: "both", "B", "Needs supervision".
+  // Exact value, letter, English label, or translated label: "both", "B",
+  // "Needs supervision", "nécessite une supervision".
   for (const o of options) {
-    if (s === normalize(o.value) || s === normalize(o.label)) return o;
+    const names = [o.value, o.label, translate(o.label, lang)];
+    if (names.some(n => s === normalize(n, lang))) return o;
   }
 
   // A lone letter, optionally introduced: "b", "letter b", "the letter bee".
@@ -57,19 +87,21 @@ export function matchChoice(options, text) {
     if (hit.length === 1) return hit[0];
   }
 
-  if (NEGATION.test(s)) return null;
+  if (negation.test(s)) return null;
 
   // Phrase search. Collect every alias found in the answer, then drop any match
   // sitting inside a longer one — "every two weeks" is not also "week", and
   // "never married" is not also "married".
   const found = [];
   for (const o of options) {
-    for (const phrase of [o.label, ...(o.aliases ?? [])]) {
-      const p = normalize(phrase);
+    const names = [o.label, translate(o.label, lang), ...(o.aliases ?? [])];
+    for (const phrase of names) {
+      const p = normalize(phrase, lang);
       if (!p) continue;
-      const re = new RegExp(`\\b${escapeRe(p)}\\b`, 'g');
+      const re = new RegExp(`(?:^|\\s)${escapeRe(p)}(?:$|\\s)`, 'g');
       for (const m of s.matchAll(re)) {
-        found.push({ option: o, start: m.index, end: m.index + p.length });
+        const start = m.index + (m[0].startsWith(' ') ? 1 : 0);
+        found.push({ option: o, start, end: start + p.length });
       }
     }
   }
@@ -99,14 +131,20 @@ export function optionFor(options, value) {
 }
 
 /** Printable label for a stored choice value; the raw value if unknown. */
-export function choiceLabel(options, value) {
+export function choiceLabel(options, value, lang = 'en') {
   if (value == null || value === '') return '';
-  return optionFor(options, value)?.label ?? String(value);
+  const option = optionFor(options, value);
+  // Values that are not in the table are already display text (a caller may
+  // hand back a label it localized earlier), so leave them alone rather than
+  // asking the catalogue to translate a second time.
+  if (!option) return String(value);
+  return translate(option.label, lang);
 }
 
 /** "independent, needs supervision, or total care" — for spoken hints. */
-export function optionsSentence(options) {
-  const labels = (options ?? []).map(o => o.label.toLowerCase());
-  if (labels.length <= 2) return labels.join(' or ');
-  return `${labels.slice(0, -1).join(', ')}, or ${labels[labels.length - 1]}`;
+export function optionsSentence(options, lang = 'en') {
+  const labels = (options ?? []).map(o => translate(o.label, lang).toLowerCase());
+  const connector = lexicon(lang).connector ?? 'or';
+  if (labels.length <= 2) return labels.join(` ${connector} `);
+  return `${labels.slice(0, -1).join(', ')}, ${connector} ${labels[labels.length - 1]}`;
 }
