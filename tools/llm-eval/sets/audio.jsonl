@@ -1,0 +1,9 @@
+{"id":"audio-date","set":"audio","category":"audio","type":"date","questionKey":null,"optionsKey":null,"transcript":null,"expected":"1979-03-14","wav":"tests/fixtures/speech/date.wav"}
+{"id":"audio-phone","set":"audio","category":"audio","type":"phone","questionKey":null,"optionsKey":null,"transcript":null,"expected":"2075550142","wav":"tests/fixtures/speech/phone.wav"}
+{"id":"audio-routing","set":"audio","category":"audio","type":"routing","questionKey":null,"optionsKey":null,"transcript":null,"expected":"123456789","wav":"tests/fixtures/speech/routing.wav"}
+{"id":"audio-silence","set":"audio","category":"audio","type":"text","questionKey":null,"optionsKey":null,"transcript":null,"expected":"U","wav":"tests/fixtures/speech/silence.wav"}
+{"id":"audio-ssn-digits","set":"audio","category":"audio","type":"ssn","questionKey":null,"optionsKey":null,"transcript":null,"expected":"987654320","wav":"tests/fixtures/speech/ssn-digits.wav"}
+{"id":"audio-ssn-grouped","set":"audio","category":"audio","type":"ssn","questionKey":null,"optionsKey":null,"transcript":null,"expected":"987654321","wav":"tests/fixtures/speech/ssn-grouped.wav"}
+{"id":"audio-ssn-paused","set":"audio","category":"audio","type":"ssn","questionKey":null,"optionsKey":null,"transcript":null,"expected":"987654329","wav":"tests/fixtures/speech/ssn-paused.wav"}
+{"id":"audio-text-hospital","set":"audio","category":"audio","type":"text","questionKey":null,"optionsKey":null,"transcript":null,"expected":"Maine Medical Center in Portland","wav":"tests/fixtures/speech/text-hospital.wav"}
+{"id":"audio-yes","set":"audio","category":"audio","type":"yesno","questionKey":null,"optionsKey":null,"transcript":null,"expected":true,"wav":"tests/fixtures/speech/yes.wav"}

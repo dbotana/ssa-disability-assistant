@@ -1,0 +1,73 @@
+{"id":"adv-0001","set":"adversarial","category":"defer-seed","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"yes but actually no","expected":"U"}
+{"id":"adv-0002","set":"adversarial","category":"defer-seed","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"no wait, yes","expected":"U"}
+{"id":"adv-0003","set":"adversarial","category":"defer-seed","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"yes I worked there until 2019","expected":"U"}
+{"id":"adv-0004","set":"adversarial","category":"defer-seed","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"go back","expected":"U"}
+{"id":"adv-0005","set":"adversarial","category":"defer-seed","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"I think so","expected":"U"}
+{"id":"adv-0006","set":"adversarial","category":"defer-seed","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"maybe","expected":"U"}
+{"id":"adv-0007","set":"adversarial","category":"defer-seed","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"can you repeat that","expected":"U"}
+{"id":"adv-0008","set":"adversarial","category":"defer-seed","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"yes I do not","expected":"U"}
+{"id":"adv-0009","set":"adversarial","category":"defer-seed","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"yes she does not","expected":"U"}
+{"id":"adv-0010","set":"adversarial","category":"defer-seed","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"yes I did but not anymore","expected":"U"}
+{"id":"adv-0011","set":"adversarial","category":"defer-seed","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"yes I do, no wait","expected":"U"}
+{"id":"adv-0012","set":"adversarial","category":"defer-seed","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"no I don't, yes I do","expected":"U"}
+{"id":"adv-0013","set":"adversarial","category":"defer-seed","type":"ssn","questionKey":null,"optionsKey":null,"transcript":"double seven three four five six seven eight nine","expected":"U"}
+{"id":"adv-0014","set":"adversarial","category":"defer-seed","type":"ssn","questionKey":null,"optionsKey":null,"transcript":"triple oh one two three four five six","expected":"U"}
+{"id":"adv-0015","set":"adversarial","category":"defer-seed","type":"ssn","questionKey":null,"optionsKey":null,"transcript":"seventeen twenty three forty five sixty seven","expected":"U"}
+{"id":"adv-0016","set":"adversarial","category":"defer-seed","type":"ssn","questionKey":null,"optionsKey":null,"transcript":"my social is 123 45 6789","expected":"U"}
+{"id":"adv-0017","set":"adversarial","category":"defer-seed","type":"ssn","questionKey":null,"optionsKey":null,"transcript":"I do not remember","expected":"U"}
+{"id":"adv-0018","set":"adversarial","category":"defer-seed","type":"ssn","questionKey":null,"optionsKey":null,"transcript":"it starts with 123","expected":"U"}
+{"id":"adv-0019","set":"adversarial","category":"defer-seed","type":"account","questionKey":null,"optionsKey":null,"transcript":"the one ending in 4321","expected":"U"}
+{"id":"adv-0020","set":"adversarial","category":"defer-seed","type":"phone","questionKey":null,"optionsKey":null,"transcript":"you can reach me at 555 123 4567","expected":"U"}
+{"id":"adv-0021","set":"adversarial","category":"defer-seed","type":"date","questionKey":null,"optionsKey":null,"transcript":"February thirtieth nineteen ninety","expected":"U"}
+{"id":"adv-0022","set":"adversarial","category":"defer-seed","type":"date","questionKey":null,"optionsKey":null,"transcript":"March fourteenth two thousand ninety nine","expected":"U"}
+{"id":"adv-0023","set":"adversarial","category":"defer-seed","type":"date","questionKey":null,"optionsKey":null,"transcript":"sometime in the eighties","expected":"U"}
+{"id":"adv-0024","set":"adversarial","category":"defer-seed","type":"date","questionKey":null,"optionsKey":null,"transcript":"14/3/1979","expected":"U"}
+{"id":"adv-0025","set":"adversarial","category":"defer-seed","type":"date","questionKey":null,"optionsKey":null,"transcript":"February 30 1990","expected":"U"}
+{"id":"adv-0026","set":"adversarial","category":"defer-seed","type":"date","questionKey":null,"optionsKey":null,"transcript":"February 30th, 1990","expected":"U"}
+{"id":"adv-0027","set":"adversarial","category":"defer-seed","type":"date","questionKey":null,"optionsKey":null,"transcript":"March 32nd 1979","expected":"U"}
+{"id":"adv-0028","set":"adversarial","category":"defer-seed","type":"date","questionKey":null,"optionsKey":null,"transcript":"March 14th 2099","expected":"U"}
+{"id":"adv-0029","set":"adversarial","category":"defer-seed","type":"date","questionKey":null,"optionsKey":null,"transcript":"next Tuesday","expected":"U"}
+{"id":"adv-0030","set":"adversarial","category":"defer-seed","type":"date","questionKey":null,"optionsKey":null,"transcript":"I do not remember exactly","expected":"U"}
+{"id":"adv-0031","set":"adversarial","category":"defer-seed","type":"date","questionKey":null,"optionsKey":null,"transcript":"March 1979","expected":"U"}
+{"id":"adv-0032","set":"adversarial","category":"defer-seed","type":"monthyear","questionKey":null,"optionsKey":null,"transcript":"a few years ago","expected":"U"}
+{"id":"adv-0033","set":"adversarial","category":"defer-seed","type":"monthyear","questionKey":null,"optionsKey":null,"transcript":"March 2099","expected":"U"}
+{"id":"adv-0034","set":"adversarial","category":"defer-seed","type":"money","questionKey":null,"optionsKey":null,"transcript":"eight hundred to a thousand","expected":"U"}
+{"id":"adv-0035","set":"adversarial","category":"defer-seed","type":"money","questionKey":null,"optionsKey":null,"transcript":"between 800 and 1000","expected":"U"}
+{"id":"adv-0036","set":"adversarial","category":"defer-seed","type":"money","questionKey":null,"optionsKey":null,"transcript":"800 or 900","expected":"U"}
+{"id":"adv-0037","set":"adversarial","category":"defer-seed","type":"money","questionKey":null,"optionsKey":null,"transcript":"five and six","expected":"U"}
+{"id":"adv-0038","set":"adversarial","category":"defer-seed","type":"number","questionKey":null,"optionsKey":null,"transcript":"a few","expected":"U"}
+{"id":"adv-0039","set":"adversarial","category":"defer-seed","type":"number","questionKey":null,"optionsKey":null,"transcript":"nineteen ninety eight","expected":"U"}
+{"id":"adv-0040","set":"adversarial","category":"defer-seed","type":"number","questionKey":null,"optionsKey":null,"transcript":"twenty ten","expected":"U"}
+{"id":"adv-0041","set":"adversarial","category":"defer-seed","type":"money","questionKey":null,"optionsKey":null,"transcript":"three fifty","expected":"U"}
+{"id":"adv-0042","set":"adversarial","category":"defer-seed","type":"money","questionKey":null,"optionsKey":null,"transcript":"eleven fifty","expected":"U"}
+{"id":"adv-0043","set":"adversarial","category":"defer-seed","type":"money","questionKey":"pay_amount","optionsKey":null,"transcript":"eleven fifty an hour","expected":"U"}
+{"id":"adv-0044","set":"adversarial","category":"defer-seed","type":"number","questionKey":null,"optionsKey":null,"transcript":"one two three","expected":"U"}
+{"id":"adv-0045","set":"adversarial","category":"defer-seed","type":"number","questionKey":null,"optionsKey":null,"transcript":"five six","expected":"U"}
+{"id":"adv-0046","set":"adversarial","category":"defer-seed","type":"money","questionKey":null,"optionsKey":null,"transcript":"twenty twenty","expected":"U"}
+{"id":"adv-0047","set":"adversarial","category":"defer-seed","type":"money","questionKey":null,"optionsKey":null,"transcript":"hundred","expected":"U"}
+{"id":"adv-0048","set":"adversarial","category":"defer-seed","type":"money","questionKey":null,"optionsKey":null,"transcript":"thousand","expected":"U"}
+{"id":"adv-0049","set":"adversarial","category":"defer-seed","type":"money","questionKey":null,"optionsKey":null,"transcript":"a hundred and five and six","expected":"U"}
+{"id":"adv-0050","set":"adversarial","category":"defer-seed","type":"money","questionKey":null,"optionsKey":null,"transcript":"twelve hundred thousand","expected":"U"}
+{"id":"adv-0051","set":"adversarial","category":"defer-seed","type":"money","questionKey":null,"optionsKey":null,"transcript":"a hundred and","expected":"U"}
+{"id":"adv-0052","set":"adversarial","category":"defer-seed","type":"money","questionKey":"monthly_amount","optionsKey":null,"transcript":"$20 an hour","expected":"U"}
+{"id":"adv-0053","set":"adversarial","category":"defer-seed","type":"money","questionKey":"monthly_amount","optionsKey":null,"transcript":"fifteen hundred a year","expected":"U"}
+{"id":"adv-0054","set":"adversarial","category":"defer-seed","type":"money","questionKey":"value","optionsKey":null,"transcript":"$500 a month","expected":"U"}
+{"id":"adv-0055","set":"adversarial","category":"defer-seed","type":"money","questionKey":null,"optionsKey":null,"transcript":"$20 an hour","expected":"U"}
+{"id":"adv-0056","set":"adversarial","category":"defer-seed","type":"number","questionKey":"hours_per_day","optionsKey":null,"transcript":"forty a week","expected":"U"}
+{"id":"adv-0057","set":"adversarial","category":"defer-seed","type":"number","questionKey":"days_per_week","optionsKey":null,"transcript":"five days a week","expected":"U"}
+{"id":"adv-0058","set":"adversarial","category":"defer-seed","type":"money","questionKey":"pay_amount","optionsKey":null,"transcript":"$50 twice a week","expected":"U"}
+{"id":"adv-0059","set":"adversarial","category":"defer-seed","type":"ssn","questionKey":null,"optionsKey":null,"transcript":"constructor","expected":"U"}
+{"id":"adv-0060","set":"adversarial","category":"defer-seed","type":"account","questionKey":null,"optionsKey":null,"transcript":"1234 constructor","expected":"U"}
+{"id":"adv-0061","set":"adversarial","category":"defer-seed","type":"number","questionKey":null,"optionsKey":null,"transcript":"constructor","expected":"U"}
+{"id":"adv-0062","set":"adversarial","category":"defer-seed","type":"text","questionKey":null,"optionsKey":null,"transcript":"...","expected":"U"}
+{"id":"adv-0063","set":"adversarial","category":"defer-seed","type":"text","questionKey":null,"optionsKey":null,"transcript":" . ","expected":"U"}
+{"id":"adv-0064","set":"adversarial","category":"defer-seed","type":"choice","questionKey":null,"optionsKey":"forms","transcript":"not the starter kit","expected":"U"}
+{"id":"adv-0065","set":"adversarial","category":"defer-seed","type":"choice","questionKey":null,"optionsKey":"forms","transcript":"I am not sure","expected":"U"}
+{"id":"adv-0066","set":"adversarial","category":"defer-seed","type":"choice","questionKey":null,"optionsKey":"forms","transcript":"the blue one","expected":"U"}
+{"id":"adv-0067","set":"adversarial","category":"defer-seed","type":"choice","questionKey":null,"optionsKey":"eating_level","transcript":"a little help sometimes","expected":"U"}
+{"id":"adv-0068","set":"adversarial","category":"defer-seed","type":"choice","questionKey":null,"optionsKey":"eating_level","transcript":"supervision or training","expected":"U"}
+{"id":"adv-0069","set":"adversarial","category":"defer-seed","type":"choice","questionKey":null,"optionsKey":"eating_level","transcript":"doesn't need supervision","expected":"U"}
+{"id":"adv-0070","set":"adversarial","category":"defer-seed","type":"zip","questionKey":null,"optionsKey":null,"transcript":"4101","expected":"U"}
+{"id":"adv-0071","set":"adversarial","category":"defer-seed","type":"zip","questionKey":null,"optionsKey":null,"transcript":"Portland","expected":"U"}
+{"id":"adv-0072","set":"adversarial","category":"defer-seed","type":"email","questionKey":null,"optionsKey":null,"transcript":"jane at the office","expected":"U"}
+{"id":"adv-0073","set":"adversarial","category":"defer-seed","type":"email","questionKey":null,"optionsKey":null,"transcript":"I do not have one","expected":"U"}

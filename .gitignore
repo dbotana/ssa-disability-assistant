@@ -18,3 +18,4 @@ plans/
 node_modules/
 _site/
 __pycache__/
+agent-loop-runs/

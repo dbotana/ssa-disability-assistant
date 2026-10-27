@@ -1,0 +1,164 @@
+{"id":"routing-0001","set":"routing","category":"value","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"yes","expected":true}
+{"id":"routing-0002","set":"routing","category":"value","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"Yes","expected":true}
+{"id":"routing-0003","set":"routing","category":"value","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"yeah","expected":true}
+{"id":"routing-0004","set":"routing","category":"value","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"yep","expected":true}
+{"id":"routing-0005","set":"routing","category":"value","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"yup","expected":true}
+{"id":"routing-0006","set":"routing","category":"value","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"sure","expected":true}
+{"id":"routing-0007","set":"routing","category":"value","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"correct","expected":true}
+{"id":"routing-0008","set":"routing","category":"value","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"right","expected":true}
+{"id":"routing-0009","set":"routing","category":"value","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"true","expected":true}
+{"id":"routing-0010","set":"routing","category":"value","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"affirmative","expected":true}
+{"id":"routing-0011","set":"routing","category":"value","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"ok","expected":true}
+{"id":"routing-0012","set":"routing","category":"value","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"okay","expected":true}
+{"id":"routing-0013","set":"routing","category":"value","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"that's right","expected":true}
+{"id":"routing-0014","set":"routing","category":"value","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"uh huh","expected":true}
+{"id":"routing-0015","set":"routing","category":"value","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"Yes.","expected":true}
+{"id":"routing-0016","set":"routing","category":"value","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"yes!","expected":true}
+{"id":"routing-0017","set":"routing","category":"value","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"no","expected":false}
+{"id":"routing-0018","set":"routing","category":"value","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"No","expected":false}
+{"id":"routing-0019","set":"routing","category":"value","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"nope","expected":false}
+{"id":"routing-0020","set":"routing","category":"value","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"nah","expected":false}
+{"id":"routing-0021","set":"routing","category":"value","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"negative","expected":false}
+{"id":"routing-0022","set":"routing","category":"value","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"false","expected":false}
+{"id":"routing-0023","set":"routing","category":"value","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"incorrect","expected":false}
+{"id":"routing-0024","set":"routing","category":"value","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"wrong","expected":false}
+{"id":"routing-0025","set":"routing","category":"value","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"that's wrong","expected":false}
+{"id":"routing-0026","set":"routing","category":"value","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"uh uh","expected":false}
+{"id":"routing-0027","set":"routing","category":"value","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"No.","expected":false}
+{"id":"routing-0028","set":"routing","category":"value","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"um, yes","expected":true}
+{"id":"routing-0029","set":"routing","category":"value","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"well no","expected":false}
+{"id":"routing-0030","set":"routing","category":"value","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"yes I do","expected":true}
+{"id":"routing-0031","set":"routing","category":"value","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"yes, I do","expected":true}
+{"id":"routing-0032","set":"routing","category":"value","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"yeah she does","expected":true}
+{"id":"routing-0033","set":"routing","category":"value","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"no I do not","expected":false}
+{"id":"routing-0034","set":"routing","category":"value","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"no she does not","expected":false}
+{"id":"routing-0035","set":"routing","category":"value","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"no she doesn't","expected":false}
+{"id":"routing-0036","set":"routing","category":"value","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"no it isn't","expected":false}
+{"id":"routing-0037","set":"routing","category":"value","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"yes, I do.","expected":true}
+{"id":"routing-0038","set":"routing","category":"value","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"no I don’t","expected":false}
+{"id":"routing-0039","set":"routing","category":"value","type":"yesno","questionKey":null,"optionsKey":null,"transcript":"that’s right","expected":true}
+{"id":"routing-0040","set":"routing","category":"value","type":"ssn","questionKey":null,"optionsKey":null,"transcript":"123456789","expected":"123456789"}
+{"id":"routing-0041","set":"routing","category":"value","type":"ssn","questionKey":null,"optionsKey":null,"transcript":"123 45 6789","expected":"123456789"}
+{"id":"routing-0042","set":"routing","category":"value","type":"ssn","questionKey":null,"optionsKey":null,"transcript":"123-45-6789","expected":"123456789"}
+{"id":"routing-0043","set":"routing","category":"value","type":"ssn","questionKey":null,"optionsKey":null,"transcript":"one two three four five six seven eight nine","expected":"123456789"}
+{"id":"routing-0044","set":"routing","category":"value","type":"ssn","questionKey":null,"optionsKey":null,"transcript":"one two three dash four five dash six seven eight nine","expected":"123456789"}
+{"id":"routing-0045","set":"routing","category":"value","type":"ssn","questionKey":null,"optionsKey":null,"transcript":"9, 8, 7, 6, 5, 4, 3, 2, 1","expected":"987654321"}
+{"id":"routing-0046","set":"routing","category":"value","type":"ssn","questionKey":null,"optionsKey":null,"transcript":"123, 45, 6789","expected":"123456789"}
+{"id":"routing-0047","set":"routing","category":"value","type":"ssn","questionKey":null,"optionsKey":null,"transcript":"123.45.6789","expected":"123456789"}
+{"id":"routing-0048","set":"routing","category":"value","type":"ssn","questionKey":"ssn","optionsKey":null,"transcript":"My Social Security number is 123 45 6789","expected":"123456789"}
+{"id":"routing-0049","set":"routing","category":"value","type":"ssn","questionKey":null,"optionsKey":null,"transcript":"five five five oh one two three four","expected":"55501234"}
+{"id":"routing-0050","set":"routing","category":"value","type":"routing","questionKey":null,"optionsKey":null,"transcript":"nine eight seven six five four three two one","expected":"987654321"}
+{"id":"routing-0051","set":"routing","category":"value","type":"account","questionKey":null,"optionsKey":null,"transcript":"4321","expected":"4321"}
+{"id":"routing-0052","set":"routing","category":"value","type":"phone","questionKey":null,"optionsKey":null,"transcript":"5551234567","expected":"5551234567"}
+{"id":"routing-0053","set":"routing","category":"value","type":"phone","questionKey":null,"optionsKey":null,"transcript":"555 123 4567","expected":"5551234567"}
+{"id":"routing-0054","set":"routing","category":"value","type":"phone","questionKey":null,"optionsKey":null,"transcript":"(555) 123-4567","expected":"5551234567"}
+{"id":"routing-0055","set":"routing","category":"value","type":"phone","questionKey":null,"optionsKey":null,"transcript":"five five five one two three four five six seven","expected":"5551234567"}
+{"id":"routing-0056","set":"routing","category":"value","type":"date","questionKey":null,"optionsKey":null,"transcript":"1979-03-14","expected":"1979-03-14"}
+{"id":"routing-0057","set":"routing","category":"value","type":"date","questionKey":null,"optionsKey":null,"transcript":"3/14/79","expected":"1979-03-14"}
+{"id":"routing-0058","set":"routing","category":"value","type":"date","questionKey":null,"optionsKey":null,"transcript":"03-14-1979","expected":"1979-03-14"}
+{"id":"routing-0059","set":"routing","category":"value","type":"date","questionKey":null,"optionsKey":null,"transcript":"March 14th 1979","expected":"1979-03-14"}
+{"id":"routing-0060","set":"routing","category":"value","type":"date","questionKey":null,"optionsKey":null,"transcript":"march 14 1979","expected":"1979-03-14"}
+{"id":"routing-0061","set":"routing","category":"value","type":"date","questionKey":null,"optionsKey":null,"transcript":"the 14th of March 1979","expected":"1979-03-14"}
+{"id":"routing-0062","set":"routing","category":"value","type":"date","questionKey":null,"optionsKey":null,"transcript":"March 14th, 1979","expected":"1979-03-14"}
+{"id":"routing-0063","set":"routing","category":"value","type":"date","questionKey":null,"optionsKey":null,"transcript":"Mar 14 1979","expected":"1979-03-14"}
+{"id":"routing-0064","set":"routing","category":"value","type":"date","questionKey":null,"optionsKey":null,"transcript":"um, March 14th 1979","expected":"1979-03-14"}
+{"id":"routing-0065","set":"routing","category":"value","type":"date","questionKey":null,"optionsKey":null,"transcript":"March 14th 79","expected":"1979-03-14"}
+{"id":"routing-0066","set":"routing","category":"value","type":"date","questionKey":null,"optionsKey":null,"transcript":"January 1st 05","expected":"2005-01-01"}
+{"id":"routing-0067","set":"routing","category":"value","type":"date","questionKey":null,"optionsKey":null,"transcript":"March fourteenth nineteen seventy nine","expected":"1979-03-14"}
+{"id":"routing-0068","set":"routing","category":"value","type":"date","questionKey":null,"optionsKey":null,"transcript":"march fourteenth, nineteen seventy-nine","expected":"1979-03-14"}
+{"id":"routing-0069","set":"routing","category":"value","type":"date","questionKey":null,"optionsKey":null,"transcript":"the fourteenth of March nineteen seventy nine","expected":"1979-03-14"}
+{"id":"routing-0070","set":"routing","category":"value","type":"date","questionKey":null,"optionsKey":null,"transcript":"March 14 1979","expected":"1979-03-14"}
+{"id":"routing-0071","set":"routing","category":"value","type":"date","questionKey":null,"optionsKey":null,"transcript":"June second nineteen oh five","expected":"1905-06-02"}
+{"id":"routing-0072","set":"routing","category":"value","type":"date","questionKey":null,"optionsKey":null,"transcript":"July fourth nineteen seventy six","expected":"1976-07-04"}
+{"id":"routing-0073","set":"routing","category":"value","type":"date","questionKey":null,"optionsKey":null,"transcript":"May fifth twenty twelve","expected":"2012-05-05"}
+{"id":"routing-0074","set":"routing","category":"value","type":"date","questionKey":null,"optionsKey":null,"transcript":"August eighth twenty twenty four","expected":"2024-08-08"}
+{"id":"routing-0075","set":"routing","category":"value","type":"date","questionKey":null,"optionsKey":null,"transcript":"January first two thousand","expected":"2000-01-01"}
+{"id":"routing-0076","set":"routing","category":"value","type":"date","questionKey":null,"optionsKey":null,"transcript":"October tenth two thousand eighteen","expected":"2018-10-10"}
+{"id":"routing-0077","set":"routing","category":"value","type":"date","questionKey":null,"optionsKey":null,"transcript":"March twenty first two thousand and five","expected":"2005-03-21"}
+{"id":"routing-0078","set":"routing","category":"value","type":"date","questionKey":null,"optionsKey":null,"transcript":"December thirty first nineteen ninety nine","expected":"1999-12-31"}
+{"id":"routing-0079","set":"routing","category":"value","type":"date","questionKey":null,"optionsKey":null,"transcript":"February twenty ninth two thousand twenty","expected":"2020-02-29"}
+{"id":"routing-0080","set":"routing","category":"value","type":"monthyear","questionKey":null,"optionsKey":null,"transcript":"March nineteen seventy nine","expected":"1979-03"}
+{"id":"routing-0081","set":"routing","category":"value","type":"monthyear","questionKey":null,"optionsKey":null,"transcript":"August two thousand fifteen","expected":"2015-08"}
+{"id":"routing-0082","set":"routing","category":"value","type":"date","questionKey":null,"optionsKey":null,"transcript":"March the 14th, 1979","expected":"1979-03-14"}
+{"id":"routing-0083","set":"routing","category":"value","type":"date","questionKey":null,"optionsKey":null,"transcript":"it is March 14th 1979","expected":"1979-03-14"}
+{"id":"routing-0084","set":"routing","category":"value","type":"date","questionKey":null,"optionsKey":null,"transcript":"1979 March 14","expected":"1979-03-14"}
+{"id":"routing-0085","set":"routing","category":"value","type":"date","questionKey":null,"optionsKey":null,"transcript":"1979, March 14th","expected":"1979-03-14"}
+{"id":"routing-0086","set":"routing","category":"value","type":"date","questionKey":null,"optionsKey":null,"transcript":"12/11/1979","expected":"1979-12-11"}
+{"id":"routing-0087","set":"routing","category":"value","type":"monthyear","questionKey":null,"optionsKey":null,"transcript":"1979-03","expected":"1979-03"}
+{"id":"routing-0088","set":"routing","category":"value","type":"monthyear","questionKey":null,"optionsKey":null,"transcript":"March 1979","expected":"1979-03"}
+{"id":"routing-0089","set":"routing","category":"value","type":"monthyear","questionKey":null,"optionsKey":null,"transcript":"march of 79","expected":"1979-03"}
+{"id":"routing-0090","set":"routing","category":"value","type":"monthyear","questionKey":null,"optionsKey":null,"transcript":"3/79","expected":"1979-03"}
+{"id":"routing-0091","set":"routing","category":"value","type":"monthyear","questionKey":null,"optionsKey":null,"transcript":"August 2015","expected":"2015-08"}
+{"id":"routing-0092","set":"routing","category":"value","type":"monthyear","questionKey":null,"optionsKey":null,"transcript":"still working","expected":"present"}
+{"id":"routing-0093","set":"routing","category":"value","type":"monthyear","questionKey":null,"optionsKey":null,"transcript":"still seeing them","expected":"present"}
+{"id":"routing-0094","set":"routing","category":"value","type":"monthyear","questionKey":null,"optionsKey":null,"transcript":"ongoing","expected":"present"}
+{"id":"routing-0095","set":"routing","category":"value","type":"monthyear","questionKey":null,"optionsKey":null,"transcript":"I still go there","expected":"present"}
+{"id":"routing-0096","set":"routing","category":"value","type":"monthyear","questionKey":null,"optionsKey":null,"transcript":"currently","expected":"present"}
+{"id":"routing-0097","set":"routing","category":"value","type":"monthyear","questionKey":null,"optionsKey":null,"transcript":"still March 2015","expected":"2015-03"}
+{"id":"routing-0098","set":"routing","category":"value","type":"money","questionKey":null,"optionsKey":null,"transcript":"1200","expected":1200}
+{"id":"routing-0099","set":"routing","category":"value","type":"money","questionKey":null,"optionsKey":null,"transcript":"$1,200","expected":1200}
+{"id":"routing-0100","set":"routing","category":"value","type":"money","questionKey":null,"optionsKey":null,"transcript":"1200 dollars","expected":1200}
+{"id":"routing-0101","set":"routing","category":"value","type":"money","questionKey":"monthly_amount","optionsKey":null,"transcript":"about $1,200 a month","expected":1200}
+{"id":"routing-0102","set":"routing","category":"value","type":"money","questionKey":"monthly_amount","optionsKey":null,"transcript":"twelve hundred monthly","expected":1200}
+{"id":"routing-0103","set":"routing","category":"value","type":"number","questionKey":null,"optionsKey":null,"transcript":"3","expected":3}
+{"id":"routing-0104","set":"routing","category":"value","type":"number","questionKey":null,"optionsKey":null,"transcript":"12","expected":12}
+{"id":"routing-0105","set":"routing","category":"value","type":"money","questionKey":null,"optionsKey":null,"transcript":"twelve hundred","expected":1200}
+{"id":"routing-0106","set":"routing","category":"value","type":"money","questionKey":null,"optionsKey":null,"transcript":"two thousand five","expected":2005}
+{"id":"routing-0107","set":"routing","category":"value","type":"money","questionKey":null,"optionsKey":null,"transcript":"two thousand and five","expected":2005}
+{"id":"routing-0108","set":"routing","category":"value","type":"money","questionKey":null,"optionsKey":null,"transcript":"two thousand five hundred thirty","expected":2530}
+{"id":"routing-0109","set":"routing","category":"value","type":"money","questionKey":null,"optionsKey":null,"transcript":"a hundred and five","expected":105}
+{"id":"routing-0110","set":"routing","category":"value","type":"number","questionKey":null,"optionsKey":null,"transcript":"twenty five","expected":25}
+{"id":"routing-0111","set":"routing","category":"value","type":"number","questionKey":null,"optionsKey":null,"transcript":"twenty","expected":20}
+{"id":"routing-0112","set":"routing","category":"value","type":"money","questionKey":"pay_amount","optionsKey":null,"transcript":"$20 an hour","expected":20}
+{"id":"routing-0113","set":"routing","category":"value","type":"money","questionKey":"pay_amount","optionsKey":null,"transcript":"twenty dollars a week","expected":20}
+{"id":"routing-0114","set":"routing","category":"value","type":"money","questionKey":"pay_amount","optionsKey":null,"transcript":"fifteen hourly","expected":15}
+{"id":"routing-0115","set":"routing","category":"value","type":"money","questionKey":"pay_amount","optionsKey":null,"transcript":"12 an hour","expected":12}
+{"id":"routing-0116","set":"routing","category":"value","type":"money","questionKey":"pay_amount","optionsKey":null,"transcript":"$900 every two weeks","expected":900}
+{"id":"routing-0117","set":"routing","category":"value","type":"money","questionKey":null,"optionsKey":null,"transcript":"eighty five hundred","expected":8500}
+{"id":"routing-0118","set":"routing","category":"value","type":"money","questionKey":null,"optionsKey":null,"transcript":"twenty five hundred","expected":2500}
+{"id":"routing-0119","set":"routing","category":"value","type":"money","questionKey":null,"optionsKey":null,"transcript":"fifteen hundred and fifty","expected":1550}
+{"id":"routing-0120","set":"routing","category":"value","type":"money","questionKey":null,"optionsKey":null,"transcript":"a thousand","expected":1000}
+{"id":"routing-0121","set":"routing","category":"value","type":"money","questionKey":null,"optionsKey":null,"transcript":"two hundred thousand","expected":200000}
+{"id":"routing-0122","set":"routing","category":"value","type":"number","questionKey":"hours_per_day","optionsKey":null,"transcript":"eight a day","expected":8}
+{"id":"routing-0123","set":"routing","category":"value","type":"number","questionKey":"education_year","optionsKey":null,"transcript":"nineteen ninety eight","expected":1998}
+{"id":"routing-0124","set":"routing","category":"value","type":"number","questionKey":"education_year","optionsKey":null,"transcript":"twenty ten","expected":2010}
+{"id":"routing-0125","set":"routing","category":"value","type":"number","questionKey":"education_year","optionsKey":null,"transcript":"two thousand ten","expected":2010}
+{"id":"routing-0126","set":"routing","category":"value","type":"number","questionKey":"education_year","optionsKey":null,"transcript":"1998","expected":1998}
+{"id":"routing-0127","set":"routing","category":"value","type":"text","questionKey":null,"optionsKey":null,"transcript":"John","expected":"John"}
+{"id":"routing-0128","set":"routing","category":"value","type":"text","questionKey":null,"optionsKey":null,"transcript":"Springfield","expected":"Springfield"}
+{"id":"routing-0129","set":"routing","category":"value","type":"text","questionKey":null,"optionsKey":null,"transcript":"Dr. Smith at City Clinic","expected":"Dr. Smith at City Clinic"}
+{"id":"routing-0130","set":"routing","category":"value","type":"text","questionKey":null,"optionsKey":null,"transcript":"diabetes","expected":"Diabetes"}
+{"id":"routing-0131","set":"routing","category":"value","type":"text","questionKey":null,"optionsKey":null,"transcript":"Maine Medical Center in Portland.","expected":"Maine Medical Center in Portland"}
+{"id":"routing-0132","set":"routing","category":"value","type":"text","questionKey":null,"optionsKey":null,"transcript":"um, the Maine Medical Center.","expected":"The Maine Medical Center"}
+{"id":"routing-0133","set":"routing","category":"value","type":"text","questionKey":null,"optionsKey":null,"transcript":"uh, uh John Smith","expected":"John Smith"}
+{"id":"routing-0134","set":"routing","category":"value","type":"text","questionKey":null,"optionsKey":null,"transcript":"My answer is: retired teacher.","expected":"Retired teacher"}
+{"id":"routing-0135","set":"routing","category":"value","type":"text","questionKey":null,"optionsKey":null,"transcript":"Well Street","expected":"Well Street"}
+{"id":"routing-0136","set":"routing","category":"value","type":"text","questionKey":null,"optionsKey":null,"transcript":"So-Young Kim","expected":"So-Young Kim"}
+{"id":"routing-0137","set":"routing","category":"value","type":"text","questionKey":null,"optionsKey":null,"transcript":"Okay Corral Road","expected":"Okay Corral Road"}
+{"id":"routing-0138","set":"routing","category":"value","type":"text","questionKey":null,"optionsKey":null,"transcript":"um","expected":"Um"}
+{"id":"routing-0139","set":"routing","category":"value","type":"choice","questionKey":null,"optionsKey":"forms","transcript":"the starter kit","expected":"ssa"}
+{"id":"routing-0140","set":"routing","category":"value","type":"choice","questionKey":null,"optionsKey":"forms","transcript":"Starter Kit.","expected":"ssa"}
+{"id":"routing-0141","set":"routing","category":"value","type":"choice","questionKey":null,"optionsKey":"forms","transcript":"developmental services","expected":"ds"}
+{"id":"routing-0142","set":"routing","category":"value","type":"choice","questionKey":null,"optionsKey":"forms","transcript":"um, it's the Maine application","expected":"ds"}
+{"id":"routing-0143","set":"routing","category":"value","type":"choice","questionKey":null,"optionsKey":"forms","transcript":"both","expected":"both"}
+{"id":"routing-0144","set":"routing","category":"value","type":"choice","questionKey":null,"optionsKey":"forms","transcript":"both of them please","expected":"both"}
+{"id":"routing-0145","set":"routing","category":"value","type":"choice","questionKey":null,"optionsKey":"forms","transcript":"the starter kit and developmental services","expected":"both"}
+{"id":"routing-0146","set":"routing","category":"value","type":"choice","questionKey":null,"optionsKey":"eating_level","transcript":"independent","expected":"A"}
+{"id":"routing-0147","set":"routing","category":"value","type":"choice","questionKey":null,"optionsKey":"eating_level","transcript":"B","expected":"B"}
+{"id":"routing-0148","set":"routing","category":"value","type":"choice","questionKey":null,"optionsKey":"eating_level","transcript":"letter c","expected":"C"}
+{"id":"routing-0149","set":"routing","category":"value","type":"choice","questionKey":null,"optionsKey":"eating_level","transcript":"dee","expected":"D"}
+{"id":"routing-0150","set":"routing","category":"value","type":"choice","questionKey":null,"optionsKey":"eating_level","transcript":"needs supervision","expected":"B"}
+{"id":"routing-0151","set":"routing","category":"value","type":"choice","questionKey":null,"optionsKey":"eating_level","transcript":"they need physical assistance","expected":"D"}
+{"id":"routing-0152","set":"routing","category":"value","type":"choice","questionKey":null,"optionsKey":"eating_level","transcript":"total assistance","expected":"E"}
+{"id":"routing-0153","set":"routing","category":"value","type":"choice","questionKey":null,"optionsKey":"eating_level","transcript":"needs skills training","expected":"C"}
+{"id":"routing-0154","set":"routing","category":"value","type":"choice","questionKey":null,"optionsKey":"pay_frequency","transcript":"every two weeks","expected":"biweekly"}
+{"id":"routing-0155","set":"routing","category":"value","type":"choice","questionKey":null,"optionsKey":"pay_frequency","transcript":"hourly","expected":"hour"}
+{"id":"routing-0156","set":"routing","category":"value","type":"choice","questionKey":null,"optionsKey":"pay_frequency","transcript":"twice a month","expected":"twice_month"}
+{"id":"routing-0157","set":"routing","category":"value","type":"choice","questionKey":null,"optionsKey":"pay_frequency","transcript":"per year","expected":"year"}
+{"id":"routing-0158","set":"routing","category":"value","type":"choice","questionKey":null,"optionsKey":"marital_status","transcript":"never married","expected":"never_married"}
+{"id":"routing-0159","set":"routing","category":"value","type":"choice","questionKey":null,"optionsKey":"marital_status","transcript":"widowed","expected":"widowed"}
+{"id":"routing-0160","set":"routing","category":"value","type":"zip","questionKey":null,"optionsKey":null,"transcript":"04101","expected":"04101"}
+{"id":"routing-0161","set":"routing","category":"value","type":"zip","questionKey":null,"optionsKey":null,"transcript":"oh four one oh one","expected":"04101"}
+{"id":"routing-0162","set":"routing","category":"value","type":"zip","questionKey":null,"optionsKey":null,"transcript":"04101-1234","expected":"041011234"}
+{"id":"routing-0163","set":"routing","category":"value","type":"email","questionKey":null,"optionsKey":null,"transcript":"Jane.Doe@Example.com","expected":"jane.doe@example.com"}
+{"id":"routing-0164","set":"routing","category":"value","type":"email","questionKey":null,"optionsKey":null,"transcript":"jane dot doe at example dot com","expected":"jane.doe@example.com"}

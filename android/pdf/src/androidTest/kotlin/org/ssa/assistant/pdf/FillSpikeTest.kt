@@ -32,6 +32,21 @@ class FillSpikeTest {
         }
     }
 
+    @Test
+    fun theExportPathOffersTheFormNotTheWorksheet() {
+        val answers = Fixtures.answers("both")
+        for (formId in listOf("ssa", "ds")) {
+            val fd = FormDocuments.plan(schema, formId, answers, Fixtures.TODAY)
+            val outcome = filler.export(fd) {
+                FormDocuments.worksheet(schema, answers, Fixtures.TODAY)
+            }
+            check(outcome is FormFiller.Outcome.Form) {
+                "$formId fell back to the worksheet: ${(outcome as FormFiller.Outcome.Worksheet).reason}"
+            }
+            check(outcome.filled.check.ok) { "$formId: ${outcome.filled.check}" }
+        }
+    }
+
     @Test fun both() = fillAndPublish("both", Fixtures.answers("both"))
     @Test fun starterKit() = fillAndPublish("starter-kit", Fixtures.answers("starter-kit"))
     @Test fun dsOnly() = fillAndPublish("ds-only", Fixtures.answers("ds-only"))

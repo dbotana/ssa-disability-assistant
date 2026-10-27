@@ -67,15 +67,25 @@ and its fixes made the same day. Nothing is committed yet. Where it stands:
       Compose screens need their own, which means new clips and `tts`
       entries. Lands with the UI (M5).
 - [ ] **M0 hardware:** a 6–8 GB arm64 reference phone and a low-end phone.
-- [ ] **M1a, the PDF spike** (the plan's biggest risk): TemplateLoader,
-      AcroFormWriter, AddendumRenderer and PdfSelfCheck; both forms filled
-      from the JS-exported plan; a pdf-lib cross-read; the viewer checks;
-      time and size; a written go/fallback decision. The templates are now in
-      `:pdf`'s assets, pinned, and `:core` already ships the goldens this
-      spike reads: `HelveticaMetrics` and `TemplateManifest` from
-      `core/src/main/resources/golden/` (written by the generator alongside
-      the test copies), and `AddendumLayout`'s draw lists for the renderer to
-      replay. PdfBox-Android 2.0.27.0 is in `libs.versions.toml`.
+- [x] **M1a, the PDF spike: GO with PdfBox-Android 2.0.27.0.** Both forms
+      fill from the golden-pinned plan on the arm64 API 35 emulator; 23
+      instrumented tests pass and `crosscheck.mjs` re-reads all 12 PDFs with
+      pdf-lib with 0 failures. Output is 1.03–1.10× the template (2× budget)
+      and the slowest form is 538 ms end to end (3 s budget); addendum
+      pages, self-checks, signatures and the export fallback are all
+      exercised. The R8 staging build runs the PDF path for both forms under
+      the release ruleset, and `:app:assembleRelease` is clean. Android
+      `PdfRenderer` draws none of the widget appearances on API 35, so the
+      app uses the spoken preview and an external viewer, not a native
+      visual preview. Evidence, commands and the decision are in
+      `android/pdf/M1A.md`. Deliberate departures from the Android plan,
+      already in `plans/stage-2-implementation.md`: centring uses pdf-lib's
+      kerned width, the appearance stream keeps pdf-lib's operator order,
+      plan parity is checked in `crosscheck.mjs` rather than by shipping
+      `fillplans.json` in the test APK, and a constructed long case stands
+      in for the largest random `fillplans.json` set. Still owed: real-phone
+      timing, manual open/edit in Acrobat/Chrome/Drive/Preview, and the
+      API 29/33 viewer runs.
 - [ ] **M1b:** whisper.cpp and llama.cpp as pinned submodules, linked
       statically into the JNI libraries; the version script and export audit
       already apply to them. Load the models mmapped from

@@ -17,9 +17,12 @@ import com.tom_roush.pdfbox.pdmodel.interactive.form.PDRadioButton
 import com.tom_roush.pdfbox.pdmodel.interactive.form.PDSignatureField
 import com.tom_roush.pdfbox.pdmodel.interactive.form.PDTerminalField
 import com.tom_roush.pdfbox.pdmodel.interactive.form.PDTextField
+import kotlin.math.abs
 import org.ssa.assistant.core.js.jsNumberToString
 import org.ssa.assistant.core.pdf.FormDocument
+import org.ssa.assistant.core.pdf.ManifestEntry
 import org.ssa.assistant.core.pdf.Op
+import org.ssa.assistant.core.pdf.Page
 import org.ssa.assistant.core.pdf.WinAnsi
 
 /**
@@ -96,7 +99,8 @@ object PdfSelfCheck {
             for (pf in fd.plan.fields) {
                 touched.add(pf.name)
                 val f = fields[pf.name] as? PDTextField ?: run { fail(pf.name, "is not a text field"); null } ?: continue
-                checkText(f, pf.fit.text, pf.fit.size, pf.fit.lines)
+                val entry = fd.manifest.field(pf.name) ?: run { fail(pf.name, "is not in the manifest"); null } ?: continue
+                checkText(f, entry, pf.fit.text, pf.fit.size, pf.fit.lines)
                 readBack.add(ReadBack(pf.label, (f.cosObject.getDictionaryObject(COSName.V) as? COSString)?.string ?: ""))
             }
             for (name in fd.plan.checks) {
@@ -129,8 +133,9 @@ object PdfSelfCheck {
             return Result(problems, doc.numberOfPages, fields.size, readBack)
         }
 
-        fun checkText(f: PDTextField, text: String, size: Double, lines: List<String>) {
+        fun checkText(f: PDTextField, entry: ManifestEntry, text: String, size: Double, lines: List<String>) {
             val name = f.fullyQualifiedName
+            if (f.isReadOnly) fail(name, "is read-only")
             val v = f.cosObject.getDictionaryObject(COSName.V) as? COSString
             if (v?.string != text) fail(name, "/V is not the planned text")
             val da = "/${Fonts.HELV_WA.name} ${jsNumberToString(size)} Tf 0 g"
@@ -143,6 +148,9 @@ object PdfSelfCheck {
                 val ap = w.appearance?.normalAppearance
                 if (ap == null || !ap.isStream) { fail(name, "has no /AP /N stream"); continue }
                 val stream = ap.appearanceStream
+                if (abs(stream.bBox.width - entry.width) > 1e-3 || abs(stream.bBox.height - entry.height) > 1e-3) {
+                    fail(name, "appearance box is not the manifest box")
+                }
                 if (!isWinAnsiHelvetica(stream.resources?.cosObject?.let { fontDict(it, Fonts.HELV_WA) })) {
                     fail(name, "appearance has no WinAnsi /HelvWA")
                 }
@@ -178,7 +186,11 @@ object PdfSelfCheck {
             val first = tpl.numberOfPages
             for ((i, ops) in fd.addendum.withIndex()) {
                 if (first + i >= doc.numberOfPages) return
-                val drawn = drawn(doc.getPage(first + i))
+                val page = doc.getPage(first + i)
+                if (abs(page.mediaBox.width - Page.W) > 1e-3 || abs(page.mediaBox.height - Page.H) > 1e-3) {
+                    fail(null, "addendum page ${i + 1} is not US Letter")
+                }
+                val drawn = drawn(page)
                 val want = ops.filterIsInstance<Op.Text>().map { WinAnsi.encode(WinAnsi.toWinAnsi(it.text)).toList() }
                 if (drawn.strings != want) fail(null, "addendum page ${i + 1} does not draw its draw list")
             }

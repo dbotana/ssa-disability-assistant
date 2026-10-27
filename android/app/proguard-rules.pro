@@ -21,3 +21,10 @@
 
 # pdfbox-android: keep the loader entry point PdfBox-Android requires.
 -keep class com.tom_roush.pdfbox.android.PDFBoxResourceLoader { *; }
+
+# pdfbox-android's JPX (JPEG 2000) filter names gemalto's optional jp2
+# decoder/encoder, which the AAR does not ship. Neither template contains a
+# JPEG 2000 image, so the filter is never reached; silence R8 on exactly
+# those two classes rather than the whole package or PDFBox.
+-dontwarn com.gemalto.jp2.JP2Decoder
+-dontwarn com.gemalto.jp2.JP2Encoder

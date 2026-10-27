@@ -1,0 +1,109 @@
+{
+  "eval": "v0",
+  "parser": "parser v2 (src/parse.js parseLocal)",
+  "now": "2026-09-19T12:00:00.000Z",
+  "routing": {
+    "total": 164,
+    "correct": 164,
+    "wrong": [],
+    "deferred": []
+  },
+  "adversarial": {
+    "total": 73,
+    "deferred": 73,
+    "wrongValues": [],
+    "recovered": 0,
+    "byType": {
+      "account": {
+        "total": 2,
+        "deferred": 2
+      },
+      "choice": {
+        "total": 6,
+        "deferred": 6
+      },
+      "date": {
+        "total": 11,
+        "deferred": 11
+      },
+      "email": {
+        "total": 2,
+        "deferred": 2
+      },
+      "money": {
+        "total": 18,
+        "deferred": 18
+      },
+      "monthyear": {
+        "total": 2,
+        "deferred": 2
+      },
+      "number": {
+        "total": 8,
+        "deferred": 8
+      },
+      "phone": {
+        "total": 1,
+        "deferred": 1
+      },
+      "ssn": {
+        "total": 7,
+        "deferred": 7
+      },
+      "text": {
+        "total": 2,
+        "deferred": 2
+      },
+      "yesno": {
+        "total": 12,
+        "deferred": 12
+      },
+      "zip": {
+        "total": 2,
+        "deferred": 2
+      }
+    }
+  },
+  "coverage": {
+    "byType": {
+      "choice": {
+        "total": 248,
+        "answered": 137,
+        "deferred": 111
+      },
+      "monthyear": {
+        "total": 100,
+        "answered": 41,
+        "deferred": 59
+      },
+      "number": {
+        "total": 50,
+        "answered": 23,
+        "deferred": 27
+      },
+      "text": {
+        "total": 712,
+        "answered": 712,
+        "deferred": 0
+      }
+    },
+    "labelled": false
+  },
+  "audio": {
+    "total": 9,
+    "runnable": false,
+    "reason": "needs speech-to-text; run tools/stt-eval.mjs"
+  },
+  "llm": {
+    "available": false,
+    "reason": "no llama-server build or Qwen3 GGUF (needs M1b); JVM :llm-core/:llm-eval not built"
+  },
+  "gates": {
+    "routingUnchanged": true,
+    "adversarialZeroWrong": true,
+    "recoveredAtLeast40pct": null,
+    "textWrongAtMostHalfPct": null,
+    "latency": null
+  },
+  "verdict": "baseline only: LLM go/no-go not decided (no backend)"
+}

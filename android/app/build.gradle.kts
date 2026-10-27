@@ -44,6 +44,9 @@ android {
     namespace = "org.ssa.assistant.app"
     compileSdk = 35
 
+    // The variant :app's instrumentation tests run against (see buildTypes.staging).
+    testBuildType = "staging"
+
     defaultConfig {
         applicationId = "org.ssa.assistant.app"
         minSdk = 29
@@ -68,6 +71,17 @@ android {
             ndk {
                 abiFilters += listOf("arm64-v8a")
             }
+        }
+        create("staging") {
+            initWith(getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
+            // am instrument refuses a non-debuggable target. release stays
+            // non-debuggable; this flag exists only so the staging test runs.
+            isDebuggable = true
+            matchingFallbacks += listOf("release")
+            proguardFile("staging-rules.pro")
+            // The androidTest APK inherits this build type's shrinking too.
+            testProguardFiles("staging-rules.pro")
         }
     }
 
@@ -123,6 +137,7 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.compose.ui)
     debugImplementation(libs.androidx.compose.ui.tooling)

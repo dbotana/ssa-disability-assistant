@@ -3,6 +3,7 @@ package org.ssa.assistant.pdf
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.tom_roush.pdfbox.cos.COSName
 import com.tom_roush.pdfbox.pdmodel.PDDocument
+import com.tom_roush.pdfbox.pdmodel.common.PDRectangle
 import com.tom_roush.pdfbox.pdmodel.interactive.form.PDTextField
 import java.io.ByteArrayOutputStream
 import org.junit.Test
@@ -76,6 +77,27 @@ class SelfCheckTest {
     fun aMissingAddendumPageIsCaught() {
         check(fd.addendum.isNotEmpty()) { "this case has no addendum to remove" }
         assertCaught(damaged { doc -> doc.removePage(doc.numberOfPages - 1) }, null)
+    }
+
+    @Test
+    fun aWrongAppearanceBoxIsCaught() = assertCaught(damaged { doc ->
+        val f = doc.documentCatalog.acroForm.getField(target.name) as PDTextField
+        f.widgets.forEach {
+            it.appearance?.normalAppearance?.appearanceStream?.bBox = PDRectangle(0f, 0f, 10f, 10f)
+        }
+    }, target.name)
+
+    @Test
+    fun aReadOnlyFieldIsCaught() = assertCaught(damaged { doc ->
+        (doc.documentCatalog.acroForm.getField(target.name) as PDTextField).isReadOnly = true
+    }, target.name)
+
+    @Test
+    fun anAddendumPageSizeIsCaught() {
+        check(fd.addendum.isNotEmpty())
+        assertCaught(damaged { doc ->
+            doc.getPage(doc.numberOfPages - 1).mediaBox = PDRectangle(595f, 842f)  // A4, not US Letter
+        }, null)
     }
 
     @Test
