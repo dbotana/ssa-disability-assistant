@@ -514,7 +514,7 @@ export function createTurnController(ports) {
     // the read-back with "skip" or "go back" means it, and should not have
     // to say no first.
     if (pending) {
-      const yn = parse({ ...q, type: 'yesno', prompt: 'Is that correct?' }, transcript);
+      const yn = parse({ ...q, type: 'yesno', prompt: 'Is that correct?' }, transcript, { readBack: true });
       if (yn?.value === true) { await acceptReadBack(); return; }
       if (yn?.value === false) { await rejectReadBack(); return; }
       const cmd = command(transcript);
@@ -621,7 +621,7 @@ export function createTurnController(ports) {
     busy = true;
     try {
       if (pending) {
-        const yn = parse({ ...pending.question, type: 'yesno', prompt: 'Is that correct?' }, t);
+        const yn = parse({ ...pending.question, type: 'yesno', prompt: 'Is that correct?' }, t, { readBack: true });
         if (yn?.value === true) { await acceptReadBack(); return; }
         if (yn?.value === false) { await rejectReadBack(); return; }
         // As on the spoken path: a command still wins over the read-back.
@@ -655,7 +655,7 @@ export function createTurnController(ports) {
     if (!q) return;
 
     if (pending) {
-      const yn = parse({ ...q, type: 'yesno', prompt: 'Is that correct?' }, text);
+      const yn = parse({ ...q, type: 'yesno', prompt: 'Is that correct?' }, text, { readBack: true });
       if (yn?.value === true) { await acceptReadBack(); return; }
       if (yn?.value === false) { await rejectReadBack(); return; }
       await reask(out(say.REASK.yesno));

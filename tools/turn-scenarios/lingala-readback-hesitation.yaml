@@ -1,0 +1,59 @@
+# Lingala read-back (plan 4.5): a bare vowel is how a hesitation is
+# transcribed, so it must not confirm a value. The longer forms still do, and
+# the on-screen button (Space here) is the reliable way to accept.
+scenario: lingala hesitation does not confirm a read-back
+steps:
+  - start:
+      mode: voice
+      confirm: true
+      languages:
+        input: ln
+        output: ln
+        screen: ln
+        fill: ln
+  - say: starter kit
+  - expect:
+      readback: open
+      answers:
+        forms: null
+
+  # e, E., e... and ɛ all read as yes on an ordinary yes/no question, but on a
+  # read-back each is a hesitation: the value stays unconfirmed.
+  - say: e
+  - expect:
+      readback: open
+      answers:
+        forms: null
+  - say: "E."
+  - expect:
+      readback: open
+      answers:
+        forms: null
+  - say: "e..."
+  - expect:
+      readback: open
+      answers:
+        forms: null
+  - say: ɛ
+  - expect:
+      readback: open
+      answers:
+        forms: null
+
+  # The button accepts, without speaking.
+  - press: Space
+  - expect:
+      readback: closed
+      answers:
+        forms: ssa
+
+  # A doubled vowel is not a hesitation: ɛɛ still confirms.
+  - say: Ada
+  - expect:
+      readback: open
+      question: "Ada"
+  - say: ɛɛ
+  - expect:
+      readback: closed
+      answers:
+        first_name: Ada

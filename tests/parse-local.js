@@ -59,14 +59,14 @@ function caseQuestion({ type, optionsKey, questionKey }) {
 }
 
 for (const c of VALUE_CASES) {
-  const r = parseLocal(caseQuestion(c), c.input);
+  const r = parseLocal(caseQuestion(c), c.input, { lang: c.lang ?? 'en', readBack: c.readBack ?? false });
   check(`${c.questionKey ?? c.type} ${JSON.stringify(c.input)} -> ${JSON.stringify(c.value)}`,
     r !== null && JSON.stringify(r.value) === JSON.stringify(c.value),
     r === null ? 'got null (would be asked again)' : `got ${JSON.stringify(r.value)}`);
 }
 
 for (const c of DEFER_CASES) {
-  const r = parseLocal(caseQuestion(c), c.input);
+  const r = parseLocal(caseQuestion(c), c.input, { lang: c.lang ?? 'en', readBack: c.readBack ?? false });
   check(`${c.questionKey ?? c.type} ${JSON.stringify(c.input)} defers`, r === null,
     r ? `got ${JSON.stringify(r.value)} at confidence ${r.confidence}` : '');
 }

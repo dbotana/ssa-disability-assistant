@@ -1,6 +1,6 @@
 // The :core goldens and unit tests, run on Android.
 //
-// :core is plain JVM, so its tests run on the desktop JVM — where
+// :core's JVM target runs its tests on the desktop JVM — where
 // java.util.regex is OpenJDK's. On a phone it is ICU, whose \s, \w, \d, \b
 // and case folding all differ from JS and from the JVM. This module compiles
 // core's own test sources and golden resources into an instrumented test APK,
@@ -22,8 +22,10 @@ android {
 
     sourceSets {
         getByName("androidTest") {
-            java.srcDir("../core/src/test/kotlin")
-            resources.srcDir("../core/src/test/resources")
+            java.srcDir("../core/src/commonTest/kotlin")
+            java.srcDir("../core/src/jvmTest/kotlin")
+            java.srcDir("src/androidTest/kotlin")
+            resources.srcDir("../core/src/commonTest/resources")
             manifest.srcFile("src/androidTest/AndroidManifest.xml")
         }
     }
@@ -42,9 +44,19 @@ android {
     }
 }
 
+// :core's test sources reach the platform through an expect/actual pair
+// (golden/TestPlatform.kt, golden/TestPlatform.jvm.kt), which a plain
+// Android module cannot compile; this module leaves both out and supplies
+// the same functions in src/androidTest/kotlin/.../TestPlatform.android.kt.
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+    if (name.endsWith("AndroidTestKotlin")) {
+        exclude("**/golden/TestPlatform.kt", "**/golden/TestPlatform.jvm.kt")
+    }
+}
+
 // The turn scenarios and answer fixtures :core's tests read, pinned and copied
 // exactly as :core does for its JVM test run (they are not in
-// core/src/test/resources, which only holds the goldens).
+// core/src/commonTest/resources, which only holds the goldens).
 androidComponents {
     onVariants { variant ->
         val name = variant.name.replaceFirstChar { it.uppercase() }
@@ -69,6 +81,8 @@ dependencies {
     androidTestImplementation(project(":core"))
     androidTestImplementation(libs.kotlinx.coroutines.core)
     androidTestImplementation(libs.junit)
+    // :core's tests are written against kotlin.test, which maps onto JUnit 4 here.
+    androidTestImplementation(kotlin("test-junit"))
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.test.runner)
 }

@@ -27,6 +27,16 @@ export const VALUE_CASES = [
   { type: 'yesno', input: 'yes, I do.', value: true },
   { type: 'yesno', input: 'no I don\u2019t', value: false },
   { type: 'yesno', input: 'that\u2019s right', value: true },
+  // A bare Lingala vowel is a hesitation, not a yes, on a read-back (plan
+  // 4.5). On an ordinary yes/no question it still counts, and the longer
+  // forms still confirm a read-back.
+  { type: 'yesno', input: 'e', lang: 'ln', value: true },
+  { type: 'yesno', input: 'ɛ', lang: 'ln', value: true },
+  { type: 'yesno', input: 'ɛɛ', lang: 'ln', readBack: true, value: true },
+  { type: 'yesno', input: 'ee', lang: 'ln', readBack: true, value: true },
+  { type: 'yesno', input: 'iyo', lang: 'ln', readBack: true, value: true },
+  { type: 'yesno', input: 'ezali malamu', lang: 'ln', readBack: true, value: true },
+  { type: 'yesno', input: 'te', lang: 'ln', readBack: true, value: false },
 
   // -- sensitive digits
   { type: 'ssn', input: '123456789', value: '123456789' },
@@ -187,6 +197,12 @@ export const DEFER_CASES = [
   { type: 'yesno', input: 'yes I did but not anymore' },
   { type: 'yesno', input: 'yes I do, no wait' },
   { type: 'yesno', input: "no I don't, yes I do" },
+  // Lingala read-back: a bare vowel is how a hesitation is transcribed, and
+  // one must never confirm a value (plan 4.5).
+  { type: 'yesno', input: 'e', lang: 'ln', readBack: true },
+  { type: 'yesno', input: 'E.', lang: 'ln', readBack: true },
+  { type: 'yesno', input: 'e...', lang: 'ln', readBack: true },
+  { type: 'yesno', input: 'ɛ', lang: 'ln', readBack: true },
   { type: 'ssn', input: 'double seven three four five six seven eight nine' },
   { type: 'ssn', input: 'triple oh one two three four five six' },
   { type: 'ssn', input: 'seventeen twenty three forty five sixty seven' },

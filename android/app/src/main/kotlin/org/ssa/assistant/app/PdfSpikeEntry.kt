@@ -1,7 +1,7 @@
 package org.ssa.assistant.app
 
 import android.content.Context
-import java.time.LocalDate
+import org.ssa.assistant.core.CivilDate
 import org.ssa.assistant.core.json.Json
 import org.ssa.assistant.core.pdf.FormDocuments
 import org.ssa.assistant.core.schema.SchemaLoader
@@ -15,7 +15,7 @@ import org.ssa.assistant.pdf.TemplateLoader
  * PDF path; the release build does not reference it and R8 removes it.
  */
 object PdfSpikeEntry {
-    private val TODAY: LocalDate = LocalDate.of(2026, 9, 19)
+    private val TODAY: CivilDate = CivilDate(2026, 9, 19)
 
     fun run(context: Context): String {
         val answers = Json.Obj().also {

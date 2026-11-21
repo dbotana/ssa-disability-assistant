@@ -85,7 +85,7 @@ be shared. Make these changes in order:
    - Switch the turn to **interpret first, then confirm once**. Today the raw transcript is read back *before* parsing (`sendAudio` → `askTranscriptCheck` → `handleTranscript`), so an LLM-derived value would need a second confirmation.
    - Shared YAML scenarios drive both implementations, absorbing `tools/smoke.mjs`, `tests/local-command.js` and `tests/empty-transcript.js`.
 
-**Golden fixtures.** `tools/golden/*.mjs` writes `android/core/src/test/resources/golden/`. CI
+**Golden fixtures.** `tools/golden/*.mjs` writes `android/core/src/commonTest/resources/golden/`. CI
 regenerates them and runs `git diff --exit-code`, and they are compared as parsed JSON trees, not
 strings. They cover:
 

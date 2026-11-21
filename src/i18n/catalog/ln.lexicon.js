@@ -5,6 +5,11 @@
 
 export default {
   yes: ['ɛɛ', 'ɛ', 'ee', 'e', 'iyo', 'yes', 'ok', 'okay', 'ezali malamu', 'malamu', 'solo', 'ya solo'],
+  // A bare vowel is also a hesitation ("E.", "e..."), and a transcriber hands
+  // one back for almost any noise. A yes/no question may read it as yes, but a
+  // read-back — "is that SSN right?" — may not: a hesitation must never
+  // confirm a value. The longer forms (ɛɛ, ee, iyo) still do (plan 4.5).
+  readBackHesitations: ['ɛ', 'e'],
   no: ['te', 'tɛ', 'non', 'no', 'ezali te', 'non te', 'liboso te', 'ata moko te'],
   yesPhrases: [],
   noPhrases: [],

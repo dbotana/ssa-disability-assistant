@@ -2,7 +2,7 @@ package org.ssa.assistant.pdf
 
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.services.storage.TestStorage
-import java.time.LocalDate
+import org.ssa.assistant.core.CivilDate
 import org.ssa.assistant.core.json.Json
 import org.ssa.assistant.core.json.JsonParser
 import org.ssa.assistant.core.json.asArray
@@ -14,7 +14,7 @@ import org.ssa.assistant.core.pdf.FormDocument
 /** Test inputs and outputs shared by the :pdf instrumented tests. */
 object Fixtures {
     /** NOW() in tools/golden/index.mjs, as a date. */
-    val TODAY: LocalDate = LocalDate.of(2026, 9, 19)
+    val TODAY: CivilDate = CivilDate(2026, 9, 19)
 
     val NAMES = listOf("both", "starter-kit", "ds-only", "minimal")
 
@@ -81,7 +81,7 @@ object Fixtures {
         val record = Json.Obj().also { o ->
             o["case"] = Json.Str(case)
             o["form"] = Json.Str(fd.formId)
-            o["today"] = Json.Str(TODAY.toString())
+            o["today"] = Json.Str(TODAY.iso())
             o["answers"] = answers
             o["plan"] = planJson(fd.plan)
             o["addendumPages"] = Json.Num(fd.addendum.size.toDouble())

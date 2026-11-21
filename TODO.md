@@ -170,7 +170,7 @@ putting the bug back and watching them fail.
       (text × size → width over the WinAnsi text, height), so the Kotlin
       widths are pinned to pdf-lib directly. The WinAnsi code-point→glyph
       table was extracted from the vendored pdf-lib bundle. `metrics.json`
-      and `templateManifest.json` are also written to `core/src/main/
+      and `templateManifest.json` are also written to `core/src/commonMain/
       resources/golden/` — the app reads them at runtime (box sizes and
       widths never come from PDFBox), and `check.mjs` covers both copies.
 - [x] **templateManifest → `TemplateManifest` + `parseDa`**, with the

@@ -157,14 +157,19 @@ const defaultNow = () => new Date();
  * future-date check); it defaults to the real clock and is overridden by
  * tests and the golden generator.
  *
+ * `readBack` says the answer is the reply to a confirmation read-back (the
+ * "is that correct?" after every voice answer, and after every `confirm`
+ * field). It only changes yes/no: a bare vowel that counts as yes elsewhere
+ * is a hesitation here, and must not confirm a value (plan 4.5).
+ *
  * @returns {{command:null, value:*, confidence:number, needsClarification:false,
  *            clarifyPrompt:null}|null} null when the answer should be asked again.
  */
-export function parseLocal(question, transcript, { typed = false, now = defaultNow, lang = 'en' } = {}) {
+export function parseLocal(question, transcript, { typed = false, now = defaultNow, lang = 'en', readBack = false } = {}) {
   const raw = String(transcript ?? '').trim();
   if (!raw) return null;
 
-  const value = parseByType(question, raw, typed, now, lang);
+  const value = parseByType(question, raw, typed, now, lang, readBack);
   if (value === null) return null;
 
   return {
@@ -176,7 +181,7 @@ export function parseLocal(question, transcript, { typed = false, now = defaultN
   };
 }
 
-function parseByType(question, raw, typed, now, lang) {
+function parseByType(question, raw, typed, now, lang, readBack = false) {
   // A speaker echoes the question back: "My date of birth is March 14th,
   // 1979." The echo carries no information and must not become part of the
   // answer. Typed free text is exempt — it is taken exactly as written, and
@@ -190,7 +195,7 @@ function parseByType(question, raw, typed, now, lang) {
   // the digit-by-digit read-back still stands between the parse and the form.
   const s = stripEcho(raw, question);
   switch (question.type) {
-    case 'yesno': return parseYesNo(s, lang);
+    case 'yesno': return parseYesNo(s, lang, readBack);
     case 'ssn':
     case 'routing':
     case 'account': return parseSensitiveDigits(s, lang);
@@ -276,8 +281,8 @@ function parseText(raw) {
 const YES_PHRASE = /^(yes|yeah|yep|yup)\b[ ,]+(i|you|he|she|we|they|it)\s+(do|does|did|am|are|is|was|were|have|has|had|would|will|can|could|should)$/i;
 const NO_PHRASE = /^(no|nope|nah)\b[ ,]+(i|you|he|she|we|they|it)\s+(do not|don'?t|does not|doesn'?t|did not|didn'?t|am not|are not|aren'?t|is not|isn'?t|was not|wasn'?t|were not|weren'?t|have not|haven'?t|has not|hasn'?t|had not|hadn'?t|would not|wouldn'?t|will not|won'?t|can not|cannot|can'?t|could not|couldn'?t|should not|shouldn'?t)$/i;
 
-function parseYesNo(raw, lang = 'en') {
-  if (lang !== 'en') return parseYesNoLocalized(raw, lang);
+function parseYesNo(raw, lang = 'en', readBack = false) {
+  if (lang !== 'en') return parseYesNoLocalized(raw, lang, readBack);
 
   // Checked against the unstripped text: "uh huh" and "uh uh" begin with a
   // filler word that is part of the answer itself. A transcriber's curly
@@ -309,8 +314,12 @@ function parseYesNo(raw, lang = 'en') {
  * Yes or no in French or Lingala. The transcript is folded (D5), and the
  * tables are stored folded, so a spelling with or without its accents works.
  * The same anchoring applies: only a bare yes or no counts.
+ *
+ * On a read-back the lexicon's `readBackHesitations` are removed from the yes
+ * list first: Lingala's `e` and `ɛ` are how a hesitation is transcribed, and
+ * one of those must never confirm a Social Security number (plan 4.5).
  */
-function parseYesNoLocalized(raw, lang) {
+function parseYesNoLocalized(raw, lang, readBack = false) {
   const tables = lexicon(lang);
   let s = fold(raw, lang)
     .replace(/[’']/g, ' ')
@@ -319,14 +328,19 @@ function parseYesNoLocalized(raw, lang) {
     .trim();
   if (!s) return null;
 
+  const hesitations = readBack
+    ? new Set((tables.readBackHesitations ?? []).map(w => fold(w, lang)))
+    : new Set();
+  const yesWords = (tables.yes ?? []).filter(w => !hesitations.has(fold(w, lang)));
+
   const hit = words => Array.isArray(words) && words.some(w => fold(w, lang) === s);
-  if (hit(tables.yes)) return { value: true, confidence: 1 };
+  if (hit(yesWords)) return { value: true, confidence: 1 };
   if (hit(tables.no)) return { value: false, confidence: 1 };
 
   for (const source of tables.lead ?? []) {
     try { s = s.replace(new RegExp(source), '').trim(); } catch { /* bad table entry */ }
   }
-  if (hit(tables.yes)) return { value: true, confidence: 1 };
+  if (hit(yesWords)) return { value: true, confidence: 1 };
   if (hit(tables.no)) return { value: false, confidence: 1 };
 
   for (const source of tables.yesPhrases ?? []) {

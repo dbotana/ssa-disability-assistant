@@ -1,7 +1,7 @@
 // Golden fixture generator.
 //
 // The Kotlin port is pinned to the JS reference by these files, which land in
-// android/core/src/test/resources/golden/ and are compared as parsed JSON
+// android/core/src/commonTest/resources/golden/ and are compared as parsed JSON
 // trees (never byte-for-byte). Regenerate with `node tools/golden/index.mjs`;
 // CI runs tools/golden/check.mjs and fails on any diff, so a change to the
 // reference is always a deliberate one.
@@ -65,11 +65,11 @@ if (new Date(Date.UTC(2026, 0, 1)).getTimezoneOffset() !== 0) {
 }
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const DEST = join(REPO, 'android', 'core', 'src', 'test', 'resources', 'golden');
+const DEST = join(REPO, 'android', 'core', 'src', 'commonTest', 'resources', 'golden');
 // The goldens the app itself reads at runtime (the Helvetica metrics and the
 // template manifests — box sizes never come from PDFBox), shipped as :core
 // main resources rather than test fixtures.
-const MAIN_DEST = join(REPO, 'android', 'core', 'src', 'main', 'resources', 'golden');
+const MAIN_DEST = join(REPO, 'android', 'core', 'src', 'commonMain', 'resources', 'golden');
 mkdirSync(DEST, { recursive: true });
 mkdirSync(MAIN_DEST, { recursive: true });
 
@@ -241,14 +241,21 @@ async function goldenParse() {
   const cases = [];
 
   for (const c of [...VALUE_CASES, ...DEFER_CASES]) {
-    const r = parseLocal(caseQuestion(c), c.input, { now: NOW });
-    cases.push({
+    const r = parseLocal(caseQuestion(c), c.input, {
+      now: NOW, lang: c.lang ?? 'en', readBack: c.readBack ?? false
+    });
+    const entry = {
       type: c.type,
       input: c.input,
       optionsKey: c.optionsKey ?? null,
       questionKey: c.questionKey ?? null,
       result: r === null ? null : { value: r.value, confidence: r.confidence }
-    });
+    };
+    // Only when they differ from the English, ordinary-question default, so
+    // every existing case keeps its exact recorded shape.
+    if (c.lang) entry.lang = c.lang;
+    if (c.readBack) entry.readBack = true;
+    cases.push(entry);
   }
 
   // Typed input: free text is left as written (null), a structured answer
