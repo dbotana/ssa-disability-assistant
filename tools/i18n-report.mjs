@@ -2,7 +2,7 @@
 // resolved sample per channel. Run with `node tools/i18n-report.mjs`.
 
 import { translationCorpus } from '../src/i18n/corpus.js';
-import { LANGUAGES, LANGUAGE_ORDER, message, translate, sttFor } from '../src/i18n/index.js';
+import { LANGUAGES, LANGUAGE_ORDER, message, translate } from '../src/i18n/index.js';
 import frStrings from '../src/i18n/catalog/fr.strings.js';
 import lnStrings from '../src/i18n/catalog/ln.strings.js';
 
@@ -26,7 +26,9 @@ console.log(`screen sample (fr): ${sample.screen}`);
 console.log(`output sample (fr): ${sample.output}`);
 console.log(`fill sample (ln): ${sample.fill}`);
 for (const lang of LANGUAGE_ORDER) {
-  console.log(`stt ${lang}: ${sttFor(lang).model} installed=${LANGUAGES[lang].stt.installed}`);
+  const { model, language, multilingual, installed } = LANGUAGES[lang].stt;
+  console.log(`stt ${lang}: model=${model} language=${language ?? '-'} multilingual=${multilingual} installed=${installed}`);
 }
-
+const unmeasured = LANGUAGE_ORDER.filter(l => l !== 'en');
+console.log(`stt accuracy: measured for en only (tools/stt-eval.mjs); not measured for ${unmeasured.join(', ')}: no recordings`);
 process.exit(missingTotal ? 1 : 0);

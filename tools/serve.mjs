@@ -52,14 +52,14 @@ const HEADERS = {
 
 // -- integrity -----------------------------------------------------------------
 
-/** Every hash list: the vendored libraries and each committed model. */
+/** Every hash list: the vendored libraries and one per model directory. */
 export function integrityLists(root = ROOT) {
   const lists = [join(root, 'vendor', 'SHA256SUMS'), join(root, 'vendor', 'transformers', 'VERSIONS.txt')];
   const models = join(root, 'models');
   if (existsSync(models)) {
     for (const d of readdirSync(models, { withFileTypes: true }).filter(e => e.isDirectory()).map(e => e.name).sort()) {
-      const list = join(models, d, 'SHA256SUMS');
-      if (existsSync(list)) lists.push(list);
+      if (d.startsWith('.')) continue;
+      lists.push(join(models, d, 'SHA256SUMS'));
     }
   }
   return lists;

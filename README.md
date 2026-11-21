@@ -194,12 +194,16 @@ disk.
 
 ### Voice input and voices
 
-Only the bundled speech model, `models/whisper-base.en`, is installed, and it
-transcribes English only. Choosing French or Lingala for **input** is allowed
-and saved, but the voice lane is then closed with a translated explanation and
-typed answers keep working. A future multilingual pack lifts this without a
-code change: commit `models/whisper-base/` with its `SHA256SUMS` and set that
-language's `stt.installed` to `true` in `src/i18n/languages.js`.
+Two packs are committed: `models/whisper-base.en` (English only, about 77 MB) and `models/whisper-base` (multilingual, q8 ONNX only, about 76 MB). Each is pinned to one Hugging Face revision, with `SHA256SUMS` and `SOURCE.txt` beside it.
+
+English input loads the English-only pack. French and Lingala load the multilingual one and pass `fr`/`ln` to Whisper. `stt.installed` in `src/i18n/languages.js` is the switch, and nothing is downloaded at runtime.
+
+#### Not measured.
+
+- There are no French or Lingala recordings; `tests/fixtures/speech/` is English only.
+- `tools/stt-eval.mjs` needs `onnxruntime-node`, which the app does not ship.
+- So French and Lingala transcription accuracy has **not been measured**. What is tested is the plumbing: the right model and language reach the worker, the hashes and pinned revision are checked, and there is no network path.
+- Record and evaluate clips before relying on a spoken French or Lingala SSN.
 
 Non-English **output** never plays an English clip. It uses a system voice the
 browser reports as local; Lingala tries a Lingala voice, then French, then
@@ -238,7 +242,8 @@ the app with real applicants.
 **Nothing you say or type is sent anywhere.** Specifically:
 
 - **Speech to text** runs in the page, in a Web Worker, using Whisper
-  (`models/whisper-base.en`, about 77 MB, committed to this repository) on
+  (`models/whisper-base.en` for English and `models/whisper-base` for French and Lingala,
+  about 77 MB and 76 MB, both committed to this repository) on
   onnxruntime's WebAssembly backend (`vendor/transformers/`). The recording
   is decoded, transcribed and discarded in memory.
 - **Understanding the answer** is done by `src/parse.js`, a deterministic
@@ -428,9 +433,15 @@ spoken answer.
 
 - **Model:** `node tools/fetch-model.mjs [onnx-community/whisper-small.en]`
   downloads the q8 weights at a pinned revision, checks them against the
-  hashes Hugging Face publishes, and writes `models/<name>/SHA256SUMS`. To
-  switch, change `MODEL` in `src/whisper-worker.js`. Measure first with
-  `tools/stt-eval.mjs`; small.en is about 250 MB and noticeably slower.
+  hashes Hugging Face publishes, and writes `models/<name>/SHA256SUMS`.
+  Measure first with `tools/stt-eval.mjs`; small.en is about 250 MB and
+  noticeably slower. The multilingual pack is refreshed with
+  `node tools/fetch-model.mjs onnx-community/whisper-base`, also pinned in
+  `REVISIONS`, and `node tools/fetch-model.mjs <repo> --verify` re-hashes a
+  pack. Which pack a language uses is `LANGUAGES[*].stt.model`; `MODEL` in
+  `src/whisper-worker.js` is only the English default.
+  `tests/vendor-integrity.js` checks each `SOURCE.txt` revision against
+  `REVISIONS`.
 - **Runtime:** copy `transformers.min.js` and the two
   `ort-wasm-simd-threaded.jsep.*` files from the `@huggingface/transformers`
   npm package's `dist/` into `vendor/transformers/`, then regenerate
@@ -456,17 +467,21 @@ node tests/digit-gate.js         # a truncated SSN is asked again, not read back
 node tests/audio-manifest.js     # every spoken string has a clip
 node tests/local-stt.js          # the on-device transcriber settles, and silence is not an answer
 node tests/no-network.js         # no network path in src/, and the CSP that enforces it
-node tests/vendor-integrity.js   # the model and runtime are the pinned bytes
+node tests/vendor-integrity.js   # both speech packs and the runtime are the pinned bytes
 node tests/store-redact.js       # nothing sensitive on disk; the rest only encrypted, with a PIN
 node tests/launcher.js           # tampered files stop the launchers; the dedicated browser profile
 ```
 
 Three maintainer tools reach what `tests/` cannot:
 
-- `node tools/stt-eval.mjs` runs the real model over the recordings in
-  `tests/fixtures/speech/` and reports how many produce exactly the right
-  value after parsing — the number that matters for an SSN. Needs
-  `cd tools && npm install` once (transformers.js for Node).
+- `node tools/stt-eval.mjs [model] [language]` runs the model files the
+  browser loads (`models/whisper-base.en` for English by default) over the
+  recordings in `tests/fixtures/speech/` and reports how many produce exactly
+  the right value after parsing — the number that matters for an SSN. Needs
+  `cd tools && npm install` once (transformers.js for Node). It has English
+  clips only: `node tools/stt-eval.mjs whisper-base fr` prints "No recordings"
+  and exits 2, and no French or Lingala accuracy figure exists for this
+  project.
 - `tools/browser-check.html`, opened from a running local server, checks in a
   real browser that the page is cross-origin isolated, that a remote fetch is
   refused, and that a clip transcribes both from WAV and after a round trip

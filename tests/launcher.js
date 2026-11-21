@@ -16,7 +16,7 @@ import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import * as node from '../tools/serve.mjs';
@@ -85,13 +85,30 @@ for (const [name, verify] of verifiers) {
     check(`${name}: a missing hash list stops it`,
       problems.some(p => p === 'missing vendor/transformers/VERSIONS.txt'), problems.join('; '));
     put('vendor/transformers/VERSIONS.txt', `${sha('rt')}  transformers.min.js\n`);
-
+    put('models/whisper-unhashed/onnx/encoder.onnx', 'unverified');
+    problems = verify(root);
+    check(`${name}: a model folder without SHA256SUMS stops it`,
+      problems.some(p => p === 'missing models/whisper-unhashed/SHA256SUMS'), problems.join('; '));
+    rmSync(join(root, 'models/whisper-unhashed'), { recursive: true });
     rmSync(join(root, 'models'), { recursive: true });
     problems = verify(root);
     check(`${name}: no model at all stops it`,
       problems.some(p => /no speech model/.test(p)), problems.join('; '));
   } finally {
     rmSync(root, { recursive: true, force: true });
+  }
+}
+
+// The real project's lists cover both committed speech packs.
+{
+  const want = ['models/whisper-base.en/SHA256SUMS', 'models/whisper-base/SHA256SUMS'];
+  const lists = node.integrityLists().map(p => relative(ROOT, p).split(sep).join('/'));
+  check('serve.mjs checks both speech packs', want.every(p => lists.includes(p)), lists.join(', '));
+  if (hasPython) {
+    const pyLists = py('[p.relative_to(serve.ROOT).as_posix() for p in serve.integrity_lists()]');
+    check('serve.py checks both speech packs', want.every(p => pyLists.includes(p)), pyLists.join(', '));
+    check('both launchers check the same lists', JSON.stringify(pyLists) === JSON.stringify(lists),
+      `${pyLists.join(', ')} vs ${lists.join(', ')}`);
   }
 }
 

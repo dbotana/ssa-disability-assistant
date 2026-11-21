@@ -14,11 +14,12 @@ Every response carries the same Content-Security-Policy as index.html. The
 worker, which takes its policy from its own response. tools/serve.mjs sends
 the identical set, and tests/no-network.js checks all three agree.
 
-Before serving, the speech model, its runtime and the PDF library are checked
-against their pinned SHA-256 hashes. Those files run with access to every
-answer; a changed one means the server refuses to start rather than hand it
-a microphone. This catches corruption and a swapped file. It cannot catch an
-attacker who can also edit this script -- nothing on the same disk can.
+Before serving, every speech model under models/, its runtime and the PDF
+library are checked against their pinned SHA-256 hashes. Those files run with
+access to every answer; a changed one means the server refuses to start rather
+than hand it a microphone. This catches corruption and a swapped file. It
+cannot catch an attacker who can also edit this script -- nothing on the same
+disk can.
 
 The page opens in its own browser profile when Chrome, Edge, Chromium or
 Brave is installed: no extensions, no account sync, no background requests,
@@ -65,9 +66,14 @@ HEADERS = {
 # -- integrity -------------------------------------------------------------------
 
 def integrity_lists(root=ROOT):
-    """Every hash list: the vendored libraries and each committed model."""
+    """Every hash list: the vendored libraries and one per model directory.
+    A model directory without its SHA256SUMS is listed anyway, so it is
+    reported missing instead of being served unverified."""
     lists = [root / "vendor" / "SHA256SUMS", root / "vendor" / "transformers" / "VERSIONS.txt"]
-    lists += sorted((root / "models").glob("*/SHA256SUMS"))
+    models = root / "models"
+    if models.is_dir():
+        lists += [d / "SHA256SUMS" for d in sorted(models.iterdir())
+                  if d.is_dir() and not d.name.startswith(".")]
     return lists
 
 

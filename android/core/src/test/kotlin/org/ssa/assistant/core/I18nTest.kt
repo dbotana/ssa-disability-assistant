@@ -185,12 +185,16 @@ class I18nTest {
     @Test
     fun speechPacksAndVoicesAreData() {
         assertTrue("English speech is installed", i18n.sttInstalled("en"))
-        assertTrue("French speech must not claim to be installed", !i18n.sttInstalled("fr"))
-        assertTrue("Lingala speech must not claim to be installed", !i18n.sttInstalled("ln"))
+        assertTrue("French speech is installed", i18n.sttInstalled("fr"))
+        assertTrue("Lingala speech is installed", i18n.sttInstalled("ln"))
 
         val languages = golden["languages"]!!.asObject()!!
         assertEquals("whisper-base.en", languages["en"]!!.asObject()!!["stt"]!!.asObject()!!["model"]!!.asString())
         assertEquals("whisper-base", languages["fr"]!!.asObject()!!["stt"]!!.asObject()!!["model"]!!.asString())
+        assertEquals("whisper-base", languages["ln"]!!.asObject()!!["stt"]!!.asObject()!!["model"]!!.asString())
+        assertEquals("fr", languages["fr"]!!.asObject()!!["stt"]!!.asObject()!!["language"]!!.asString())
+        assertEquals("ln", languages["ln"]!!.asObject()!!["stt"]!!.asObject()!!["language"]!!.asString())
+        assertTrue("English names no language", languages["en"]!!.asObject()!!["stt"]!!.asObject()!!["language"] === Json.Null)
         assertTrue("French clips are absent", languages["fr"]!!.asObject()!!["clips"] === Json.Null)
         assertTrue("Lingala clips are absent", languages["ln"]!!.asObject()!!["clips"] === Json.Null)
         assertTrue("English clips are present", languages["en"]!!.asObject()!!["clips"] is Json.Obj)

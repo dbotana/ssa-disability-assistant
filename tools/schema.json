@@ -5941,7 +5941,7 @@
           "model": "whisper-base",
           "language": "fr",
           "multilingual": true,
-          "installed": false
+          "installed": true
         }
       },
       "ln": {
@@ -5975,7 +5975,7 @@
           "model": "whisper-base",
           "language": "ln",
           "multilingual": true,
-          "installed": false
+          "installed": true
         }
       }
     },

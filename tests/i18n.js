@@ -135,10 +135,13 @@ eq('garbage settings fall back per channel',
 // -- speech packs -------------------------------------------------------------
 
 check('English speech is installed', sttFor('en').installed === true);
-check('French names a multilingual model that is not installed',
-  sttFor('fr').model === 'whisper-base' && sttFor('fr').installed === false);
-check('Lingala names a multilingual model that is not installed',
-  sttFor('ln').model === 'whisper-base' && sttFor('ln').installed === false);
+check('English is still on the English-only pack',
+  sttFor('en').model === 'whisper-base.en' && sttFor('en').language === null && sttFor('en').multilingual === false);
+for (const lang of ['fr', 'ln']) {
+  const s = sttFor(lang);
+  check(`${lang} loads the multilingual pack`, s.model === 'whisper-base' && s.installed === true
+    && s.language === lang && s.multilingual === true, JSON.stringify(s));
+}
 check('only English has a clip pack', LANGUAGES.en.clips !== null);
 check('French clips are null', LANGUAGES.fr.clips === null);
 check('Lingala clips are null', LANGUAGES.ln.clips === null);

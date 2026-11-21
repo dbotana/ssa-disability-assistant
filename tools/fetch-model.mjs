@@ -13,7 +13,7 @@
 //
 // Every file is pinned to one repository revision and checked against the
 // SHA-256 Hugging Face publishes for it. The hashes are written to
-// SHA256SUMS beside the model, which tests/model-integrity.js checks.
+// SHA256SUMS beside the model, which tests/vendor-integrity.js and both launchers check.
 //
 // Only the q8 ("_quantized") weights are fetched. They are what the app
 // loads (see DTYPE in src/whisper-worker.js), and they are the only variant
@@ -30,6 +30,9 @@ const HF = 'https://huggingface.co';
 // Bump a revision deliberately, after running tools/stt-eval.mjs against it.
 const REVISIONS = {
   'onnx-community/whisper-base.en': '51eefc0af78b103839eda9e7e4f4186acc6517fe',
+  // French and Lingala. There are no recordings in either language, so this
+  // pin is checked by hash only; its accuracy has not been measured.
+  'onnx-community/whisper-base': '1846881b6b3a3024392c1eea3ad983695bc23925',
   'onnx-community/whisper-small.en': '482fb8ba081b6e906f92efe103622316b2a0cc69'
 };
 

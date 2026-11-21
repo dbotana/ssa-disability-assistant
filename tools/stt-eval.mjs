@@ -1,15 +1,19 @@
 #!/usr/bin/env node
 // Measure the committed speech model on recorded answers. Maintainer-only.
 //
-// Runs the same model files the browser loads (models/whisper-base.en) over
-// every WAV in tests/fixtures/speech/, then through the app's own
+// Runs the model files the browser loads (models/whisper-base.en for English by
+// default) over every WAV in tests/fixtures/speech/, then through the app's own
 // cleanTranscript() -> parseLocal() -> normalize(), and compares the value
 // that would be kept against expected.json. What matters is not whether the
 // transcript is pretty but whether the right nine digits reach the form.
 //
 //   cd tools && npm install        once; installs transformers.js for Node
-//   node tools/stt-eval.mjs        from the repository root
-//   node tools/stt-eval.mjs whisper-small.en
+//   node tools/stt-eval.mjs [model] [language]   from the repository root
+//   node tools/stt-eval.mjs whisper-base fr
+//
+// French and Lingala have no recordings in tests/fixtures/speech/, so this
+// measures nothing for them: it says so and exits 2. No French or Lingala
+// accuracy figure exists for this project.
 //
 // Not part of tests/: it needs onnxruntime-node, a native dependency the
 // shipped app does not have and CI should not install. It makes no network
@@ -26,17 +30,40 @@ import { fileURLToPath } from 'node:url';
 import { cleanTranscript } from '../src/localstt.js';
 import { parseLocal } from '../src/parse.js';
 import { normalize } from '../src/validate.js';
+import { LANGUAGES } from '../src/i18n/languages.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const FIXTURES = join(ROOT, 'tests', 'fixtures', 'speech');
 const MODEL = process.argv[2] ?? 'whisper-base.en';
+const LANG = process.argv[3] ?? 'en';
+if (!LANGUAGES[LANG]) { console.error(`Unknown language ${LANG}.`); process.exit(2); }
+const MULTILINGUAL = !MODEL.endsWith('.en');
+if (!MULTILINGUAL && LANG !== 'en') {
+  console.error(`${MODEL} is English-only and cannot transcribe ${LANG}.`);
+  process.exit(2);
+}
+const ASR_OPTS = MULTILINGUAL
+  ? { language: LANG, task: 'transcribe', chunk_length_s: 30 }
+  : { chunk_length_s: 30 };
 
-// What the app refuses as silence-filler, read from main.js so the two cannot
+const expected = JSON.parse(await readFile(join(FIXTURES, 'expected.json'), 'utf8'));
+// English fixtures have no prefix, and none starts with fr-/ln-.
+const all = (await readdir(FIXTURES)).filter(f => f.endsWith('.wav')).sort();
+const files = LANG === 'en' ? all : all.filter(f => f.startsWith(`${LANG}-`));
+// Checked before the FILLER read and the transformers import, so a language
+// with no recordings says so in every environment instead of failing later.
+if (!files.length) {
+  console.log(`No recordings in ${LANG}: tests/fixtures/speech/ holds English clips only.`);
+  console.log(`Nothing was measured. Add ${LANG}-*.wav files with expected.json entries first.`);
+  process.exit(2);
+}
+
+// What the app refuses as silence-filler, read from turn.js so the two cannot
 // drift. There it only applies when the microphone also stayed quiet; every
 // fixture that expects null is a silent one, so here it always applies.
-const mainSrc = await readFile(join(ROOT, 'src', 'main.js'), 'utf8');
+const mainSrc = await readFile(join(ROOT, 'src', 'turn.js'), 'utf8');
 const fillerSrc = mainSrc.match(/const FILLER_TRANSCRIPTS = new Set\((\[[\s\S]*?\])\);/);
-if (!fillerSrc) { console.error('Could not find FILLER_TRANSCRIPTS in src/main.js'); process.exit(2); }
+if (!fillerSrc) { console.error('Could not find FILLER_TRANSCRIPTS in src/turn.js'); process.exit(2); }
 const FILLER = new Set(JSON.parse(fillerSrc[1].replace(/'/g, '"')));
 const isFiller = s => FILLER.has(s.toLowerCase().replace(/[.!?,\s]+$/, '').trim());
 
@@ -71,12 +98,9 @@ function readWav(buf) {
   throw new Error('no data chunk');
 }
 
-const expected = JSON.parse(await readFile(join(FIXTURES, 'expected.json'), 'utf8'));
-const files = (await readdir(FIXTURES)).filter(f => f.endsWith('.wav')).sort();
-
 let t0 = performance.now();
 const asr = await pipeline('automatic-speech-recognition', MODEL, { dtype: 'q8' });
-console.log(`${MODEL}: loaded in ${Math.round(performance.now() - t0)} ms\n`);
+console.log(`${MODEL} (${LANG}): loaded in ${Math.round(performance.now() - t0)} ms\n`);
 
 let pass = 0;
 const times = [];
@@ -87,13 +111,13 @@ for (const file of files) {
 
   const audio = readWav(await readFile(join(FIXTURES, file)));
   t0 = performance.now();
-  const { text } = await asr(audio, { chunk_length_s: 30 });
+  const { text } = await asr(audio, ASR_OPTS);
   const ms = performance.now() - t0;
   times.push(ms);
 
   const heard = cleanTranscript(text);
   const question = { id: name, type: want.type, confirm: true };
-  const local = heard && !isFiller(heard) ? parseLocal(question, heard) : null;
+  const local = heard && !isFiller(heard) ? parseLocal(question, heard, { lang: LANG }) : null;
   const result = local ? normalize(local, question) : null;
   const got = result && !result.needsClarification ? result.value : null;
   const ok = got === want.value;

@@ -92,18 +92,59 @@ const blob = (bytes = 8) => new Blob([new Uint8Array(bytes)], { type: 'audio/web
 }
 
 {
-  // The French pack is not on disk. Refusing must not create a worker or post
-  // a message: the only safe answer is "type instead", at once.
-  const stt = await fresh('fr-unavailable');
-  const before = workers.length;
-  const err = await stt.load(null, 'fr').then(() => null, e => e);
-  check('French load rejects as unavailable', err?.kind === 'unavailable', String(err?.kind));
-  check('French load creates no worker', workers.length === before);
-  const typed = await stt.transcribe(blob(), 'fr').then(() => null, e => e);
-  check('French transcribe rejects as unavailable', typed?.kind === 'unavailable', String(typed?.kind));
-  check('French transcribe creates no worker', workers.length === before);
-  check('French is reported unavailable', stt.available('fr') === false);
-  check('English is reported available', stt.available('en') === true);
+  // French loads the multilingual pack.
+  {
+    const stt = await fresh('fr-load');
+    const before = workers.length;
+    await stt.load(null, 'fr');
+    const w = workers.at(-1);
+    const load = w?.posted.find(p => p.msg.type === 'load')?.msg;
+    check('French load starts a worker', workers.length === before + 1);
+    check('French load names whisper-base', load?.model === 'whisper-base', String(load?.model));
+    check('French load asks for French', load?.language === 'fr' && load?.multilingual === true, JSON.stringify(load));
+    check('French is reported available', stt.available('fr') === true);
+    check('Lingala is reported available', stt.available('ln') === true);
+    check('English is reported available', stt.available('en') === true);
+
+    // Lingala shares the loaded multilingual model: no second load message.
+    await stt.load(null, 'ln');
+    check('Lingala reuses the loaded multilingual model',
+      w.posted.filter(p => p.msg.type === 'load').length === 1 && workers.length === before + 1);
+    reply = () => ({ type: 'result', text: 'ee' });
+    await stt.transcribe(blob(), 'ln');
+    const sent = w.posted.filter(p => p.msg.type === 'transcribe').at(-1)?.msg;
+    check('Lingala transcription is sent with ln', sent?.model === 'whisper-base'
+      && sent?.language === 'ln' && sent?.multilingual === true, JSON.stringify({ ...sent, audio: undefined }));
+
+    // English beside it still loads its own English-only pack.
+    await stt.load(null, 'en');
+    const loads = w.posted.filter(p => p.msg.type === 'load').map(p => p.msg.model);
+    check('English still loads whisper-base.en next to it', loads.join() === 'whisper-base,whisper-base.en', loads.join());
+    reply = () => ({ type: 'result', text: 'hello' });
+  }
+
+  // An uninstalled pack still refuses, with no worker. The shipped table now
+  // installs every language, so a temporary fake language keeps the
+  // `unavailable` branch covered. `localstt.js` resolves packs through `sttFor`,
+  // which reads the same `LANGUAGES` object, so mutating it works.
+  {
+    // Every shipped language now has a pack on disk, so a fake one keeps the
+    // "not installed" path covered: refusing must not create a worker or
+    // post a message; the only safe answer is "type instead", at once.
+    const { LANGUAGES } = await import('../src/i18n/languages.js');
+    LANGUAGES.zz = { ...LANGUAGES.en, tag: 'zz',
+      stt: { model: 'whisper-none', language: 'zz', multilingual: true, installed: false } };
+    try {
+      const stt = await fresh('unavailable');
+      const before = workers.length;
+      const err = await stt.load(null, 'zz').then(() => null, e => e);
+      check('an uninstalled pack rejects as unavailable', err?.kind === 'unavailable', String(err?.kind));
+      const typed = await stt.transcribe(blob(), 'zz').then(() => null, e => e);
+      check('an uninstalled pack transcribes nothing', typed?.kind === 'unavailable', String(typed?.kind));
+      check('an uninstalled pack creates no worker', workers.length === before);
+      check('an uninstalled pack is reported unavailable', stt.available('zz') === false);
+    } finally { delete LANGUAGES.zz; }
+  }
 }
 
 // -- transcribing ------------------------------------------------------------

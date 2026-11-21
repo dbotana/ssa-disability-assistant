@@ -68,6 +68,34 @@ check('the worker loads a committed model', models.some(m => m.name === used), `
 // promise: an installed pack must name a committed directory, and an
 // uninstalled one must not pretend it is there.
 const committed = new Set(models.map(m => m.name));
+check('both speech packs are committed',
+  committed.has('whisper-base.en') && committed.has('whisper-base'), [...committed].join(', '));
+
+// Each pack names the revision it was fetched at, and that is the one
+// tools/fetch-model.mjs pins. Only q8 weights are committed.
+const fetcher = await readFile(join(ROOT, 'tools', 'fetch-model.mjs'), 'utf8');
+for (const model of models) {
+  const dir = join(ROOT, 'models', model.name);
+  const source = await readFile(join(dir, 'SOURCE.txt'), 'utf8').catch(() => '');
+  const m = source.match(/^https:\/\/huggingface\.co\/(\S+)\nrevision ([0-9a-f]{40})\n$/);
+  check(`${model.name} SOURCE.txt names a repository and revision`, !!m, JSON.stringify(source));
+  if (m) {
+    check(`${model.name} is the pack its SOURCE.txt names`, m[1].split('/').pop() === model.name, m[1]);
+    check(`${model.name} revision is the one fetch-model.mjs pins`, fetcher.includes(`'${m[1]}': '${m[2]}'`), m[2]);
+  }
+  const onnx = await readdir(join(dir, 'onnx'));
+  check(`${model.name} commits q8 weights only`, onnx.every(f => f.endsWith('_quantized.onnx')), onnx.join(', '));
+}
+
+// A multilingual pack must know every language that loads it.
+for (const [code, language] of Object.entries(LANGUAGES)) {
+  const stt = language.stt;
+  if (!stt?.installed || !stt.multilingual) continue;
+  const gen = JSON.parse(await readFile(join(ROOT, 'models', stt.model, 'generation_config.json'), 'utf8'));
+  check(`${code}: ${stt.model} is multilingual`, gen.is_multilingual === true);
+  check(`${code}: ${stt.model} has the <|${stt.language}|> token`,
+    Number.isInteger(gen.lang_to_id?.[`<|${stt.language}|>`]));
+}
 for (const [code, language] of Object.entries(LANGUAGES)) {
   const model = language.stt?.model;
   check(`${code} speech pack names a model`, typeof model === 'string' && model.length > 0);
