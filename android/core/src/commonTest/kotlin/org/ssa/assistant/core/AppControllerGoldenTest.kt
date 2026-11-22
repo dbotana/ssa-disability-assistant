@@ -1,20 +1,26 @@
 package org.ssa.assistant.core
 
 import kotlin.test.Test
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.yield
+import org.ssa.assistant.core.app.AppController
 import org.ssa.assistant.core.golden.Golden
 import org.ssa.assistant.core.golden.readTestResource
+import org.ssa.assistant.core.golden.runTestBlocking
+import org.ssa.assistant.core.json.Json
+import org.ssa.assistant.core.json.asArray
+import org.ssa.assistant.core.json.asObject
+import org.ssa.assistant.core.json.asString
+import org.ssa.assistant.core.json.treeEquals
 import org.ssa.assistant.core.schema.SchemaLoader
+import org.ssa.assistant.core.turn.TurnController
 
 /**
  * Replays scenarios through AppController and compares uiState to the
- * appstate golden.  choose → app.chooseLanguage, option → app.submitOption,
- * and the rest dispatched to app exactly as TurnGoldenTest.dispatches to turn.
+ * appstate golden. choose → app.chooseLanguage, option → app.submitOption,
+ * and the rest dispatched to app exactly as TurnGoldenTest dispatches to turn.
  */
 class AppControllerGoldenTest {
-
-    companion object {
-        const val SCENARIO_EPOCH_MS = 1_800_206_400_000L   // Date.UTC(2026, 8, 19, 12, 0, 0)
-    }
 
     @Test
     fun appState() = runTestBlocking {
@@ -33,11 +39,11 @@ class AppControllerGoldenTest {
             val doc = byName[name] ?: error("no scenario file for \"$name\"")
 
             // Build the shared harness and AppController from the same ports.
-            val harness = TurnHarness(schema, this).also { it.ports = appControllerPorts(it, schema) }
+            val harness = TurnHarness(schema, this)
             val app = AppController(schema, TurnController(harness.ports, schema))
 
             // Run the steps, dispatching choose/app.submitOption etc.
-            runAppSteps(harness, doc.steps ?: emptyList())
+            runAppSteps(harness, app, doc.steps ?: emptyList())
 
             // Compare the final uiState to the golden.
             val uiState = app.state().toJson()
@@ -151,116 +157,42 @@ class AppControllerGoldenTest {
     }
 
     // -----------------------------------------------------------------
-    // Ports for AppControllerTurnHarness — create the fake ports used by
-    // AppControllerGoldenTest.
-    // -----------------------------------------------------------------
-
-    private fun appControllerPorts(harness: TurnHarness, schema: Schema): TurnController.Ports {
-        object : TurnController.Ports {
-            override val say = Phrases(schema)
-            override val correct = Correct(schema)
-            override val i18n = I18n(schema)
-            override val store = object : TurnController.StorePort {
-                override fun saveState(state: Json.Obj): Boolean { harness.savedWrote += 1; return true }
-                override suspend fun flush() {}
-                override fun markWithheld(fields: List<Json.Obj>) {
-                    harness.withheld.addAll(fields.mapNotNull { it["id"]?.asString() })
-                }
-                override fun sensitiveAnswers(state: Json.Obj): List<Json.Obj> =
-                    Sensitive.sensitiveAnswers(schema, state)
-                override fun isPersisting(): Boolean = true
-                override fun clearState() {}
-                override fun forgetKey() {}
-            }
-            override val speech = object : TurnController.SpeechPort {
-                override suspend fun speak(text: String, interrupt: Boolean, lang: String) {
-                    harness.spoken.add(text)
-                    harness.recordSpoken.add(text)
-                }
-                override fun cancel() {}
-            }
-            override val audio = object : TurnController.AudioPort {
-                override suspend fun startRecording(options: Json.Obj) { recording = true }
-                override suspend fun stopRecording(): TurnController.Blob {
-                    recording = false
-                    return TurnController.Blob(1000, null)
-                }
-                override fun cancelRecording() { recording = false }
-                override fun isRecording(): Boolean = recording
-                override fun lastCaptureDurationMs(): Int = harness.durationMs
-                override fun lastCaptureHadSpeech(): Boolean = hadSpeech
-                override fun lastCapturePeak(): Double = harness.peak
-                override fun releaseMic() {}
-                override fun earcon(name: String) {}
-            }
-            override val stt = object : TurnController.SttPort {
-                override suspend fun transcribe(blob: TurnController.Blob): String =
-                    blob.text ?: harness.nextTranscript ?: ""
-            }
-            override val timers = object : TurnController.TimersPort {
-                override fun setTimeout(fn: suspend () -> Unit, ms: Long): String {
-                    if (ms < TurnHarness.FAKE_TIMER_MS) {
-                        harness.scope.launch { delay(ms); fn() }
-                        return "real-${harness.nextTimer++}"
-                    }
-                    val id = "fake-${harness.nextTimer++}"
-                    harness.fake[id] = harness.nowMs + ms to fn
-                    return id
-                }
-                override fun clearTimeout(id: String?) {
-                    if (id != null && id.startsWith("fake-")) harness.fake.remove(id)
-                }
-            }
-            override val clock: () -> Long = { harness.nowMs }
-            override fun localDate(epochMs: Long) = CivilDate.ofEpochMillis(epochMs)
-            override val announce: (String, Boolean) -> Unit = { text, _ ->
-                harness.announced.add(text)
-                harness.recordAnnounced.add(text)
-            }
-            override val onState: (Json.Obj) -> Unit = { harness.snapshots.add(it) }
-            override val onExport: suspend (List<String>, Json.Obj, LanguageSettings) -> Unit = { forms, _, _ ->
-                harness.exports.add(forms)
-            }
-            override val onReadBack: suspend (Json.Obj) -> Unit = {}
-
-            override fun createEngine(saved: Json.Obj?, now: () -> Double): Engine =
-                Engine(schema, saved, now)
-
-            override fun parseLocal(
-                question: Question,
-                transcript: String,
-                typed: Boolean,
-                now: CivilDate,
-                lang: String,
-                readBack: Boolean,
-            ) = Parse.parseLocal(question, transcript, typed, now, lang, harness.i18n, readBack)
-
-            override fun normalize(result: org.ssa.assistant.core.parse.ParsedValue?, question: Question) =
-                Validate.normalize(result, question)
-
-            override fun speakable(value: Any?, type: String, options: List<Option>?, lang: String) =
-                speakableValue(value, type, options, lang)
-
-            override fun formatTimeRemaining(sec: Int?, lang: String) =
-                org.ssa.assistant.core.formatTimeRemaining(sec, lang)
-        }
-    }
-
-    // -----------------------------------------------------------------
     // the steps (app level) -------------------------------------------------
 
-    private suspend fun runAppSteps(harness: TurnHarness, steps: List<Map<String, Any?>>) {
-        val app = AppController(
-            harness.schema,
-            TurnController(harness.ports, harness.schema)
-        )
+    private suspend fun runAppSteps(harness: TurnHarness, app: AppController, steps: List<Map<String, Any?>>) {
+        fun startOpts(o: Any?): TurnController.StartOptions {
+            val map = o as? Map<String, Any?> ?: emptyMap()
+            val resume = map["resume"] as? Map<String, Any?>
+            val saved = if (resume != null) {
+                val fixture = resume["fixture"] as? String
+                val answers = resume["answers"] as? Map<String, Any?> ?: emptyMap()
+                val (state, withheld) = harness.savedSession(fixture, answers)
+                TurnController.SavedSession(state, withheld)
+            } else null
+            val languages = (map["languages"] as? Map<*, *>)?.let { l ->
+                LanguageSettings(
+                    input = l["input"] as? String ?: "en",
+                    output = l["output"] as? String ?: "en",
+                    screen = l["screen"] as? String ?: "en",
+                    fill = l["fill"] as? String ?: "en",
+                )
+            }
+            return TurnController.StartOptions(
+                mode = (map["mode"] as? String) ?: "voice",
+                confirm = (map["confirm"] as? Boolean) ?: true,
+                saved = saved,
+                languages = languages,
+            )
+        }
 
         for (step in steps) {
             yield()
             val start = step["start"]
             val startTwice = step["start-twice"]
+            val choose = step["choose"]
+            val option = step["option"]
             val advance = step["advance"]
-            val typ = step["type"]
+            val type = step["type"]
             val say = step["say"]
             val sayQuiet = step["say-quiet"]
             val quiet = step["quiet"]
@@ -268,22 +200,6 @@ class AppControllerGoldenTest {
             val command = step["command"]
             val startReview = step["start-review"]
             val expect = step["expect"]
-
-            // ---- choose -------------------------------------------------------
-            if (step["choose"] != null) {
-                val c = step["choose"] as? Map<String, Any?>
-                c?.forEach { (k, v) -> app.chooseLanguage(k, v.toString()) }
-            }
-
-            // ---- option -------------------------------------------------------
-            if (step["option"] != null) {
-                val opt = step["option"]?.toString() ?: ""
-                app.submitOption(opt)
-            }
-
-            // ---- the rest dispatched to app exactly as runScenario dispatches
-            // to turn (start, type, say, say-quiet, press, command,
-            // start-review, finish, advance) ----
 
             when {
                 start != null -> app.start(startOpts(start))
@@ -294,8 +210,13 @@ class AppControllerGoldenTest {
                     a.join()
                     b.join()
                 }
+                choose != null -> {
+                    val c = choose as? Map<String, Any?>
+                    c?.forEach { (k, v) -> app.chooseLanguage(k, v.toString()) }
+                }
+                option != null -> app.submitOption(option.toString())
                 advance != null -> harness.advance(((advance as Double) * 60 * 1000).toLong())
-                typ != null -> app.submitTyped(typ.toString())
+                type != null -> app.submitTyped(type.toString())
                 say != null -> {
                     harness.setTranscript(say.toString())
                     app.sendAudio(TurnController.Blob(1000, say.toString()))
@@ -314,31 +235,6 @@ class AppControllerGoldenTest {
                 step["finish"] != null -> app.finishInterview()
             }
         }
-    }
-
-    private fun startOpts(o: Any?): TurnController.StartOptions {
-        val map = o as? Map<String, Any?> ?: emptyMap()
-        val resume = map["resume"] as? Map<String, Any?>
-        val saved = if (resume != null) {
-            val fixture = resume["fixture"] as? String
-            val answers = resume["answers"] as? Map<String, Any?> ?: emptyMap()
-            val (state, withheld) = harness.savedSession(fixture, answers)
-            TurnController.SavedSession(state, withheld)
-        } else null
-        val languages = (map["languages"] as? Map<*, *>)?.let { l ->
-            LanguageSettings(
-                input = l["input"] as? String ?: "en",
-                output = l["output"] as? String ?: "en",
-                screen = l["screen"] as? String ?: "en",
-                fill = l["fill"] as? String ?: "en",
-            )
-        }
-        return TurnController.StartOptions(
-            mode = (map["mode"] as? String) ?: "voice",
-            confirm = (map["confirm"] as? Boolean) ?: true,
-            saved = saved,
-            languages = languages,
-        )
     }
 
     private fun expectStep(harness: TurnHarness, raw: Any?) {

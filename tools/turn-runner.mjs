@@ -56,6 +56,7 @@ import { formatTimeRemaining } from '../src/a11y.js';
 import * as correct from '../src/correct.js';
 import * as say from '../src/phrases.js';
 import { createTurnController } from '../src/turn.js';
+import { createAppController } from '../src/app-controller.js';
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SCENARIOS = join(REPO, 'tools', 'turn-scenarios');
@@ -152,7 +153,7 @@ function scalar(v) {
 
 // -- the fake ports -----------------------------------------------------------
 
-function harness(scenario) {
+function harness(factory = createTurnController) {
   const spoken = [];
   const announced = [];
   const record = { spoken: [], announced: [] };
@@ -228,7 +229,7 @@ function harness(scenario) {
     nowMs = target;
   }
 
-  const turn = createTurnController({
+  const turn = factory({
     createEngine: (saved, opts) => createEngine(SECTIONS, saved ?? null, opts),
     say,
     parseLocal,
@@ -275,17 +276,20 @@ function savedSession({ fixture = null, answers = {} } = {}) {
 export { yamlParse };
 
 /**
- * @param {object} opts  { record: true } to also capture the spoken and
- *                       announced transcript and the final answers.
+ * One controller run over a scenario: the shared step loop for both the turn
+ * level (createTurnController) and the app level (createAppController).
+ * `app` distinguishes how `choose` and `option` reach the controller.
  */
-export async function runScenario(name, steps, opts = {}) {
+async function runController(name, steps, factory, { app = false } = {}) {
   const failures = [];
   const ok = (label, cond, detail = '') => {
     if (!cond) failures.push(`${label}${detail ? ` — ${detail}` : ''}`);
   };
-  const h = harness();
-  const { turn, spoken, announced, state, record } = h;
+  const h = harness(factory);
+  const controller = h.turn;
+  const { spoken, announced, state, record } = h;
 
+  const chosen = {};
   let scenarioLanguages = null;
   let last = null;
   const snap = () => state.snapshots.at(-1) ?? last;
@@ -296,11 +300,12 @@ export async function runScenario(name, steps, opts = {}) {
   };
   const settle = () => new Promise(r => setTimeout(r, 0));
   const startOpts = o => {
-    if (o.languages) scenarioLanguages = o.languages;
+    const langs = { ...(o.languages ?? {}), ...chosen };
+    if (Object.keys(langs).length) scenarioLanguages = langs;
     return {
       mode: o.mode ?? 'voice',
       confirm: o.confirm ?? true,
-      ...(o.languages ? { languages: o.languages } : {}),
+      ...(Object.keys(langs).length ? { languages: langs } : {}),
       ...(o.resume ? { saved: savedSession(o.resume) } : {})
     };
   };
@@ -308,77 +313,99 @@ export async function runScenario(name, steps, opts = {}) {
   for (const step of steps) {
     await settle();
     if (step.start) {
-      await turn.start(startOpts(step.start));
+      await controller.start(startOpts(step.start));
     } else if (step['start-twice']) {
       const o = startOpts(step['start-twice']);
-      await Promise.all([turn.start(o), turn.start(o)]);
+      await Promise.all([controller.start(o), controller.start(o)]);
+    } else if (step.choose != null) {
+      if (app) {
+        for (const [channel, lang] of Object.entries(step.choose)) controller.chooseLanguage(channel, String(lang));
+      } else {
+        Object.assign(chosen, step.choose);
+      }
+    } else if (step.option != null) {
+      if (app) await controller.submitOption(String(step.option));
+      else await controller.submitTyped(String(step.option));
     } else if (step.advance != null) {
       await h.advance(Number(step.advance) * 60 * 1000);
     } else if (step.type != null) {
-      await turn.submitTyped(String(step.type));
+      await controller.submitTyped(String(step.type));
     } else if (step.say != null) {
       h.setTranscript(String(step.say));
-      await turn.sendAudio({ size: 1000, text: String(step.say) });
+      await controller.sendAudio({ size: 1000, text: String(step.say) });
     } else if (step['say-quiet'] != null) {
       h.setQuiet(true);
       h.setTranscript(String(step['say-quiet']));
-      await turn.sendAudio({ size: 1000, text: String(step['say-quiet']) });
+      await controller.sendAudio({ size: 1000, text: String(step['say-quiet']) });
       h.setQuiet(false);
     } else if (step.quiet != null) {
       h.setQuiet(step.quiet === true);
     } else if (step.press != null) {
-      await turn.onKey(step.press, { typing: false });
+      await controller.onKey(step.press, { typing: false });
     } else if (step.command != null) {
-      await turn.runCommand(step.command);
+      await controller.runCommand(step.command);
     } else if (step['start-review']) {
-      await turn.startReview();
+      await controller.startReview();
     } else if (step.expect) {
-      const e = step.expect;
-      const s = snap();
-      if (e.question != null) ok(`question matches /${e.question}/`, new RegExp(e.question).test(s.questionText ?? ''), JSON.stringify(s.questionText));
-      if (e.hint != null) ok(`hint matches /${e.hint}/`, new RegExp(e.hint).test(s.hintText ?? ''), JSON.stringify(s.hintText));
-      if (e.status != null) ok(`status matches /${e.status}/`, new RegExp(e.status).test(s.statusText ?? ''), JSON.stringify(s.statusText));
-      if (e.readback != null) ok(`readback ${e.readback}`, (s.readbackOpen ? 'open' : 'closed') === e.readback);
-      if (e.panel != null) ok(`panel ${e.panel}`, s.panel === e.panel, s.panel);
-      if (e.spoken != null) {
-        const all = spoken.join(' ');   // spoken since the last expect
-        ok(`spoken /${e.spoken}/`, new RegExp(e.spoken).test(all), JSON.stringify(all));
-      }
-      if (e.unspoken != null) {
-        const all = spoken.join(' ');
-        ok(`not spoken /${e.unspoken}/`, !new RegExp(e.unspoken).test(all), JSON.stringify(all));
-      }
-      if (e.spokenOnce != null) {
-        const n = spoken.filter(t => new RegExp(e.spokenOnce).test(t)).length;
-        ok(`spoken once /${e.spokenOnce}/`, n === 1, `spoken ${n} times`);
-      }
-      if (e.withheld) {
-        const want = [].concat(e.withheld);
-        ok(`withheld ${JSON.stringify(want)}`,
-          JSON.stringify([...new Set(h.answers.withheld)].sort()) === JSON.stringify([...want].sort()),
-          JSON.stringify(h.answers.withheld));
-      }
-      if (e.announced != null) {
-        const all = announced.join(' ');
-        ok(`announced /${e.announced}/`, new RegExp(e.announced).test(all), JSON.stringify(all));
-      }
-      if (e.answers) {
-        for (const [k, v] of Object.entries(e.answers)) {
-          const got = s.answers?.[k];
-          const same = v === null ? got == null : JSON.stringify(got) === JSON.stringify(v);
-          ok(`answer ${k}`, same, `${JSON.stringify(got)} != ${JSON.stringify(v)}`);
-        }
-      }
-      if (e.missing) {
-        ok(`missing /${e.missing}/`, new RegExp(e.missing).test(s.missing ?? ''), JSON.stringify(s.missing));
-      }
+      expectStep(ok, h, spoken, announced, snap, step.expect);
       flushSpoken();
     } else if (step.finish) {
-      await turn.finishInterview();
+      await controller.finishInterview();
     }
   }
 
   await settle();
+  return { failures, record, snap, scenarioLanguages, controller };
+}
+
+/** The `expect` step's assertions, shared by both runners. */
+function expectStep(ok, h, spoken, announced, snap, e) {
+  const s = snap();
+  if (e.question != null) ok(`question matches /${e.question}/`, new RegExp(e.question).test(s.questionText ?? ''), JSON.stringify(s.questionText));
+  if (e.hint != null) ok(`hint matches /${e.hint}/`, new RegExp(e.hint).test(s.hintText ?? ''), JSON.stringify(s.hintText));
+  if (e.status != null) ok(`status matches /${e.status}/`, new RegExp(e.status).test(s.statusText ?? ''), JSON.stringify(s.statusText));
+  if (e.readback != null) ok(`readback ${e.readback}`, (s.readbackOpen ? 'open' : 'closed') === e.readback);
+  if (e.panel != null) ok(`panel ${e.panel}`, s.panel === e.panel, s.panel);
+  if (e.spoken != null) {
+    const all = spoken.join(' ');   // spoken since the last expect
+    ok(`spoken /${e.spoken}/`, new RegExp(e.spoken).test(all), JSON.stringify(all));
+  }
+  if (e.unspoken != null) {
+    const all = spoken.join(' ');
+    ok(`not spoken /${e.unspoken}/`, !new RegExp(e.unspoken).test(all), JSON.stringify(all));
+  }
+  if (e.spokenOnce != null) {
+    const n = spoken.filter(t => new RegExp(e.spokenOnce).test(t)).length;
+    ok(`spoken once /${e.spokenOnce}/`, n === 1, `spoken ${n} times`);
+  }
+  if (e.withheld) {
+    const want = [].concat(e.withheld);
+    ok(`withheld ${JSON.stringify(want)}`,
+      JSON.stringify([...new Set(h.answers.withheld)].sort()) === JSON.stringify([...want].sort()),
+      JSON.stringify(h.answers.withheld));
+  }
+  if (e.announced != null) {
+    const all = announced.join(' ');
+    ok(`announced /${e.announced}/`, new RegExp(e.announced).test(all), JSON.stringify(all));
+  }
+  if (e.answers) {
+    for (const [k, v] of Object.entries(e.answers)) {
+      const got = s.answers?.[k];
+      const same = v === null ? got == null : JSON.stringify(got) === JSON.stringify(v);
+      ok(`answer ${k}`, same, `${JSON.stringify(got)} != ${JSON.stringify(v)}`);
+    }
+  }
+  if (e.missing) {
+    ok(`missing /${e.missing}/`, new RegExp(e.missing).test(s.missing ?? ''), JSON.stringify(s.missing));
+  }
+}
+
+/**
+ * @param {object} opts  { record: true } to also capture the spoken and
+ *                       announced transcript and the final answers.
+ */
+export async function runScenario(name, steps, opts = {}) {
+  const { failures, record, snap, scenarioLanguages } = await runController(name, steps, createTurnController, { app: false });
   return opts.record
     ? {
         failures,
@@ -391,6 +418,18 @@ export async function runScenario(name, steps, opts = {}) {
           answers: snap().answers
         }
       }
+    : failures;
+}
+
+/**
+ * The same scenarios through createAppController, whose snapshot() is the full
+ * uiState (turn snapshot plus controls, exportList and runs). When `record` is
+ * set, the final uiState is returned for the appstate golden.
+ */
+export async function runAppScenario(name, steps, opts = {}) {
+  const { failures, controller } = await runController(name, steps, createAppController, { app: true });
+  return opts.record
+    ? { failures, uiState: controller.snapshot() }
     : failures;
 }
 

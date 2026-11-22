@@ -898,3 +898,52 @@ Two things fell out of this work:
 - [x] **Enable Pages in repo settings** — Settings → Pages → Source:
       **GitHub Actions**. The workflow cannot do this itself; until it was set,
       the deploy step failed.
+
+
+## Mirror Run 5 (2026-11-22): `:core` compiles, and Steps 2 items 1/6/7 are done and verified
+
+Run 4 (commit `42de1ffc`) had drafted, but not compiled, the model ports, `PdfReadPort`,
+`ContentStreamTokenizer`, the core `PdfSelfCheck`, and `AppController`/`UiState` with their tests.
+This run fixed the compile, then carried the plan through Phases B1–B3 and re-ran Phase A and Phase C.
+
+Done:
+- Steps 11–12 — `ModelPorts.kt`/`ModelPortsTest.kt` (camelCase test names; the earlier backtick names
+  with spaces made D8 fail with "Space characters in SimpleName … are not allowed prior to DEX
+  version 040" — fixed by renaming).
+- Step 14 — `ContentStreamTokenizer.kt` is one `object` with one `fun drawn(bytes): DrawnContent`,
+  byte-based, sealed operand type, exhaustive `when`, no multi-char literals.
+- Steps 15–17 — core `PdfSelfCheck.kt` ported onto `PdfReader` (closes both readers in a `finally`);
+  `PdfBoxPdfReadPort.kt` added; `FormFiller.kt`/`SelfCheckTest.kt` call the core checker; the old
+  `:pdf` `PdfSelfCheck.kt` was deleted.
+- Step 18 — `ContentStreamTokenizerTest.kt` and `PdfSelfCheckCoreTest.kt` added.
+- Steps 19–23 — the JS reference: `src/app-controller.js`, `tools/turn-scenarios/controller-choice.yaml`,
+  `choose`/`option` steps and `runAppScenario` in `tools/turn-runner.mjs`, `goldenAppState()` in
+  `tools/golden/index.mjs`, regenerated goldens (`appstate.json` new, `turn.json` updated), and the
+  `controller-choice.yaml` hash in `android/core/turn-scenarios.SHA256SUMS`.
+- Steps 24–28 — `UiState.kt` gained `sttUnavailable` and a real `toJson()`; `AppController.kt` reads
+  snapshot strings/booleans via `asString()`/`== Json.True` and adds `sttUnavailable`; the shared
+  `TurnHarness.kt` (ports as a named property) was restored and fixed; `TurnGoldenTest` uses it and
+  handles `choose`/`option`; `AppControllerGoldenTest.kt` was restored and compares
+  `app.state().toJson()` to the `appstate` golden.
+- Also removed the duplicate `Op.kt` and the spurious `TurnController.Ports.languages`.
+
+Verification (exact commands, all pass):
+- `TZ=UTC ./gradlew :core:compileKotlinJvm` → BUILD SUCCESSFUL.
+- `TZ=UTC ./gradlew :core:compileCommonMainKotlinMetadata` → BUILD SUCCESSFUL.
+- `TZ=UTC ./gradlew :core:jvmTest` → 90 tests, 26 classes, 0 failures.
+- `SIMCTL_CHILD_GOLDEN_DIR=$PWD/core/build/ios-test-resources ./gradlew :core:iosSimulatorArm64Test` → 71 tests, 23 classes, 0 failures.
+- `./gradlew :core:assembleSsaCoreDebugXCFramework` → BUILD SUCCESSFUL.
+- `xcodebuild test -scheme CoreCrypto -destination 'platform=iOS Simulator,name=iPhone 18 Pro'` → 3 of 3 tests.
+- `./gradlew :app:assembleDebug :app:processReleaseManifest :app:processStagingManifest` → BUILD SUCCESSFUL.
+- `ANDROID_HOME=~/Library/Android/sdk tools/audit-permissions.sh …` → `permission audit clean (4 artifacts)`.
+- `TZ=UTC ./gradlew :core-device:connectedDebugAndroidTest` → 90 tests, 0 failures.
+- `./android/tools/run-pdf-spike.sh ssa35` → 24 tests, 0 failures; 16 PDFs re-read, 0 failures.
+- `./gradlew :core:linkDebugTestIosSimulatorArm64` → BUILD SUCCESSFUL; `schema.json`,
+  `golden/metrics.json`, `golden/templateManifest.json` present beside `test.kexe`.
+- `node tools/smoke.mjs` → `Smoke test passed.`
+- every `tests/*.js` under `node` → all 25 pass (including `controller-choice.yaml`).
+- `DEVELOPER_DIR=/Library/Developer/CommandLineTools node tools/golden/check.mjs` (after staging
+  `appstate.json` and `turn.json`) → `goldens fresh`.
+
+Still open: real-app-bundle resources for `NSBundle.mainBundle` (X6) — no app target yet, so
+step 10 is not run.

@@ -64,7 +64,7 @@ import {
   formatMoney, formatTimeRemaining
 } from '../../src/i18n/index.js';
 import { VALUE_CASES, DEFER_CASES } from './parse-corpus.mjs';
-import { runScenario, yamlParse } from '../turn-runner.mjs';
+import { runScenario, runAppScenario, yamlParse } from '../turn-runner.mjs';
 import {
   SIMBA_SYMBOLS, NUMBER_WORDS, DEFAULT_NUMBER_LANGUAGE, RESPELL, normalizeForSpeech,
   speechSegments, unknownSymbols, lingalaSpeechCorpus
@@ -965,6 +965,27 @@ async function goldenTurn() {
 }
 
 // ---------------------------------------------------------------------------
+// appstate: the controller-level uiState for every scenario
+// ---------------------------------------------------------------------------
+
+async function goldenAppState() {
+  const dir = join(REPO, 'tools', 'turn-scenarios');
+  const files = readdirSync(dir).filter(f => f.endsWith('.yaml')).sort();
+  const transcripts = [];
+  for (const file of files) {
+    const doc = yamlParse(readFileSync(join(dir, file), 'utf8'));
+    const { failures, uiState } = await runAppScenario(doc.scenario ?? file, doc.steps ?? [], { record: true });
+    if (failures.length) {
+      console.error(`goldenAppState: scenario ${file} failed:`, failures);
+      process.exitCode = 1;
+      continue;
+    }
+    transcripts.push({ scenario: doc.scenario ?? file, uiState });
+  }
+  write('appstate', { transcripts });
+}
+
+// ---------------------------------------------------------------------------
 // speech: the Lingala normalizer
 // ---------------------------------------------------------------------------
 
@@ -1127,6 +1148,7 @@ async function main() {
   await goldenImport();
   await goldenTts();
   await goldenTurn();
+  await goldenAppState();
   await goldenSpeech();
   await goldenExportNames();
   await goldenStore();

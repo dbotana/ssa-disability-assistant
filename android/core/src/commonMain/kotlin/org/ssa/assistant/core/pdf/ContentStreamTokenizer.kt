@@ -6,648 +6,341 @@ package org.ssa.assistant.core.pdf
  * reproduce the same Tj/Tf extraction for the exact bytes :pdf's [Content.kt]
  * and [AddendumRenderer] write (hex strings, /HelvWA <num> Tf).
  *
- * Grammar (RFC 3778 content-stream syntax):
- *   - Operators: single-letter or keyword names, may be preceded by numeric
- *     operands on the stack.
- *   - Numbers: int or real, optionally signed, with optional exponent.
- *   - Hex strings: <hexadecimal>  (case-insensitive, no line breaks).
- *   - Literal strings: (literal text\)  with \ escape and balanced-paren
- *     handling; balanced parentheses are tracked so nested parens are allowed.
- *   - Names: /X  (optionally #xx escapes for special chars).
- *   - Arrays: [ … ]  (skip contents).
- *   - Dictionaries: << … >>  (skip contents).
- *   - Whitespace: spaces, tabs, carriage returns, line feeds are ignored
- *     between tokens.
+ * Works on the bytes directly: each source byte is taken as 0..255 and never
+ * decoded through UTF-8, so WinAnsi bytes of 0x80 and above are preserved
+ * exactly as they appear in the stream.
  */
 object ContentStreamTokenizer {
 
     /** Extract [DrawnContent] from a PDF content-stream byte array. */
-    fun drawn(bytes: ByteArray): DrawnContent = parseStream(bytes).content
-
-    // -----------------------------------------------------------------
-    // Top-level parser
-    // -----------------------------------------------------------------
-
-    private data class ParseResult(
-        val content: DrawnContent,
-        val remaining: ByteArray
-    )
-
-    private fun parseStream(bytes: ByteArray): ParseResult {
-        val text = String(bytes, 'UTF-8')
-        val (tokens, _) = parseTokens(text, 0, text.length)
+    fun drawn(bytes: ByteArray): DrawnContent {
         val strings = mutableListOf<List<Byte>>()
         val fonts = mutableListOf<Pair<String, Double>>()
-        for (token in tokens) {
-            when (token) {
-                is TjOperand -> strings.add(token.bytes)
-                is TfOperator -> fonts.add(fontNameSizeToPair(token.name, token.size))
-            }
-        }
-        return ParseResult(DrawnContent(strings, fonts), text.toByteArray())
-    }
-
-    // -----------------------------------------------------------------
-    // Token types
-    // -----------------------------------------------------------------
-
-    private sealed class Token {
-        override fun toString(): String = when (this) {
-            is NumberToken -> "num:${value}"
-            is NameToken -> "name:${name}"
-            is HexStringToken -> "hex:${value.size}"
-            is LiteralStringToken -> "lit:${value.size}"
-            is ArrayToken -> "arr"
-            is DictToken -> "dict"
-        }
-    }
-
-    private data class NumberToken(val value: Double) : Token()
-    private data class NameToken(val name: String) : Token()
-    private data class HexStringToken(val bytes: List<Byte>) : Token()
-    private data class LiteralStringToken(val bytes: List<Byte>) : Token()
-    private data class ArrayToken() : Token()
-    private data class DictToken() : Token()
-    private data class TjOperand(val bytes: List<Byte>) : Token()
-    private data class TfOperator(val name: String, val size: Double) : Token()
-
-    // -----------------------------------------------------------------
-    // Top-level token parser — walks the token stream
-    // -----------------------------------------------------------------
-
-    private fun parseTokens(text: String, pos: Int, end: Int): List<Token> {
-        val tokens = mutableListOf<Token>()
-        var i = pos
-        while (i < end) {
-            val c = text[i]
+        val stack = mutableListOf<Operand>()
+        var i = 0
+        val n = bytes.size
+        while (i < n) {
+            val b = bytes[i].toInt() and 0xFF
             when {
-                c <= ' ' -> i++  // skip whitespace
-                c == '<' -> {
-                    val (hs, ni) = parseHexString(text, i + 1, end)
-                    tokens.add(HexStringToken(hs))
-                    i = ni
-                }
-                c == '(' -> {
-                    val (ls, ni) = parseLiteralString(text, i + 1, end)
-                    tokens.add(LiteralStringToken(ls))
-                    i = ni
-                }
-                c == '[' -> {
-                    tokens.add(ArrayToken())
-                    i++  // skip past '['; inner ']' terminates the array
-                    while (i < end && text[i] != ']') i++
-                    if (i < end) i++  // skip ']'
-                }
-                c == '<' -> {
-                    // dictionary << ... >> — skip
-                    val (nn, ni) = skipTo(text, i + 1, end, ">>")
-                    tokens.add(DictToken())
-                    i = ni
-                }
-                else -> {
-                    // an operator word or a number
-                    val (word, ni) = readWord(text, i, end)
-                    if (word.startsWith("/")) {
-                        tokens.add(NameToken(word))
+                isWhitespace(b) -> i++
+                b == '%'.code -> i = skipComment(bytes, i, n)
+                b == '<'.code -> {
+                    if (i + 1 < n && (bytes[i + 1].toInt() and 0xFF) == '<'.code) {
+                        i = skipDictionary(bytes, i, n)
                     } else {
-                        // try to parse as number
-                        val num = parseNumber(word)
-                        if (num != null) {
-                            tokens.add(NumberToken(num))
-                        } else {
-                            // unknown word — treat as operator
-                            tokens.add(NameToken(word))
-                        }
+                        val r = parseHexString(bytes, i, n)
+                        stack.add(Operand.Str(r.bytes))
+                        i = r.next
                     }
-                    i = ni
                 }
-            }
-        }
-        return tokens
-    }
-
-    private fun readWord(text: String, start: Int, end: Int): Pair<String, Int> {
-        val sb = StringBuilder()
-        var i = start
-        while (i < end) {
-            val c = text[i]
-            if (c <= ' ' || c == '(' || c == ')' || c == '<' || c == '[' || c == ']' || c == '}' || c == '{' || c == '/' || c == ';' || c == ':') break
-            sb.append(c)
-            i++
-        }
-        return Pair(sb.toString(), i)
-    }
-
-    private fun parseNumber(s: String): Double? {
-        // int: optional sign, digits
-        // real: digits '.' digits ([eE] [+-] digits)?
-        val s2 = s.trim()
-        if (s2.isEmpty()) return null
-        var i = 0
-        if (s2[i] in '+-') i++
-        var hasDot = false
-        var hasDigit = false
-        var expStarted = false
-        while (i < s2.length) {
-            val c = s2[i]
-            if (c >= '0' && c <= '9') {
-                hasDigit = true
-                i++
-            } else if (c == '.' && !hasDot) {
-                hasDot = true
-                i++
-            } else if ((c == 'e' || c == 'E') && !expStarted) {
-                expStarted = true
-                i++
-                if (i < s2.length && (s2[i] in '+-')) i++
-            } else if (c in '+-' && expStarted) {
-                i++
-            } else {
-                break
-            }
-        }
-        return if (hasDigit) s2.toDouble() else null
-    }
-
-    private fun parseHexString(text: String, pos: Int, end: Int): Pair<List<Byte>, Int] {
-        val sb = StringBuilder()
-        var i = pos
-        while (i < end) {
-            val c = text[i]
-            if (c == '>') {
-                i++  // skip the closing '>'
-                return Pair(hexStringToBytes(sb.toString()), i)
-            }
-            if (c >= '0' && c <= '9') {
-                sb.append(c)
-            } else if (c >= 'a' && c <= 'f') {
-                sb.append(c)
-            } else if (c >= 'A' && c <= 'F') {
-                sb.append(c)
-            } else if (c == '\\') {
-                // hex escape \#xx
-                i++
-                if (i < end) {
-                    val hex = text.substring(i, minOf(i + 2, end))
-                    sb.append(hex)
-                    i += 2
+                b == '>'.code -> i++
+                b == '('.code -> {
+                    val r = parseLiteralString(bytes, i, n)
+                    stack.add(Operand.Str(r.bytes))
+                    i = r.next
                 }
-            } else {
-                i++
-            }
-        }
-        return Pair(hexStringToBytes(sb.toString()), i)
-    }
-
-    private fun hexStringToBytes(hex: String): List<Byte> {
-        val result = mutableListOf<Byte>()
-        var i = 0
-        while (i + 1 < hex.length) {
-            val high = hex[i].toString().toInt(radix = 16)
-            val low = hex[i + 1].toString().toInt(radix = 16)
-            result.add((high.toByte() shl 8) or low.toByte())
-            i += 2
-        }
-        return result
-    }
-
-    private fun parseLiteralString(text: String, pos: Int, end: Int): Pair<List<Byte>, Int] {
-        val sb = StringBuilder()
-        var i = pos
-        var escape = false
-        while (i < end) {
-            val c = text[i]
-            if (escape) {
-                sb.append(c)
-                escape = false
-            } else if (c == '\\') {
-                escape = true
-            } else if (c == '(') {
-                // nested literal — skip to matching ')'
-                val j = findMatchingClose(text, i + 1, end)
-                if (j >= 0) {
-                    // copy inner content, skipping escapes
-                    var k = i + 1
-                    while (k < j) {
-                        if (text[k] == '\\' && k + 1 < j) {
-                            sb.append(text[k + 1])
-                            k += 2
-                        } else {
-                            sb.append(text[k])
-                            k++
-                        }
-                    }
-                    i = j + 1
-                } else {
-                    i = j
+                b == ')'.code -> i++
+                b == '['.code -> i = skipArray(bytes, i, n)
+                b == ']'.code -> i++
+                b == '/'.code -> {
+                    val r = parseName(bytes, i, n)
+                    stack.add(Operand.Name(r.name))
+                    i = r.next
                 }
-            } else if (c == ')') {
-                return Pair(sb.toString().toByteArray().map { it.toByte() }, i + 1)
-            } else {
-                sb.append(c)
-            }
-            i++
-        }
-        return Pair(sb.toString().toByteArray().map { it.toByte() }, i)
-    }
-
-    private fun findMatchingClose(text: String, start: Int, end: Int): Int {
-        var depth = 1
-        var i = start
-        while (i < end) {
-            if (text[i] == '(') depth++
-            else if (text[i] == ')') {
-                depth--
-                if (depth == 0) return i
-            }
-            i++
-        }
-        return -1
-    }
-
-    private fun skipTo(text: String, pos: Int, end: Int, needle: String): Int {
-        var i = pos
-        while (i <= end - needle.length) {
-            if (text.substring(i, i + needle.length) == needle) return i
-            i++
-        }
-        return end
-    }
-
-    // -----------------------------------------------------------------
-    // Token → DrawnContent conversion
-    // -----------------------------------------------------------------
-
-    private fun fontNameSizeToPair(name: String, size: Double): Pair<String, Double> {
-        // name may be "/HelvWA" or "/Helvetica"; strip leading slash
-        val n = if (name.startsWith("/")) name.substring(1) else name
-        return n to size
-    }
-
-    // -----------------------------------------------------------------
-    // Parsing entry point
-    // -----------------------------------------------------------------
-
-    private fun parseTokensOld(text: String, pos: Int, end: Int): List<Token> {
-        val tokens = mutableListOf<Token>()
-        var i = pos
-        while (i < end) {
-            val c = text[i]
-            when {
-                c <= ' ' -> i++  // skip whitespace
-                c == '<' -> {
-                    val (hs, ni) = parseHexString(text, i + 1, end)
-                    tokens.add(HexStringToken(hs))
-                    i = ni
-                }
-                c == '(' -> {
-                    val (ls, ni) = parseLiteralString(text, i + 1, end)
-                    tokens.add(LiteralStringToken(ls))
-                    i = ni
-                }
-                c == '[' -> {
-                    tokens.add(ArrayToken())
-                    i++  // skip past '['
-                    while (i < end && text[i] != ']') i++
-                    if (i < end) i++  // skip ']'
-                }
-                c == '<' -> {
-                    val (nn, ni) = skipTo(text, i + 1, end, ">>")
-                    tokens.add(DictToken())
-                    i = ni
-                }
-                else -> {
-                    val (word, ni) = readWord(text, i, end)
-                    if (word.startsWith("/")) {
-                        tokens.add(NameToken(word))
+                b == '{'.code -> i++
+                b == '}'.code -> i++
+                isRegular(b) -> {
+                    val word = readWord(bytes, i, n)
+                    i = word.next
+                    val num = word.text.toDoubleOrNull()
+                    if (num != null && num.isFinite()) {
+                        stack.add(Operand.Num(num))
                     } else {
-                        val num = parseNumber(word)
-                        if (num != null) {
-                            tokens.add(NumberToken(num))
-                        } else {
-                            tokens.add(NameToken(word))
-                        }
+                        applyOperator(word.text, stack, strings, fonts)
                     }
-                    i = ni
                 }
+                else -> i++
             }
         }
-        return tokens
-    }
-
-    // -----------------------------------------------------------------
-    // DrawnContent assembly from tokens
-    // -----------------------------------------------------------------
-
-    private fun parseTokensToDrawn(text: String, pos: Int, end: Int): Pair<DrawnContent, List<Token>> {
-        val tokens = parseTokens(text, pos, end)
-        val strings = mutableListOf<List<Byte>>()
-        val fonts = mutableListOf<Pair<String, Double>>()
-        for (token in tokens) {
-            when (token) {
-                is TjOperand -> strings.add(token.bytes)
-                is TfOperator -> fonts.add(fontNameSizeToPair(token.name, token.size))
-            }
-        }
-        return Pair(DrawnContent(strings, fonts), tokens)
-    }
-
-    /** Extract [DrawnContent] from a PDF content-stream byte array. */
-    fun drawn(bytes: ByteArray): DrawnContent = parseStream(bytes).content
-
-    // -----------------------------------------------------------------
-    // Token types
-    // -----------------------------------------------------------------
-
-    /** A single Tj operand: the raw bytes of a string operand. */
-    private data class TjOperand(val bytes: List<Byte>)
-
-    /** A single Tf operator: font name and size. */
-    private data class TfOperator(val name: String, val size: Double)
-
-    // -----------------------------------------------------------------
-    // Token base class and variants
-    // -----------------------------------------------------------------
-
-    private sealed class TokenBase {
-        override fun toString(): String = when (this) {
-            is TokenBase.NumberToken -> "num:${value}"
-            is TokenBase.NameToken -> "name:${name}"
-            is TokenBase.HexStringToken -> "hex:${hexStringToBytes(value).size}"
-            is TokenBase.LiteralStringToken -> "lit:${value.size}"
-            is TokenBase.ArrayToken -> "arr"
-            is TokenBase.DictToken -> "dict"
-        }
-    }
-
-    private data class NumberToken(val value: Double) : TokenBase()
-    private data class NameToken(val name: String) : TokenBase()
-    private data class HexStringToken(val value: String) : TokenBase()
-    private data class LiteralStringToken(val value: String) : TokenBase()
-    private data class ArrayToken() : TokenBase()
-    private data class DictToken() : TokenBase()
-
-    // -----------------------------------------------------------------
-    // Top-level token parser — walks the token stream
-    // -----------------------------------------------------------------
-
-    private fun parseTokens(text: String, pos: Int, end: Int): List<TokenBase> {
-        val tokens = mutableListOf<TokenBase>()
-        var i = pos
-        while (i < end) {
-            val c = text[i]
-            when {
-                c <= ' ' -> i++  // skip whitespace
-                c == '<' -> {
-                    val (hs, ni) = parseHexString(text, i + 1, end)
-                    tokens.add(HexStringToken(hs))
-                    i = ni
-                }
-                c == '(' -> {
-                    val (ls, ni) = parseLiteralString(text, i + 1, end)
-                    tokens.add(LiteralStringToken(ls))
-                    i = ni
-                }
-                c == '[' -> {
-                    tokens.add(ArrayToken())
-                    i++  // skip past '['
-                    while (i < end && text[i] != ']') i++
-                    if (i < end) i++  // skip ']'
-                }
-                c == '<' -> {
-                    // dictionary << ... >> — skip
-                    val (nn, ni) = skipTo(text, i + 1, end, ">>")
-                    tokens.add(DictToken())
-                    i = ni
-                }
-                else -> {
-                    val (word, ni) = readWord(text, i, end)
-                    if (word.startsWith("/")) {
-                        tokens.add(NameToken(word))
-                    } else {
-                        val num = parseNumber(word)
-                        if (num != null) {
-                            tokens.add(NumberToken(num))
-                        } else {
-                            tokens.add(NameToken(word))
-                        }
-                    }
-                    i = ni
-                }
-            }
-        }
-        return tokens
-    }
-
-    // -----------------------------------------------------------------
-    // Helper functions
-    // -----------------------------------------------------------------
-
-    private fun readWord(text: String, start: Int, end: Int): Pair<String, Int> {
-        val sb = StringBuilder()
-        var i = start
-        while (i < end) {
-            val c = text[i]
-            if (c <= ' ' || c == '(' || c == ')' || c == '<' || c == '[' || c == ']' || c == '{' || c == '}' || c == '/' || c == ';' || c == ':') break
-            sb.append(c)
-            i++
-        }
-        return Pair(sb.toString(), i)
-    }
-
-    private fun parseNumber(s: String): Double? {
-        val s2 = s.trim()
-        if (s2.isEmpty()) return null
-        var i = 0
-        if (s2[0] in '+-') i++
-        var hasDot = false
-        var hasDigit = false
-        var expStarted = false
-        while (i < s2.length) {
-            val c = s2[i]
-            if (c >= '0' && c <= '9') {
-                hasDigit = true
-                i++
-            } else if (c == '.' && !hasDot) {
-                hasDot = true
-                i++
-            } else if ((c == 'e' || c == 'E') && !expStarted) {
-                expStarted = true
-                i++
-                if (i < s2.length && (s2[i] in '+-')) i++
-            } else if (c in '+-' && expStarted) {
-                i++
-            } else {
-                break
-            }
-        }
-        return if (hasDigit) s2.toDouble() else null
-    }
-
-    private fun parseHexString(text: String, pos: Int, end: Int): Pair<List<Byte>, Int] {
-        val sb = StringBuilder()
-        var i = pos
-        while (i < end) {
-            val c = text[i]
-            if (c == '>') {
-                i++  // skip the closing '>'
-                return Pair(hexStringToBytes(sb.toString()), i)
-            }
-            if (c >= '0' && c <= '9') {
-                sb.append(c)
-            } else if (c >= 'a' && c <= 'f') {
-                sb.append(c)
-            } else if (c >= 'A' && c <= 'F') {
-                sb.append(c)
-            } else if (c == '\\') {
-                i++
-                if (i < end) {
-                    val hex = text.substring(i, minOf(i + 2, end))
-                    sb.append(hex)
-                    i += 2
-                }
-            } else {
-                i++
-            }
-        }
-        return Pair(hexStringToBytes(sb.toString()), i)
-    }
-
-    private fun hexStringToBytes(hex: String): List<Byte> {
-        val result = mutableListOf<Byte>()
-        var i = 0
-        while (i + 1 < hex.length) {
-            val high = hex[i].toString().toInt(radix = 16)
-            val low = hex[i + 1].toString().toInt(radix = 16)
-            result.add((high.toByte() shl 8) or low.toByte())
-            i += 2
-        }
-        return result
-    }
-
-    private fun parseLiteralString(text: String, pos: Int, end: Int): Pair<List<Byte>, Int] {
-        val sb = StringBuilder()
-        var i = pos
-        var escape = false
-        while (i < end) {
-            val c = text[i]
-            if (escape) {
-                sb.append(c)
-                escape = false
-            } else if (c == '\\') {
-                escape = true
-            } else if (c == '(') {
-                val j = findMatchingClose(text, i + 1, end)
-                if (j >= 0) {
-                    var k = i + 1
-                    while (k < j) {
-                        if (text[k] == '\\' && k + 1 < j) {
-                            sb.append(text[k + 1])
-                            k += 2
-                        } else {
-                            sb.append(text[k])
-                            k++
-                        }
-                    }
-                    i = j + 1
-                } else {
-                    i = j
-                }
-            } else if (c == ')') {
-                return Pair(sb.toString().toByteArray().map { it.toByte() }, i + 1)
-            } else {
-                sb.append(c)
-            }
-            i++
-        }
-        return Pair(sb.toString().toByteArray().map { it.toByte() }, i)
-    }
-
-    private fun findMatchingClose(text: String, start: Int, end: Int): Int {
-        var depth = 1
-        var i = start
-        while (i < end) {
-            if (text[i] == '(') depth++
-            else if (text[i] == ')') {
-                depth--
-                if (depth == 0) return i
-            }
-            i++
-        }
-        return -1
-    }
-
-    private fun skipTo(text: String, pos: Int, end: Int, needle: String): Int {
-        var i = pos
-        while (i <= end - needle.length) {
-            if (text.substring(i, i + needle.length) == needle) return i
-            i++
-        }
-        return end
-    }
-
-    // -----------------------------------------------------------------
-    // DrawnContent assembly from tokens
-    // -----------------------------------------------------------------
-
-    private fun tokensToDrawn(tokens: List<TokenBase>): DrawnContent {
-        val strings = mutableListOf<List<Byte>>()
-        val fonts = mutableListOf<Pair<String, Double>>()
-        for (token in tokens) {
-            when (token) {
-                is TokenBase.NumberToken -> { /* operands, not tokens */ }
-                is TokenBase.NameToken -> { /* names */ }
-                is TokenBase.HexStringToken -> strings.add(hexStringToBytes(token.value))
-                is TokenBase.LiteralStringToken -> strings.add(token.value.toByteArray())
-                is TokenBase.ArrayToken -> { /* skip */ }
-                is TokenBase.DictToken -> { /* skip */ }
-            }
-        }
-        // Actually, let's use the simpler approach: the token types TjOperand/TfOperator
-        // were the original approach. Let me re-use that.
-        TODO("replace with proper token type approach")
         return DrawnContent(strings, fonts)
     }
 
-    /** Extract [DrawnContent] from a PDF content-stream byte array. */
-    fun drawn(bytes: ByteArray): DrawnContent = parseStream(bytes).content
-
     // -----------------------------------------------------------------
-    // Stream parser (simple version)
+    // Operands
     // -----------------------------------------------------------------
 
-    private fun parseStream(bytes: ByteArray): ParseResult {
-        val text = String(bytes, 'UTF-8')
-        val tokens = parseTokens(text, 0, text.length)
-        val strings = mutableListOf<List<Byte>>()
-        val fonts = mutableListOf<Pair<String, Double>>()
-        for (token in tokens) {
-            when (token) {
-                is TokenBase.HexStringToken -> strings.add(hexStringToBytes(token.value))
-                is TokenBase.LiteralStringToken -> {
-                    val bytes = token.value.toByteArray()
-                    strings.add(bytes)
-                }
-                is TokenBase.NumberToken -> { /* numbers, not strings */ }
-                is TokenBase.NameToken -> { /* font names, handled via Tf */ }
-            }
-        }
-        // Now find Tf operators: a Tf operator is followed by a name and size on
-        // the stack. Since we're parsing tokens sequentially, we look for pairs:
-        // a NameToken followed by a NumberToken.
-        for (i in tokens.indices) {
-            if (i + 1 < tokens.size) {
-                val nameTok = tokens[i]
-                val numTok = tokens[i + 1]
-                when {
-                    is TokenBase.NameToken(nameTok) && is TokenBase.NumberToken(numTok) -> {
-                        // This could be a Tf operator; check if the name looks like a font
-                        fonts.add(nameTok.name to numTok.value)
-                        // Skip the next token since we've consumed it
+    private sealed class Operand {
+        data class Str(val bytes: List<Byte>) : Operand()
+        data class Name(val name: String) : Operand()
+        data class Num(val value: Double) : Operand()
+    }
+
+    /** Applies one operator to the operand stack, then clears the stack. */
+    private fun applyOperator(
+        op: String,
+        stack: MutableList<Operand>,
+        strings: MutableList<List<Byte>>,
+        fonts: MutableList<Pair<String, Double>>,
+    ) {
+        when (op) {
+            "Tj" -> {
+                val str = stack.lastOrNull()?.let { o ->
+                    when (o) {
+                        is Operand.Str -> o.bytes
+                        is Operand.Name -> null
+                        is Operand.Num -> null
                     }
                 }
+                if (str != null) strings.add(str)
+            }
+            "Tf" -> {
+                val font = stack.getOrNull(0)?.let { o ->
+                    when (o) {
+                        is Operand.Name -> o.name
+                        is Operand.Str -> null
+                        is Operand.Num -> null
+                    }
+                }
+                val size = stack.getOrNull(1)?.let { o ->
+                    when (o) {
+                        is Operand.Num -> o.value
+                        is Operand.Str -> null
+                        is Operand.Name -> null
+                    }
+                }
+                if (font != null && size != null) fonts.add(font to size)
             }
         }
-        return ParseResult(DrawnContent(strings, fonts), text.toByteArray())
+        stack.clear()
+    }
+
+    // -----------------------------------------------------------------
+    // Character classes
+    // -----------------------------------------------------------------
+
+    private fun isWhitespace(b: Int): Boolean =
+        b == 0 || b == 9 || b == 10 || b == 12 || b == 13 || b == 32
+
+    private fun isDelimiter(b: Int): Boolean =
+        b == '('.code || b == ')'.code || b == '<'.code || b == '>'.code ||
+            b == '['.code || b == ']'.code || b == '{'.code || b == '}'.code ||
+            b == '/'.code || b == '%'.code
+
+    private fun isRegular(b: Int): Boolean = !isWhitespace(b) && !isDelimiter(b)
+
+    private fun hexValue(b: Int): Int = when (b) {
+        in '0'.code..'9'.code -> b - '0'.code
+        in 'a'.code..'f'.code -> b - 'a'.code + 10
+        in 'A'.code..'F'.code -> b - 'A'.code + 10
+        else -> -1
+    }
+
+    // -----------------------------------------------------------------
+    // Comments and words
+    // -----------------------------------------------------------------
+
+    private fun skipComment(bytes: ByteArray, start: Int, n: Int): Int {
+        var i = start + 1
+        while (i < n) {
+            val b = bytes[i].toInt() and 0xFF
+            if (b == 10 || b == 13) break
+            i++
+        }
+        return i
+    }
+
+    private data class Word(val text: String, val next: Int)
+
+    private fun readWord(bytes: ByteArray, start: Int, n: Int): Word {
+        val sb = StringBuilder()
+        var i = start
+        while (i < n) {
+            val b = bytes[i].toInt() and 0xFF
+            if (!isRegular(b)) break
+            sb.append(b.toChar())
+            i++
+        }
+        return Word(sb.toString(), i)
+    }
+
+    // -----------------------------------------------------------------
+    // Names
+    // -----------------------------------------------------------------
+
+    private data class NameResult(val name: String, val next: Int)
+
+    private fun parseName(bytes: ByteArray, start: Int, n: Int): NameResult {
+        val sb = StringBuilder()
+        var i = start + 1   // skip the leading '/'
+        while (i < n) {
+            val b = bytes[i].toInt() and 0xFF
+            if (!isRegular(b)) break
+            if (b == '#'.code) {
+                if (i + 2 < n) {
+                    val hi = hexValue(bytes[i + 1].toInt() and 0xFF)
+                    val lo = hexValue(bytes[i + 2].toInt() and 0xFF)
+                    if (hi >= 0 && lo >= 0) {
+                        sb.append(((hi shl 4) or lo).toChar())
+                        i += 3
+                        continue
+                    }
+                }
+                sb.append('#')
+                i++
+                continue
+            }
+            sb.append(b.toChar())
+            i++
+        }
+        return NameResult(sb.toString(), i)
+    }
+
+    // -----------------------------------------------------------------
+    // Hex strings
+    // -----------------------------------------------------------------
+
+    private data class StrResult(val bytes: List<Byte>, val next: Int)
+
+    private fun parseHexString(bytes: ByteArray, start: Int, n: Int): StrResult {
+        val nibbles = mutableListOf<Int>()
+        var i = start + 1   // skip '<'
+        while (i < n) {
+            val b = bytes[i].toInt() and 0xFF
+            if (b == '>'.code) {
+                i++
+                break
+            }
+            val v = hexValue(b)
+            if (v >= 0) nibbles.add(v)
+            i++
+        }
+        if (nibbles.size % 2 != 0) nibbles.add(0)   // pad an odd final nibble
+        val out = mutableListOf<Byte>()
+        var k = 0
+        while (k < nibbles.size) {
+            out.add(((nibbles[k] shl 4) or nibbles[k + 1]).toByte())
+            k += 2
+        }
+        return StrResult(out, i)
+    }
+
+    // -----------------------------------------------------------------
+    // Literal strings
+    // -----------------------------------------------------------------
+
+    private fun parseLiteralString(bytes: ByteArray, start: Int, n: Int): StrResult {
+        val out = mutableListOf<Byte>()
+        var i = start + 1   // skip '('
+        var depth = 1
+        while (i < n) {
+            val b = bytes[i].toInt() and 0xFF
+            when {
+                b == '\\'.code -> {
+                    i++
+                    if (i >= n) break
+                    i = appendEscaped(bytes, i, n, out)
+                }
+                b == '('.code -> {
+                    depth++
+                    out.add(b.toByte())
+                    i++
+                }
+                b == ')'.code -> {
+                    depth--
+                    if (depth == 0) { i++; break }
+                    out.add(b.toByte())
+                    i++
+                }
+                else -> {
+                    out.add(b.toByte())
+                    i++
+                }
+            }
+        }
+        return StrResult(out, i)
+    }
+
+    /** Appends one escape sequence's bytes, returning the index just after it. */
+    private fun appendEscaped(bytes: ByteArray, start: Int, n: Int, out: MutableList<Byte>): Int {
+        val b = bytes[start].toInt() and 0xFF
+        return when (b) {
+            'n'.code -> { out.add(10); start + 1 }
+            'r'.code -> { out.add(13); start + 1 }
+            't'.code -> { out.add(9); start + 1 }
+            'b'.code -> { out.add(8); start + 1 }
+            'f'.code -> { out.add(12); start + 1 }
+            '('.code -> { out.add(0x28); start + 1 }
+            ')'.code -> { out.add(0x29); start + 1 }
+            '\\'.code -> { out.add(0x5C); start + 1 }
+            10 -> start + 1                          // line continuation
+            13 -> {                                   // CR, possibly CRLF
+                var j = start + 1
+                if (j < n && (bytes[j].toInt() and 0xFF) == 10) j++
+                j
+            }
+            in '0'.code..'7'.code -> {
+                var value = 0
+                var j = start
+                var count = 0
+                while (j < n && count < 3) {
+                    val d = bytes[j].toInt() and 0xFF
+                    if (d !in '0'.code..'7'.code) break
+                    value = (value shl 3) or (d - '0'.code)
+                    j++
+                    count++
+                }
+                out.add((value and 0xFF).toByte())
+                j
+            }
+            else -> { out.add(b.toByte()); start + 1 }
+        }
+    }
+
+    // -----------------------------------------------------------------
+    // Arrays and dictionaries (skipped, but their contents can nest)
+    // -----------------------------------------------------------------
+
+    private fun skipArray(bytes: ByteArray, start: Int, n: Int): Int {
+        var i = start + 1   // skip '['
+        var depth = 1
+        while (i < n) {
+            val b = bytes[i].toInt() and 0xFF
+            when {
+                b == '['.code -> { depth++; i++ }
+                b == ']'.code -> {
+                    depth--
+                    i++
+                    if (depth == 0) return i
+                }
+                b == '('.code -> i = parseLiteralString(bytes, i, n).next
+                b == '<'.code && i + 1 < n && (bytes[i + 1].toInt() and 0xFF) == '<'.code ->
+                    i = skipDictionary(bytes, i, n)
+                b == '<'.code -> i = parseHexString(bytes, i, n).next
+                b == '%'.code -> i = skipComment(bytes, i, n)
+                else -> i++
+            }
+        }
+        return n
+    }
+
+    private fun skipDictionary(bytes: ByteArray, start: Int, n: Int): Int {
+        var i = start + 2   // skip '<<'
+        var depth = 1
+        while (i < n) {
+            val b = bytes[i].toInt() and 0xFF
+            when {
+                b == '<'.code && i + 1 < n && (bytes[i + 1].toInt() and 0xFF) == '<'.code -> {
+                    depth++
+                    i += 2
+                }
+                b == '>'.code && i + 1 < n && (bytes[i + 1].toInt() and 0xFF) == '>'.code -> {
+                    depth--
+                    i += 2
+                    if (depth == 0) return i
+                }
+                else -> i++
+            }
+        }
+        return n
     }
 }

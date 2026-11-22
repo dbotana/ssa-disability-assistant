@@ -1,7 +1,8 @@
 package org.ssa.assistant.core.model
 
 import kotlin.test.Test
-import kotlin.test.assertTrue
+import kotlin.test.assertEquals
+import org.ssa.assistant.core.golden.runTestBlocking
 
 /**
  * Scripted fakes for the three model interfaces.
@@ -11,37 +12,30 @@ import kotlin.test.assertTrue
 class ModelPortsTest {
 
     @Test
-    fun `transcriber returns transcript for given samples`() {
+    fun transcriberReturnsTranscript() = runTestBlocking {
         val fake = object : Transcriber {
             override suspend fun transcribe(samples: FloatArray, lang: String): String =
                 "test transcript"
         }
-        val result = fake.transcribe(FillFactor.sampleFloatArray(), "en")
-        assertTrue(result.isNotEmpty())
-        assertTrue(result == "test transcript")
+        assertEquals("test transcript", fake.transcribe(sampleFloatArray(), "en"))
     }
 
     @Test
-    fun `language_id detects language or returns null`() {
+    fun languageIdDetectsLanguage() = runTestBlocking {
         val fake = object : LanguageId {
             override suspend fun detect(samples: FloatArray): String? = "en"
         }
-        val result = fake.detect(FillFactor.sampleFloatArray())
-        assertTrue(result == "en")
+        assertEquals("en", fake.detect(sampleFloatArray()))
     }
 
     @Test
-    fun `translator translates text`() {
+    fun translatorTranslatesText() = runTestBlocking {
         val fake = object : Translator {
             override suspend fun translate(text: String, from: String, to: String): String =
                 "translated $text"
         }
-        val result = fake.translate("hello", "en", "fr")
-        assertTrue(result == "translated hello")
+        assertEquals("translated hello", fake.translate("hello", "en", "fr"))
     }
 
-    // Helper to create a sample FloatArray for tests
-    object FillFactor {
-        fun sampleFloatArray(): FloatArray = floatArrayOf(0.5f, 0.3f, 0.1f)
-    }
+    private fun sampleFloatArray(): FloatArray = floatArrayOf(0.5f, 0.3f, 0.1f)
 }

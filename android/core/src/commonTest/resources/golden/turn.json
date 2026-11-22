@@ -34,6 +34,33 @@
       }
     },
     {
+      "scenario": "controller choice",
+      "languages": {
+        "input": "en",
+        "output": "en",
+        "screen": "fr",
+        "fill": "en"
+      },
+      "spoken": [
+        "Voice mode. Hold the space bar while you answer, and let go when you are done. When I read an answer back, tap the space bar to keep it, or press N to answer again. You can type an answer instead at any point, and speaking still works afterwards. Say repeat, go back, or skip at any time.",
+        "Choosing your form.",
+        "Which form are we filling out today: Social Security's Adult Disability Starter Kit, Maine's Developmental Services Intake Application, or both?",
+        "I heard adult disability starter kit. Is that correct?",
+        "Section 2 of 20.",
+        "Basic information about you.",
+        "What is your legal first name?",
+        "Your answers are ready. 10 required answers are still blank: What is your legal first name? What is your legal last name? What is your date of birth? Say the month, the day, and then the year. What city were you born in? What state or province were you born in? What country were you born in? What is your Social Security number? What month and year did your condition begin to limit your ability to work? Do you receive workers' compensation or another disability benefit? Do you give permission for Social Security to request your medical records directly from your providers? You can change an answer, or download your forms as they are.",
+        "Press a download button to save your filled form, or press read my answers to hear everything back."
+      ],
+      "announced": [
+        "I heard adult disability starter kit. Is that correct?",
+        "Your answers are ready. 10 required answers are still blank: What is your legal first name? What is your legal last name? What is your date of birth? Say the month, the day, and then the year. What city were you born in? What state or province were you born in? What country were you born in? What is your Social Security number? What month and year did your condition begin to limit your ability to work? Do you receive workers' compensation or another disability benefit? Do you give permission for Social Security to request your medical records directly from your providers? You can change an answer, or download your forms as they are."
+      ],
+      "answers": {
+        "forms": "ssa"
+      }
+    },
+    {
       "scenario": "commands during a correction, and a double start",
       "spoken": [
         "Typing mode. I will ask a question, you type the answer and press Enter. The hold to talk button is still there whenever you would rather speak. You can type skip, back, or repeat at any time.",

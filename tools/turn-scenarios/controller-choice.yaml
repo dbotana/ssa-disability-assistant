@@ -1,0 +1,13 @@
+# A language chosen on the setup screen reaches the next start, then a voice
+# answer to the form question is read back, accepted, and finished to review.
+scenario: controller choice
+steps:
+  - choose:
+      screen: fr
+  - start:
+      mode: voice
+  - say: starter kit
+  - option: yes
+  - finish
+  - expect:
+      panel: review

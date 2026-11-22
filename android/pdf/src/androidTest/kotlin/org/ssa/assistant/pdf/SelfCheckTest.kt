@@ -10,6 +10,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.ssa.assistant.core.pdf.FormDocument
 import org.ssa.assistant.core.pdf.FormDocuments
+import org.ssa.assistant.core.pdf.PdfSelfCheck
 import org.ssa.assistant.core.schema.SchemaLoader
 
 /**
@@ -35,7 +36,7 @@ class SelfCheckTest {
                 ByteArrayOutputStream().also { doc.save(it) }.toByteArray()
             }
         }
-        return PdfSelfCheck.check(bytes, template, fd)
+        return PdfSelfCheck.check(bytes, template, fd, PdfBoxPdfReadPort)
     }
 
     private fun assertCaught(result: PdfSelfCheck.Result, field: String?) {
@@ -105,7 +106,7 @@ class SelfCheckTest {
 
     @Test
     fun garbageIsCaught() {
-        val r = PdfSelfCheck.check(ByteArray(100) { 'x'.code.toByte() }, template, fd)
+        val r = PdfSelfCheck.check(ByteArray(100) { 'x'.code.toByte() }, template, fd, PdfBoxPdfReadPort)
         check(!r.ok)
     }
 

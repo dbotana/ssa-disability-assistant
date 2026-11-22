@@ -66,8 +66,6 @@ class TurnController(private val ports: Ports, schema: Schema) {
         fun normalize(result: ParsedValue?, question: Question): Normalized
         fun speakable(value: Any?, type: String, options: List<Option>?, lang: String): String
         fun formatTimeRemaining(seconds: Int?, lang: String): String?
-        /** Language settings (input, output, screen, fill) as set on start. */
-        val languages: LanguageSettings
     }
 
     interface StorePort {

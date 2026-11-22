@@ -4,13 +4,10 @@ import org.ssa.assistant.core.json.Json
 import org.ssa.assistant.core.json.asObject
 import org.ssa.assistant.core.json.asString
 import org.ssa.assistant.core.json.Json.Obj
-import org.ssa.assistant.core.json.Json.Arr
-import org.ssa.assistant.core.json.Json.Str
 import org.ssa.assistant.core.schema.Schema
+import org.ssa.assistant.core.schema.formsOf
 import org.ssa.assistant.core.turn.TurnController
 import org.ssa.assistant.core.LanguageSettings
-import org.ssa.assistant.core.I18n
-import java.util.LinkedHashMap
 
 class AppController(
     schema: Schema,
@@ -29,86 +26,55 @@ class AppController(
         val q = turn.displayQuestion()
         val i18n = turn.i18n()
 
-        // Controls
-        val sPanel = s["panel"]?.toString() ?: "interview"
-        val vd = s["voiceDisabled"]
-        val vdVal = when (vd) {
-            is Boolean -> vd
-            is Json.True -> true
-            is Json.False -> false
-            else -> false
+        val panel = s["panel"]?.asString() ?: "interview"
+        val voiceDisabled = s["voiceDisabled"] == Json.True
+        val readbackOpen = s["readbackOpen"] == Json.True
+
+        val options = q?.options.orEmpty().map {
+            UiState.OptionControl(it.value, i18n.translate(it.label, screen))
         }
-        val talk = vdVal != true && sPanel == "interview"
-        val text = sPanel == "interview"
-        val robOpen = s["readbackOpen"] == Json.True || (s["readbackOpen"] is Boolean && s["readbackOpen"] as Boolean)
-        val yes = robOpen
-        val no = robOpen
-
-        // Options
-        val opts = q?.options
-        val optControls: List<UiState.OptionControl> = if (opts == null) {
-            emptyList()
-        } else if (opts is List<*>) {
-            opts.asSequence()
-                .mapNotNull { opt ->
-                    val v = opt.value.toString()
-                    val l = opt.label.toString()
-                    UiState.OptionControl(v, i18n.translate(l, screen))
-                }
-                .toList()
-        } else {
-            emptyList()
-        }
-
-        val runs = buildRuns(s, screen)
-
-        val focus = s["focus"]?.asString()?.takeIf { it.isNotEmpty() }
 
         return UiState(
-            panel = s["panel"]?.toString() ?: "interview",
-            sectionLabel = s["sectionLabel"]?.toString() ?: "",
-            questionText = q?.prompt?.toString() ?: "",
-            hintText = q?.hint?.toString() ?: "",
-            statusText = s["statusText"]?.toString() ?: "",
-            readbackOpen = robOpen,
-            inputMasked = s["inputMasked"] == Json.True || (s["inputMasked"] is Boolean && s["inputMasked"] as Boolean),
-            voiceDisabled = isTrue(s["voiceDisabled"]) || chosen.isNotEmpty(),
-            progressText = s["progressText"]?.toString() ?: "",
-            reviewIntro = s["reviewIntro"]?.toString() ?: "",
-            answers = s["answers"] as? Obj ?: Obj(),
-            revealSensitive = isTrue(s["revealSensitive"]),
+            panel = panel,
+            sectionLabel = s["sectionLabel"]?.asString() ?: "",
+            questionText = s["questionText"]?.asString() ?: "",
+            hintText = s["hintText"]?.asString() ?: "",
+            statusText = s["statusText"]?.asString() ?: "",
+            readbackOpen = readbackOpen,
+            inputMasked = s["inputMasked"] == Json.True,
+            voiceDisabled = voiceDisabled,
+            progressText = s["progressText"]?.asString() ?: "",
+            reviewIntro = s["reviewIntro"]?.asString() ?: "",
+            answers = s["answers"]?.asObject() ?: Obj(),
+            revealSensitive = s["revealSensitive"] == Json.True,
             languages = turn.languageSettings(),
-            lane = s["lane"]?.toString() ?: "starter-kit",
-            focus = focus,
-            section = s["section"] as? Obj ?: Obj(),
-            missing = s["missing"]?.toString() ?: "",
-            controls = UiState.Controls(talk, text, yes, no, optControls),
-            exportList = when (s["answers"]?.asObject()?.["forms"]?.asString()) {
-                "ds" -> listOf("ds")
-                "both" -> listOf("ssa", "ds")
-                else -> listOf("ssa")
-            },
-            runs = runs
+            sttUnavailable = s["sttUnavailable"] == Json.True,
+            lane = s["lane"]?.asString() ?: "voice",
+            focus = s["focus"]?.asString()?.takeIf { it.isNotEmpty() },
+            section = s["section"]?.asObject() ?: Obj(),
+            missing = s["missing"]?.asString() ?: "",
+            controls = UiState.Controls(
+                talk = panel == "interview" && !voiceDisabled,
+                text = panel == "interview",
+                yes = readbackOpen,
+                no = readbackOpen,
+                options = options,
+            ),
+            exportList = formsOf(s["answers"]?.asObject()).toList(),
+            runs = buildRuns(s, screen),
         )
-    }
-
-    private fun isTrue(v: Any?): Boolean = when (v) {
-        is Json.True -> true
-        is Json.False -> false
-        is Boolean -> v
-        else -> false
     }
 
     private fun buildRuns(s: Obj, screen: String): Map<String, List<UiState.TextRun>> {
         fun run(t: String?): List<UiState.TextRun> = listOf(UiState.TextRun(t ?: "", screen))
 
-        mapOf(
+        return mapOf(
             "questionText" to run(s["questionText"]?.asString()),
             "hintText" to run(s["hintText"]?.asString()),
             "statusText" to run(s["statusText"]?.asString()),
             "sectionLabel" to run(s["sectionLabel"]?.asString()),
             "reviewIntro" to run(s["reviewIntro"]?.asString()),
-            "progressText" to run(s["progressText"]?.asString())
+            "progressText" to run(s["progressText"]?.asString()),
         )
     }
 

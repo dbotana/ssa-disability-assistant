@@ -3,32 +3,23 @@ package org.ssa.assistant.core
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.yield
-import kotlin.test.Test
-import org.ssa.assistant.core.golden.Golden
-import org.ssa.assistant.core.golden.readTestResource
-import org.ssa.assistant.core.golden.runTestBlocking
+import org.ssa.assistant.core.engine.Engine
 import org.ssa.assistant.core.json.Json
-import org.ssa.assistant.core.json.asArray
-import org.ssa.assistant.core.json.asObject
 import org.ssa.assistant.core.json.asString
-import org.ssa.assistant.core.json.treeEquals
 import org.ssa.assistant.core.parse.Correct
 import org.ssa.assistant.core.parse.Parse
 import org.ssa.assistant.core.schema.Schema
-import org.ssa.assistant.core.schema.SchemaLoader
 import org.ssa.assistant.core.turn.TurnController
+import org.ssa.assistant.core.validate.Validate
 
 /**
  * Shared fake-port harness used by both TurnGoldenTest and AppControllerGoldenTest.
  * Provides a fixed clock, fake timers, recorded spoken/announced lines,
  * snapshots, exports, and the jsonOf helper.  The ports are held as a named
- * property so that callers can build a TurnController from the same ports.
- *
- * Move SCENARIO_EPOCH_MS and FAKE_TIMER_MS with it; subclasses may override
- * the fixed values if desired.
+ * property so that callers can build a TurnController (or AppController) from
+ * the same ports.
  */
-open class TurnHarness(val schema: Schema, private val scope: CoroutineScope) {
+class TurnHarness(val schema: Schema, val scope: CoroutineScope) {
 
     // -- fixed clock & fake timers -------------------------------------------
 
@@ -41,37 +32,121 @@ open class TurnHarness(val schema: Schema, private val scope: CoroutineScope) {
     var durationMs = 1000
     var recording = false
     var savedWrote = 0
-    var withheld = mutableListOf<String>()
+    val withheld = mutableListOf<String>()
     var nextTranscript = ""
 
     val snapshots = mutableListOf<Json.Obj>()
     val exports = mutableListOf<List<String>>()
 
     var nowMs: Long = SCENARIO_EPOCH_MS
-    private val fake = LinkedHashMap<Long, Pair<Long, suspend () -> Unit>>()
-    private var nextTimer = 1
+    val fake = LinkedHashMap<String, Pair<Long, suspend () -> Unit>>()
+    var nextTimer = 1
 
-    // -- TurnController with a named ports property -------------------------
+    // -- the named ports, so callers build their own controller from them ----
 
-    /** Subclasses must initialise this to a TurnController.Ports object before
-     *  the turn field is accessed. */
-    val turn: TurnController by lazy {
-        TurnController(ports, schema)
+    val ports: TurnController.Ports = object : TurnController.Ports {
+        override val say = Phrases(schema)
+        override val correct = Correct(schema)
+        override val i18n = I18n(schema)
+        override val store = object : TurnController.StorePort {
+            override fun saveState(state: Json.Obj): Boolean { savedWrote += 1; return true }
+            override suspend fun flush() {}
+            override fun markWithheld(fields: List<Json.Obj>) {
+                withheld.addAll(fields.mapNotNull { it["id"]?.asString() })
+            }
+            override fun sensitiveAnswers(state: Json.Obj): List<Json.Obj> =
+                Sensitive.sensitiveAnswers(schema, state)
+            override fun isPersisting(): Boolean = true
+            override fun clearState() {}
+            override fun forgetKey() {}
+        }
+        override val speech = object : TurnController.SpeechPort {
+            override suspend fun speak(text: String, interrupt: Boolean, lang: String) {
+                spoken.add(text)
+                recordSpoken.add(text)
+            }
+            override fun cancel() {}
+        }
+        override val audio = object : TurnController.AudioPort {
+            override suspend fun startRecording(options: Json.Obj) { recording = true }
+            override suspend fun stopRecording(): TurnController.Blob {
+                recording = false
+                return TurnController.Blob(1000, null)
+            }
+            override fun cancelRecording() { recording = false }
+            override fun isRecording(): Boolean = recording
+            override fun lastCaptureDurationMs(): Int = durationMs
+            override fun lastCaptureHadSpeech(): Boolean = hadSpeech
+            override fun lastCapturePeak(): Double = peak
+            override fun releaseMic() {}
+            override fun earcon(name: String) {}
+        }
+        override val stt = object : TurnController.SttPort {
+            override suspend fun transcribe(blob: TurnController.Blob): String =
+                blob.text ?: nextTranscript ?: ""
+        }
+        override val timers = object : TurnController.TimersPort {
+            override fun setTimeout(fn: suspend () -> Unit, ms: Long): String {
+                if (ms < FAKE_TIMER_MS) {
+                    scope.launch { delay(ms); fn() }
+                    return "real-${nextTimer++}"
+                }
+                val id = "fake-${nextTimer++}"
+                fake[id] = nowMs + ms to fn
+                return id
+            }
+            override fun clearTimeout(id: String?) {
+                if (id != null && id.startsWith("fake-")) fake.remove(id)
+            }
+        }
+        override val clock: () -> Long = { nowMs }
+        // The JS golden generator pins TZ=UTC; the parser's "now" is the
+        // clock's local date, so the device zone here is UTC too.
+        override fun localDate(epochMs: Long) = CivilDate.ofEpochMillis(epochMs)
+        override val announce: (String, Boolean) -> Unit = { text, _ ->
+            announced.add(text)
+            recordAnnounced.add(text)
+        }
+        override val onState: (Json.Obj) -> Unit = { snapshots.add(it) }
+        override val onExport: suspend (List<String>, Json.Obj, LanguageSettings) -> Unit = { forms, _, _ ->
+            exports.add(forms)
+        }
+        override val onReadBack: suspend (Json.Obj) -> Unit = {}
+
+        override fun createEngine(saved: Json.Obj?, now: () -> Double): Engine =
+            Engine(schema, saved, now)
+
+        override fun parseLocal(
+            question: Question,
+            transcript: String,
+            typed: Boolean,
+            now: CivilDate,
+            lang: String,
+            readBack: Boolean,
+        ) = Parse.parseLocal(question, transcript, typed, now, lang, i18n, readBack)
+
+        override fun normalize(result: org.ssa.assistant.core.parse.ParsedValue?, question: Question) =
+            Validate.normalize(result, question)
+
+        override fun speakable(value: Any?, type: String, options: List<Option>?, lang: String) =
+            speakableValue(value, type, options, lang)
+
+        override fun formatTimeRemaining(seconds: Int?, lang: String) =
+            org.ssa.assistant.core.formatTimeRemaining(seconds, lang)
     }
 
-    /** Hold the ports as a named property so that AppControllerGoldenTest can
-     *  construct its own TurnController from the same ports. */
-    val ports: TurnController.Ports
+    val turn: TurnController = TurnController(ports, schema)
 
     // -- timer operations ----------------------------------------------------
 
-    val turn: TurnController get() = TurnController(ports, schema)
-
     /** Move the clock forward, running each fake timer that comes due, in order. */
-    open suspend fun advance(ms: Long) {
+    suspend fun advance(ms: Long) {
         val target = nowMs + ms
         while (true) {
             // Copy the due timer's id, time and callback before deleting it.
+            // On Kotlin/Native a Map.Entry is not safe to read once its key
+            // has been removed (it segfaulted on `next.value.second`), and
+            // the JS reference copies the pair before `fake.delete` too.
             val next = fake.entries
                 .filter { it.value.first <= target }
                 .map { Triple(it.key, it.value.first, it.value.second) }
@@ -85,17 +160,17 @@ open class TurnHarness(val schema: Schema, private val scope: CoroutineScope) {
     }
 
     /** Set the transcript for the current step. */
-    open fun setTranscript(t: String) { nextTranscript = t }
+    fun setTranscript(t: String) { nextTranscript = t }
 
     /** Set quiet mode for the hands-free path. */
-    open fun setQuiet(q: Boolean) {
+    fun setQuiet(q: Boolean) {
         hadSpeech = !q
         peak = if (q) 0.004 else 0.5
     }
 
     /** A saved session as store.js would hand it back: the answers walked
      *  to their first unanswered question, then redacted. */
-    open fun savedSession(fixture: String?, answers: Map<String, Any?>): Pair<Json.Obj, List<Json.Obj>> {
+    fun savedSession(fixture: String?, answers: Map<String, Any?>): Pair<Json.Obj, List<Json.Obj>> {
         val base = if (fixture != null) {
             org.ssa.assistant.core.golden.fixture(fixture)
         } else Json.Obj()
@@ -108,7 +183,7 @@ open class TurnHarness(val schema: Schema, private val scope: CoroutineScope) {
 
     companion object {
         const val SCENARIO_EPOCH_MS = 1_800_206_400_000L   // Date.UTC(2026, 8, 19, 12, 0, 0)
-        private const val FAKE_TIMER_MS = 1000L
+        const val FAKE_TIMER_MS = 1000L
 
         /** Build a [Json] from any value (null, String, Double, Boolean, List, Map). */
         fun jsonOf(v: Any?): Json = when (v) {

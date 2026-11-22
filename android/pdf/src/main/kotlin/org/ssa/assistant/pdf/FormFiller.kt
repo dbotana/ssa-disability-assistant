@@ -3,6 +3,7 @@ package org.ssa.assistant.pdf
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import java.io.ByteArrayOutputStream
 import org.ssa.assistant.core.pdf.FormDocument
+import org.ssa.assistant.core.pdf.PdfSelfCheck
 import org.ssa.assistant.core.pdf.WorksheetDocument
 
 /**
@@ -44,7 +45,7 @@ class FormFiller(private val templates: TemplateLoader) {
             }
         }
         val save = lap()
-        val check = PdfSelfCheck.check(bytes, template, fd)
+        val check = PdfSelfCheck.check(bytes, template, fd, PdfBoxPdfReadPort)
         val checkMs = lap()
         val problems = if (missing.isEmpty()) check else PdfSelfCheck.Result(
             check.problems + missing.map { PdfSelfCheck.Problem(it, "is not in the template") },

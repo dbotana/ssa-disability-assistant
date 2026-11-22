@@ -1242,3 +1242,58 @@ The Android LLM (M6) is independent of all of this and changes nothing for Linga
 - App store publishing.
 - Tablet-specific layouts.
 - Watch and car interfaces.
+
+### Run 5 (2026-11-22): `:core` compiles, and Steps 2 items 1/6/7 are implemented and verified
+
+Run 4 (commit `42de1ffc`) had drafted the model ports, `PdfReadPort`, `ContentStreamTokenizer`, the
+core `PdfSelfCheck`, and `AppController`/`UiState` with their tests, but none of it compiled, so no
+phase was verified-done before this run. This run fixed the compile, then carried the plan through
+all of Phases B1–B3 (model ports, self-check into core, AppController + `uiState` golden) and
+re-ran Phase A and Phase C.
+
+What changed (steps 1–28):
+- Step 14 — `ContentStreamTokenizer.kt` is one `object ContentStreamTokenizer { fun drawn(bytes): DrawnContent }`,
+  byte-based (no UTF-8 decoding, no multi-character char literals), with a sealed `Operand` type and
+  exhaustive `when`s.
+- Steps 15–17 — the core `PdfSelfCheck` is a line-by-line port onto `PdfReader` (closing both readers
+  in a `finally`); `PdfBoxPdfReadPort.kt` was added and `FormFiller`/`SelfCheckTest` now call the core
+  checker; the old `:pdf` `PdfSelfCheck.kt` was deleted.
+- Steps 11–12 — `ModelPorts.kt`/`ModelPortsTest.kt` (fakes wrapped in `runTestBlocking`; camelCase
+  names so D8 accepts them).
+- Step 18 — `ContentStreamTokenizerTest.kt` and `PdfSelfCheckCoreTest.kt`.
+- Steps 19–23 — the JS reference: `src/app-controller.js`, `tools/turn-scenarios/controller-choice.yaml`,
+  `choose`/`option` steps and `runAppScenario` in `tools/turn-runner.mjs`, `goldenAppState()` in
+  `tools/golden/index.mjs`, regenerated goldens (`appstate.json` new, `turn.json` updated), and the
+  `controller-choice.yaml` hash in `android/core/turn-scenarios.SHA256SUMS`.
+- Steps 24–28 — `UiState.kt` gained `sttUnavailable` and a real `toJson()`; `AppController.kt` reads
+  every snapshot string/boolean correctly and adds `sttUnavailable`; the shared `TurnHarness.kt`
+  (ports as a named property) was restored and fixed; `TurnGoldenTest` now uses it and handles
+  `choose`/`option`; `AppControllerGoldenTest.kt` was restored and compares `app.state().toJson()`
+  to the `appstate` golden.
+- Also removed the duplicate `Op.kt` (kept the canonical `AddendumLayout.Op`) and the spurious
+  `TurnController.Ports.languages`.
+
+Phase A commands and results (each one command; the emulator `ssa35` and the iOS simulator are
+available):
+- `SIMCTL_CHILD_GOLDEN_DIR=$PWD/core/build/ios-test-resources ./gradlew :core:iosSimulatorArm64Test` → 70 tests in 22 classes, 0 failures.
+- `./gradlew :core:assembleSsaCoreDebugXCFramework` → BUILD SUCCESSFUL, wrote `ios/CoreCrypto/debug/SsaCore.xcframework`.
+- `xcodebuild test -scheme CoreCrypto -destination 'platform=iOS Simulator,name=iPhone 18 Pro'` (from `ios/CoreCrypto/`) → 3 of 3 tests pass.
+- `TZ=UTC ./gradlew :core:jvmTest :core:compileCommonMainKotlinMetadata` → 89 tests in 25 classes, 0 failures.
+- `./gradlew :app:assembleDebug :app:processReleaseManifest :app:processStagingManifest` → BUILD SUCCESSFUL.
+- `ANDROID_HOME=~/Library/Android/sdk tools/audit-permissions.sh …` → `permission audit clean (4 artifacts)`.
+- `TZ=UTC ./gradlew :core-device:connectedDebugAndroidTest` → 89 tests, 0 failures (was failing at D8 before the camelCase rename).
+- `./android/tools/run-pdf-spike.sh ssa35` → 24 tests, 0 failures; `crosscheck: 16 PDFs re-read … 0 failure(s)`.
+- `./gradlew :core:linkDebugTestIosSimulatorArm64` → BUILD SUCCESSFUL; `core/build/bin/iosSimulatorArm64/debugTest/` has `schema.json`, `golden/metrics.json`, `golden/templateManifest.json` beside `test.kexe`.
+
+Phase C commands and results (after the changes; each one command):
+- `TZ=UTC ./gradlew :core:jvmTest :core:compileCommonMainKotlinMetadata` → 90 tests in 26 classes, 0 failures (includes `AppControllerGoldenTest`).
+- `SIMCTL_CHILD_GOLDEN_DIR=$PWD/core/build/ios-test-resources ./gradlew :core:iosSimulatorArm64Test` → 71 tests in 23 classes, 0 failures.
+- `TZ=UTC ./gradlew :core-device:connectedDebugAndroidTest` → 90 tests, 0 failures.
+- `./android/tools/run-pdf-spike.sh ssa35` → 24 tests, 0 failures; 16 PDFs re-read, 0 failures.
+- `node tools/smoke.mjs` → `Smoke test passed.`
+- each `tests/*.js` under `node` → all 25 passed (including the new `controller-choice.yaml` scenario).
+- `DEVELOPER_DIR=/Library/Developer/CommandLineTools node tools/golden/check.mjs` (after staging `appstate.json` and `turn.json`) → `goldens fresh`.
+
+Still not verified after Run 5: real-app-bundle resources for `NSBundle.mainBundle` (X6) — there is
+no app target yet, so step 10 is recorded as not run. See
+`agent-loop-runs/2026-11-22-1413-fix-run-5-compile/` for details.
