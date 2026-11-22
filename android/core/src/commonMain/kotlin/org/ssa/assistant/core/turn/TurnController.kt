@@ -66,6 +66,8 @@ class TurnController(private val ports: Ports, schema: Schema) {
         fun normalize(result: ParsedValue?, question: Question): Normalized
         fun speakable(value: Any?, type: String, options: List<Option>?, lang: String): String
         fun formatTimeRemaining(seconds: Int?, lang: String): String?
+        /** Language settings (input, output, screen, fill) as set on start. */
+        val languages: LanguageSettings
     }
 
     interface StorePort {
@@ -150,6 +152,12 @@ class TurnController(private val ports: Ports, schema: Schema) {
     // until then English keeps every path exactly as it was.
     private var languages = LanguageSettings()
 
+    /** Language settings as set on start (input, output, screen, fill). */
+    fun languageSettings(): LanguageSettings = languages
+
+    /** i18n port, as injected at construction. */
+    fun i18n(): I18n = ports.i18n
+
     private fun screen(text: String?): String = ports.i18n.translate(text, languages.screen)
     private fun out(text: String?): String = ports.i18n.translate(text, languages.output)
     private fun msg(key: String, vars: Map<String, Any?> = emptyMap(), channel: String = "output"): String =
@@ -230,7 +238,7 @@ class TurnController(private val ports: Ports, schema: Schema) {
     // -- small helpers -----------------------------------------------------------
 
     /** The question whatever is on screen right now is about. */
-    private fun displayQuestion(): Question? =
+    fun displayQuestion(): Question? =
         pending?.question ?: correcting?.question ?: engine?.current()
 
     fun readBackOpen(): Boolean = pending != null
