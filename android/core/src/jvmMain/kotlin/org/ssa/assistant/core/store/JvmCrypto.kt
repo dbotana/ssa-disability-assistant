@@ -3,7 +3,6 @@ package org.ssa.assistant.core.store
 import java.security.GeneralSecurityException
 import java.security.SecureRandom
 import java.text.Normalizer
-import javax.crypto.AEADBadTagException
 import javax.crypto.Cipher
 import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.GCMParameterSpec
@@ -39,12 +38,13 @@ class JvmCrypto(private val random: SecureRandom = SecureRandom()) : Crypto {
     override fun encrypt(key: SessionKey, iv: ByteArray, plaintext: ByteArray): ByteArray =
         cipher(Cipher.ENCRYPT_MODE, key, iv).doFinal(plaintext)
 
-    override fun decrypt(key: SessionKey, iv: ByteArray, ciphertext: ByteArray): ByteArray = try {
+    override fun decrypt(key: SessionKey, iv: ByteArray, ciphertext: ByteArray): ByteArray? = try {
         cipher(Cipher.DECRYPT_MODE, key, iv).doFinal(ciphertext)
-    } catch (e: AEADBadTagException) {
-        throw DecryptFailed(e)
     } catch (e: GeneralSecurityException) {
-        throw DecryptFailed(e)
+        null
+    } catch (e: IllegalArgumentException) {
+        // GCMParameterSpec rejects an IV of the wrong length.
+        null
     }
 
     private fun cipher(mode: Int, key: SessionKey, iv: ByteArray): Cipher =

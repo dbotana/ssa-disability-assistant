@@ -368,6 +368,220 @@ the emulator could not start in any session of this run** (see *Not run*).
 - The appendix lists every translated answer, including ones not printed on that form.
 - The PIN's NFC step happens inside `Crypto.deriveKey`, because common Kotlin has no Unicode
   normalizer.
+
+### Run 4 (2026-11-21): X1b plus what Run 3 still owes, partly verified
+
+Run record: `agent-loop-runs/2026-11-21-2012-do-only-the-next-run-4/`. The run had an
+implementation stage, a second implementation stage, a review, and a revision. The second stage
+undid the first stage's Kotlin fixes and the XCFramework setup. The revision put them back. The
+revision session could not run Gradle, xcodebuild or the simulator (see *Refused*), so **the
+restored code has been checked only on the JVM (by `kc.sh`) and by the Node checks**.
+
+**Kotlin and Xcode 27.2.** Kotlin stays at 2.0.21 (`gradle/libs.versions.toml`); nothing was
+upgraded. The reviewer ran `TZ=UTC ./gradlew :core:iosSimulatorArm64Test` from `android/`, outside
+the sandbox. It compiled, ran `xcodeVersion`, linked `linkDebugTestIosSimulatorArm64`, and ran 58
+tests on the simulator. The 48 failures were all `IllegalStateException: GOLDEN_DIR is not set`
+(`TestPlatform.ios.kt`), which is the intended result when `SIMCTL_CHILD_GOLDEN_DIR` is not given.
+So Kotlin/Native 2.0.21 does not refuse Xcode 27.2. The second stage reported trying Kotlin 2.1.0
+to 2.5.0 and calling 2.0.21 "incompatible". That claim was wrong, the attempts were outside the
+task's rule, and they were reverted; they are not a compatibility finding.
+
+**What changed in `android/core` (the first stage's fixes, restored in the revision):**
+
+- `Parse.kt`: `LETTER_OR_NUMBER` is `[\p{L}\p{Nd}\p{Nl}\p{No}]` in place of `[\p{L}\p{N}]`.
+  Kotlin/Native's regex engine has no `\p{N}` class and throws when the `Parse` object
+  initializes. That throw caused the `FileFailedToInitializeException` failures in
+  `ParseGoldenTest` (3) and `TurnGoldenTest` (1) on the second stage's `GOLDEN_DIR` run. The
+  three categories match the same code points as `\p{N}`.
+- `TurnGoldenTest.kt` `advance()`: the due timer is copied into a `Triple` before
+  `fake.remove`. On Kotlin/Native a `Map.Entry` read after its key is removed segfaulted. The JS
+  reference also copies the pair before `fake.delete`.
+- `SessionStore.kt`: `Crypto.decrypt` returns `ByteArray?`, null for a wrong key or changed
+  bytes, and `unlock` uses `?: throw StoreException(…, "pin")`. `DecryptFailed` is removed. The
+  return is nullable because the iOS `Crypto` is Swift, and a Swift method cannot throw a Kotlin
+  exception across the Objective-C boundary. `JvmCrypto.kt` returns null on
+  `GeneralSecurityException` and on `IllegalArgumentException` (a wrong-length IV), and the fake
+  in `SessionStoreGoldenTest.kt` returns null.
+- `build.gradle.kts`: `XCFrameworkConfig(project, "SsaCore")`, a static framework with
+  `baseName = "SsaCore"` for `iosArm64` and `iosSimulatorArm64`, and the DEBUG `XCFrameworkTask`
+  writes to `../ios/CoreCrypto` (so to `ios/CoreCrypto/debug/SsaCore.xcframework`). The name is
+  SsaCore, not Core, because Kotlin exports its classes with the framework name as the
+  Objective-C prefix, and `CoreColor` (from `AddendumLayout.kt`'s `Color`) collides with a
+  private SwiftUICore class.
+- No golden changed.
+
+**`ios/CoreCrypto/`** (Swift package, no app, no `.xcodeproj`): `Package.swift` takes
+`debug/SsaCore.xcframework` as a binary target. `CoreCrypto.swift` implements the exported `Crypto`
+protocol with CommonCrypto `CCKeyDerivationPBKDF`, CryptoKit `AES.GCM` and
+`precomposedStringWithCanonicalMapping`, with `decrypt(...) -> KotlinByteArray?`. Three XCTests:
+`testRandomBytes`, `testWebCryptoVectorDecrypts`, `testSessionStoreRoundTrip`. The revision
+deleted the stale `ios/CoreCrypto/debug/Core.xcframework` (old name, gitignored).
+
+**Commands and results, in the order run.**
+
+Earlier stages of this run (outside the sandbox). These ran against the second stage's code,
+not the restored code:
+
+1. From `android/`: `TZ=UTC ./gradlew :core-device:connectedDebugAndroidTest`. **Pass**: 77
+   tests on `ssa35(AVD) - 15`, 0 failures, 0 skipped
+   (`core-device/build/outputs/androidTest-results/connected/debug/`, timestamp
+   2026-11-22T03:12:14Z). This covers what Run 3 owed.
+2. From the repository root: `./android/tools/run-pdf-spike.sh ssa35`. **Pass**: 24 tests, 0
+   failures (`pdf/build/outputs/androidTest-results/connected/debug/`, 2026-11-22T03:12:44Z).
+   The stage reported 16 PDFs re-read by `crosscheck.mjs`, 0 failures, max ratio 1.10, max total
+   504 ms. This covers what Run 3 owed, and includes `lingalaVersionsAAndB`.
+3. From `ios/CoreCrypto/`: `xcodebuild test -scheme CoreCrypto -destination 'platform=iOS
+   Simulator,name=iPhone 18 Pro'`. The second stage reported 3 of 3 passing. That run linked the
+   `SsaCore.xcframework` the first stage built from the nullable-`decrypt` code, which is the code
+   the revision restored. It was not re-run on a fresh framework (see *Refused*).
+4. From `android/`: `SIMCTL_CHILD_GOLDEN_DIR=$PWD/core/build/ios-test-resources ./gradlew
+   :core:iosSimulatorArm64Test`. **Fail**: 58 tests, 4 failures, all
+   `FileFailedToInitializeException` in `ParseGoldenTest` (3) and `TurnGoldenTest` (1), from the
+   `\p{N}` regex that the second stage had put back. The other suites passed. This means `simctl`
+   does pass `SIMCTL_CHILD_GOLDEN_DIR` to the test process as `GOLDEN_DIR`.
+5. The reviewer, from `android/`: `TZ=UTC ./gradlew :core:jvmTest
+   :core:compileCommonMainKotlinMetadata` gave **BUILD SUCCESSFUL**, and `TZ=UTC ./gradlew
+   :core:iosSimulatorArm64Test` gave 58 tests, 48 failures, all `GOLDEN_DIR is not set`.
+
+The revision session (sandboxed):
+
+6. From `android/`: `zsh .gradle/kc/kc.sh jvm`. This is the stand-in for `:core:jvmTest`, with
+   the same Kotlin 2.0.21 jars, and is not Gradle. **Pass**: `OK (77 tests)`.
+7. From `android/`: `zsh .gradle/kc/kc.sh meta`. This is the stand-in for
+   `:core:compileCommonMainKotlinMetadata`. **Pass**: `metadata compile: OK`. The only warning is
+   the known one at `Correct.kt:385`.
+8. From the repository root: each of the 25 `tests/*.js` with `node`. **All pass.**
+9. From the repository root: `node tools/smoke.mjs`. **Pass**: `Smoke test passed.`
+10. From the repository root: `DEVELOPER_DIR=/Library/Developer/CommandLineTools node
+    tools/golden/check.mjs`. **Pass**: `goldens fresh`, and `git status` shows no golden or
+    `tools/schema.json` change.
+11. From `android/`: `ANDROID_HOME=~/Library/Android/sdk tools/audit-permissions.sh
+    app/build/outputs/apk/debug/app-debug.apk
+    app/build/intermediates/merged_manifests/{debug/processDebugManifest,release/processReleaseManifest,staging/processStagingManifest}/AndroidManifest.xml`
+    (the four paths spelled out). Result: `permission audit clean (4 artifacts)`. **These
+    artifacts are old** (debug 2026-11-21 15:04, release and staging 15:19, from before Run 4),
+    because the rebuild was refused. Each manifest requests only `RECORD_AUDIO`,
+    `MODIFY_AUDIO_SETTINGS` and the app's own `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`.
+
+**X1b checks, from reading the build outputs** (`android/core/build/`, from the earlier iOS runs):
+
+- `syncIosTestResources` writes `ios-test-resources/golden/` (16 files, byte-identical to
+  `src/commonTest/resources/golden/`), `turn-scenarios/` (the 13 `tools/turn-scenarios/*.yaml`, identical,
+  plus `SHA256SUMS`) and `fixtures/answers/` (the 4 fixtures plus `SHA256SUMS`). This layout
+  matches what `readTestResource` asks for.
+- `copyIosTestBundleResources` put `schema.json` (identical to `tools/schema.json`) and
+  `golden/metrics.json` and `golden/templateManifest.json` (identical to `commonMain/resources`)
+  beside `test.kexe` in `bin/iosSimulatorArm64/debugTest/`. 54 of 58 tests passed with these in
+  place (item 4 above), so the bare test executable's main bundle is that folder.
+- `Platform.ios.kt` and `TestPlatform.ios.kt` compiled and linked for the first time, and
+  `iosMain`/`iosTest` are in the build, because the test binary linked and ran.
+- Gradle's iOS tests run `commonTest` on Kotlin/Native, so the common-test check Run 2 could
+  not do is done for the 54 tests that passed. It still needs a clean run of the restored code.
+
+**Refused in the revision session, word for word.** Each command was run once in the sandbox, as
+one command from the directory shown:
+
+- From `android/`, run in the sandbox:
+  - `TZ=UTC ./gradlew :core:jvmTest :core:compileCommonMainKotlinMetadata`
+  - `SIMCTL_CHILD_GOLDEN_DIR=$PWD/core/build/ios-test-resources ./gradlew :core:iosSimulatorArm64Test`
+  - `./gradlew :core:assembleSsaCoreDebugXCFramework`
+  - `./gradlew :app:assembleDebug :app:processReleaseManifest :app:processStagingManifest`
+  - `TZ=UTC ./gradlew :core-device:connectedDebugAndroidTest`
+
+  Each failed with `java.io.FileNotFoundException:
+  /Users/dbotana/.gradle/wrapper/dists/gradle-8.13-bin/5xuhj0ry160q40clulazy9h7d/gradle-8.13-bin.zip.lck
+  (Operation not permitted)`.
+- The retries outside the sandbox, for the first two Gradle commands and for `./gradlew
+  :core:jvmTest :core:compileCommonMainKotlinMetadata`, were refused with: `Permission to use
+  Bash has been denied because Claude Code is running in don't ask mode.`
+- From `ios/CoreCrypto/`: `xcodebuild test -scheme CoreCrypto -destination 'platform=iOS
+  Simulator,name=iPhone 18 Pro'`.
+  - In the sandbox it failed with `CoreSimulatorService connection became invalid` and
+    `xcodebuild: error: Could not resolve package dependencies: error: permissionDenied`.
+  - Outside the sandbox it was refused with the same `don't ask mode` message.
+
+**Still not verified after Run 4:**
+
+- `SIMCTL_CHILD_GOLDEN_DIR=$PWD/core/build/ios-test-resources ./gradlew
+  :core:iosSimulatorArm64Test` on the restored code, expecting 58 tests and 0 failures. Whether
+  the first stage's code passed all of them was never recorded.
+- `./gradlew :core:assembleSsaCoreDebugXCFramework` from the current `build.gradle.kts`, then
+  `xcodebuild test` against that fresh framework. The `SsaCore.xcframework` now in
+  `ios/CoreCrypto/debug/` is the first stage's build.
+- Real Gradle `:core:jvmTest :core:compileCommonMainKotlinMetadata` on the restored code.
+  Only `kc.sh` ran.
+- `:app:assembleDebug`, and rebuilt debug, release and staging merged manifests with a fresh
+  audit.
+- The device runs on the restored code. The restored change (nullable `decrypt`) is in
+  `commonMain`, so a re-run of `connectedDebugAndroidTest` should confirm it.
+- A real app bundle's resources for `Platform.ios.kt`'s `NSBundle.mainBundle` (X6; there is no
+  app yet).
+- Whether a relink or clean can leave `test.kexe` without the files that
+  `copyIosTestBundleResources` copies. That task only `mustRunAfter`s the link.
+
+### Next: Run 4, X1b plus what Run 3 still owes
+
+Run 3 committed as 97937c9. **Environment now:** Xcode 27.2 (27B52), iOS 27.2 simulator runtimes
+(iPhone 18 Pro, iPhone Air and others), JDK 21, Android SDK, AVD `ssa35`.
+
+**Why the device runs failed before.** agent-loop starts Claude stages with `claude -p` in
+`dontAsk` mode, and the owner's Claude settings turn the command sandbox on. Inside that sandbox,
+Gradle cannot lock `~/.gradle`, adb cannot bind its port, and `simctl` cannot reach
+CoreSimulatorService. A command that matches an `--allow` rule can be retried outside the
+sandbox, which is how Run 3's round-2 reviewer got Gradle to run. Anything else is refused. So:
+
+- run every device, simulator and Gradle command as **one command**, never chained with `;` or
+  `&&`;
+- run it from the directory given here;
+- if it is refused anyway, record the exact refusal and carry on.
+
+**Steps:**
+
+1. **What Run 3 owes,** from `android/`:
+   - `TZ=UTC ./gradlew :core-device:connectedDebugAndroidTest` must pass, including the new
+     classes.
+   - `./tools/run-pdf-spike.sh ssa35` should give 24 tests, 16 PDFs, and `crosscheck.mjs` with 0
+     failures. Versions A and B of both forms must pass `PdfSelfCheck`.
+2. **Kotlin and Xcode 27.**
+   - First try `./gradlew :core:iosSimulatorArm64Test` on Kotlin 2.0.21.
+   - If Kotlin/Native refuses this Xcode, or fails to link against the iOS 27 SDK, upgrade
+     Kotlin to the oldest release that supports Xcode 27. Upgrade the Kotlin-dependent plugins
+     and libraries with it, and nothing else.
+   - After an upgrade, `:core:jvmTest`, `:core:compileCommonMainKotlinMetadata`, step 1 and
+     `:app:assembleDebug` must all pass again, and no golden may change.
+3. **X1b.** Do every item in Run 2's X1b list:
+   - `SIMCTL_CHILD_GOLDEN_DIR=$PWD/core/build/ios-test-resources ./gradlew
+     :core:iosSimulatorArm64Test` from `android/`, with all goldens and turn scenarios passing;
+   - the XCFramework build;
+   - the simctl `GOLDEN_DIR` assumption and the test-bundle assumption, each confirmed or fixed;
+   - the first compile of `Platform.ios.kt` and `TestPlatform.ios.kt`;
+   - the `copyIosTestBundleResources` and `syncIosTestResources` checks.
+
+   Kotlin/Native regex is the likeliest source of differences. Fix the port; a golden may change
+   only when the JS reference produces it. If Gradle's iOS tests now cover `commonTest`, record
+   that the common-test check Run 2 could not do is done.
+4. **The iOS `Crypto`, in Swift.** This corrects the architecture. CryptoKit is Swift-only, and
+   CommonCrypto's AES-GCM is not public API, so Kotlin `iosMain` cannot implement `Crypto`. The
+   iOS shell's Swift code implements the Kotlin `Crypto` interface, which the framework exports
+   as an Objective-C protocol:
+   - CommonCrypto `CCKeyDerivationPBKDF` for PBKDF2-SHA256;
+   - CryptoKit `AES.GCM` for AES-256-GCM;
+   - `precomposedStringWithCanonicalMapping` for the PIN's NFC step.
+
+   For now it lives in a Swift package, `ios/CoreCrypto/`, with the XCFramework as a local binary
+   target. An XCTest decrypts the WebCrypto vector from `store.json` and round-trips a session
+   envelope with `SessionStore`. Run it with `xcodebuild test -scheme <package scheme>
+   -destination 'platform=iOS Simulator,name=iPhone 18 Pro'` from `ios/CoreCrypto/`. Do not
+   create an app or an `.xcodeproj` yet; that is X6.
+5. **Keep everything else green:**
+   - `node tests/*.js`, `tools/smoke.mjs` and `tools/golden/check.mjs`;
+   - `:core:jvmTest` and `:core:compileCommonMainKotlinMetadata`;
+   - the Android permission audit on the debug APK and merged manifest. Also rebuild and audit
+     the release and staging merged manifests, which Run 2 could not.
+6. **Record** exact commands and results as Run 4 in this section and in TODO.md, with what is
+   still not verified.
+
+After Run 4, the next work is Step 2 items 1, 6 and 7, then the X2 spikes.
 - `SessionStore` is synchronous, so the app derives the key off the main thread.
 - Kotlin has no v1/v2 legacy path, because the apps never wrote one.
 
@@ -418,7 +632,8 @@ android/models   Kotlin Multiplatform: ONNX Runtime binding, tokenizers, greedy 
 platform adapters (Kotlin androidMain / iosMain, not Swift):
   Android  AudioRecord, TextToSpeech, PdfBox writer + reader, javax.crypto, SAF
   iOS      AVAudioEngine, AVSpeechSynthesizer, pdf-lib in JavaScriptCore, CGPDF,
-           CommonCrypto + CryptoKit, file import/export
+           file import/export; Crypto is the exception, in Swift (CryptoKit is Swift-only;
+           see Run 4)
 
 android/app      Android shell: MainActivity hosting the shared UI, manifest, privacy flags
 ios/             iOS shell: about 100 lines of Swift. App entry, a host view controller for
@@ -431,7 +646,9 @@ Rules:
   commands back. The adapters capture audio, play audio, run models, encrypt, read and write
   bytes. Nothing else.
 - **Kotlin almost everywhere.** With the UI shared, the iOS adapters are written in Kotlin
-  `iosMain` against Apple's frameworks through cinterop. The only Swift is the shell.
+  `iosMain` against Apple's frameworks through cinterop. The only Swift is the shell and
+  `Crypto`: CryptoKit has no C or Objective-C API, so the shell implements the Kotlin `Crypto`
+  interface in Swift and hands it to `core` at start.
 - **One thread.** Every `core` call runs on the main thread. Model inference, PDF work and key
   derivation run on background dispatchers inside the adapters and post back to main.
 - **No renames.** The Gradle root stays at `android/` and the logic module stays `:core`.
@@ -981,7 +1198,7 @@ Android milestones keep their numbers (M0–M8). Mirror milestones are X1–X8.
 | # | Milestone | Needs | Done when |
 |---|---|---|---|
 | X1a | `core` multiplatform, without Xcode | A JDK 21 on the host | The common-metadata compile passes, `:core:jvmTest` is green, the Android consumers compile, the JS tests are all green, and the iOS files have been reviewed by reading. **Status:** done 2026-11-21, run 2; Kotlin 2.0.21 has no common-test metadata task, so that half waits for X1b |
-| X1b | `core` on iOS | X1a, and Xcode with an iOS simulator runtime | The goldens and scenarios pass on the iOS simulator, and the XCFramework builds. **Status:** next; needs Xcode and an accepted license |
+| X1b | `core` on iOS | X1a, and Xcode with an iOS simulator runtime | The goldens and scenarios pass on the iOS simulator, and the XCFramework builds. The Swift `Crypto` decrypts the WebCrypto vector on the simulator. **Status:** next, as Run 4, with Xcode 27.2 installed |
 | X2 | Spikes | X1b, for the iOS parts; X1a for the Android parts | `ios/SPIKES.md` records: the PDF go-or-fallback decision with timings; the 3b table for every model on both platforms, including whether MMS fits low-end iPhones; an audit that fails on the canary; the 3d VoiceOver and TalkBack results, and which controls went native |
 | X3 | Lingala voice | X2 (3b, for the on-phone part) | The normalizer and its golden are in place. Every fixed string is rendered with Simba into `audio-ln/`, and the audio-manifest test covers Lingala. Simba runs on both phones within budget. Volunteers have listened to a sample. The 4.5 fix has landed |
 | X4 | Lingala words | Nothing; start now | Volunteer review imported, with `reviewedByNativeSpeaker: true`. Until then, the disclosure in 4.1 ships |

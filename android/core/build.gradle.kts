@@ -25,6 +25,21 @@ plugins {
     alias(libs.plugins.kotlin.multiplatform)
 }
 
+// The framework the iOS shell (and, for now, the ios/CoreCrypto Swift package)
+// links. It exports the Kotlin `Crypto` and `SessionKey` interfaces as
+// Objective-C protocols, which is why the iOS implementation of the crypto is
+// Swift: CryptoKit has no C or Objective-C API. The XCFramework is written
+// beside the Swift package's Package.swift (not under build/) because SwiftPM
+// will not accept a local binary target outside its own directory; it is a
+// build product and is gitignored.
+//
+// The name is SsaCore, not Core: the Kotlin classes are exported with the
+// framework's name as their Objective-C prefix, and `CoreColor` (the exported
+// `Color` in AddendumLayout.kt) collides with SwiftUICore's private class of
+// the same name, which the ObjC runtime warns may cause spurious casts and
+// crashes in any app that imports SwiftUI.
+val iosFramework = org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFrameworkConfig(project, "SsaCore")
+
 // The interview schema is data, exported by the JS reference: the app loads
 // the same file the goldens and the web app answer from. It is copied into
 // build/, never into src/, so tools/schema.json stays the only copy anyone
@@ -72,13 +87,27 @@ tasks.matching { it.name == "iosSimulatorArm64Test" }.configureEach {
     dependsOn(syncIosTestResources, copyIosTestBundleResources)
 }
 
+// ios/CoreCrypto/Package.swift takes the debug XCFramework as a local binary
+// target. Release builds keep Gradle's default location under build/.
+tasks.withType<org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFrameworkTask>().configureEach {
+    if (buildType == org.jetbrains.kotlin.gradle.plugin.mpp.NativeBuildType.DEBUG) {
+        outputDir = file("${rootProject.projectDir}/../ios/CoreCrypto")
+    }
+}
+
 kotlin {
     jvmToolchain(21)
 
     jvm()
     // Declared only; see the note at the top of this file.
-    iosArm64()
-    iosSimulatorArm64()
+    val iosTargets = listOf(iosArm64(), iosSimulatorArm64())
+    iosTargets.forEach { target ->
+        target.binaries.framework {
+            baseName = "SsaCore"
+            isStatic = true
+            iosFramework.add(this)
+        }
+    }
 
     sourceSets {
         commonMain {

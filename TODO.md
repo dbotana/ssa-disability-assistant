@@ -156,6 +156,82 @@ withheld-index quirk is fixed (see *Known quirks*).
       (item 1, `AppController`), and cache translations by the SHA-256 of
       their source (4.8).
 
+## Mirror Run 4 (2026-11-21): X1b plus Run 3's device runs, partly verified
+
+The plan's *Run 4* section has the exact commands, directories and
+output. In short:
+
+- [x] Run 3's device runs, from `android/`.
+      `TZ=UTC ./gradlew :core-device:connectedDebugAndroidTest` → 77
+      tests, 0 failures. `./android/tools/run-pdf-spike.sh ssa35` (from
+      the root) → 24 tests, 0 failures, 16 PDFs cross-checked. Both ran
+      on the second stage's code, before the revision restored the
+      nullable `decrypt`.
+- [x] Kotlin 2.0.21 works with Xcode 27.2, so **no upgrade was made**.
+      `:core:iosSimulatorArm64Test` compiles, links and runs 58 tests on
+      the simulator. Without `SIMCTL_CHILD_GOLDEN_DIR`, the only failures
+      are `GOLDEN_DIR is not set`. With it, 54 pass.
+- [x] Port fixes for Kotlin/Native (first stage, restored by the
+      revision):
+      - `Parse.kt` spells `\p{N}` as `\p{Nd}\p{Nl}\p{No}`. Kotlin/Native
+        has no `\p{N}`, and the 4 `FileFailedToInitializeException`
+        failures came from it.
+      - `TurnGoldenTest` copies the timer entry before `remove`. A
+        `Map.Entry` read after removal segfaulted.
+- [x] `Crypto.decrypt` returns `ByteArray?` (null means the wrong PIN or
+      changed bytes), and `DecryptFailed` is gone. Swift cannot throw a
+      Kotlin exception across the Objective-C boundary.
+- [x] The XCFramework is `SsaCore`, not `Core`. The exported `CoreColor`
+      collides with a private SwiftUICore class.
+- [x] The Swift `Crypto` is in `ios/CoreCrypto/` (CommonCrypto PBKDF2,
+      CryptoKit AES-GCM, NFC PIN), with no app and no `.xcodeproj`.
+      `xcodebuild test` passed 3 of 3 in the second stage, against the
+      first stage's `SsaCore.xcframework`.
+- [x] Simulator checks:
+      - `simctl` passes `SIMCTL_CHILD_GOLDEN_DIR` to the test as
+        `GOLDEN_DIR`.
+      - The bare test executable reads the resources beside it.
+      - `Platform.ios.kt` and `TestPlatform.ios.kt` compile.
+      - The `syncIosTestResources` and `copyIosTestBundleResources`
+        outputs are byte-identical to their sources and in the paths the
+        tests read.
+- [x] Revision session, sandboxed:
+      - `zsh .gradle/kc/kc.sh jvm` → `OK (77 tests)`, and
+        `kc.sh meta` → OK. This is not Gradle.
+      - 25 of 25 `node tests/*.js` pass.
+      - `node tools/smoke.mjs` passes.
+      - `check.mjs` → `goldens fresh`, with no golden changed.
+      - The permission audit is clean (4 artifacts), but on the **old**
+        debug APK and the old debug, release and staging manifests
+        (2026-11-21 15:04 and 15:19).
+- [ ] **Refused in the revision session.**
+      - Every `./gradlew` command failed in the sandbox with
+        `gradle-8.13-bin.zip.lck (Operation not permitted)`.
+      - `xcodebuild test` failed in the sandbox with `CoreSimulatorService
+        connection became invalid` and `Could not resolve package
+        dependencies: error: permissionDenied`.
+      - Each retry outside the sandbox was refused with `Permission to use
+        Bash has been denied because Claude Code is running in don't ask
+        mode.`
+- [ ] Still owed, on the restored code, from `android/` unless noted:
+      - [ ] `SIMCTL_CHILD_GOLDEN_DIR=$PWD/core/build/ios-test-resources
+            ./gradlew :core:iosSimulatorArm64Test`. Expect 58 tests, 0
+            failures.
+      - [ ] `./gradlew :core:assembleSsaCoreDebugXCFramework`.
+      - [ ] Then `xcodebuild test -scheme CoreCrypto -destination
+            'platform=iOS Simulator,name=iPhone 18 Pro'` from
+            `ios/CoreCrypto/`. Expect 3 of 3.
+      - [ ] `TZ=UTC ./gradlew :core:jvmTest
+            :core:compileCommonMainKotlinMetadata`.
+      - [ ] `./gradlew :app:assembleDebug :app:processReleaseManifest
+            :app:processStagingManifest`, then the permission audit on the
+            fresh artifacts.
+      - [ ] A re-run of `connectedDebugAndroidTest`.
+- [ ] A relink or clean must not leave `test.kexe` without the files that
+      `copyIosTestBundleResources` copies. That task only `mustRunAfter`s
+      the link.
+- [ ] A real app bundle's resources for `NSBundle.mainBundle` (X6).
+
 ## Open
 
 - [ ] **Run the new CI once and fix what it finds.** Not yet run anywhere:

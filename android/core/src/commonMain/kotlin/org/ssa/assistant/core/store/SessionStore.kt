@@ -33,7 +33,7 @@ import org.ssa.assistant.core.turn.TurnController
  * existed on a phone, so there is no legacy path.
  */
 
-/** The cryptography a platform supplies: javax.crypto on the JVM and Android, CommonCrypto and CryptoKit on iOS. */
+/** The cryptography a platform supplies: javax.crypto on the JVM and Android; CommonCrypto and CryptoKit in the iOS shell's Swift code (Run 4). */
 interface Crypto {
     /** [size] bytes from the platform's secure random source. */
     fun randomBytes(size: Int): ByteArray
@@ -49,15 +49,17 @@ interface Crypto {
     /** AES-256-GCM with a 128-bit tag, the tag appended to the ciphertext, as WebCrypto returns it. */
     fun encrypt(key: SessionKey, iv: ByteArray, plaintext: ByteArray): ByteArray
 
-    /** The inverse of [encrypt]. Throws [DecryptFailed] for a wrong key or changed bytes. */
-    fun decrypt(key: SessionKey, iv: ByteArray, ciphertext: ByteArray): ByteArray
+    /**
+     * The inverse of [encrypt], or null for a wrong key or changed bytes. Null
+     * rather than an exception because the iOS implementation is Swift, and a
+     * Swift method cannot throw a Kotlin exception across the Objective-C
+     * boundary (Run 4).
+     */
+    fun decrypt(key: SessionKey, iv: ByteArray, ciphertext: ByteArray): ByteArray?
 }
 
 /** A derived key. Opaque: the platform keeps the key material and never hands it back. */
 interface SessionKey
-
-/** AES-GCM refused the bytes: the wrong PIN, or a file that was changed. */
-class DecryptFailed(cause: Throwable? = null) : Exception("decryption failed", cause)
 
 /** Where the session file lives: private, excluded from backup (noBackupFilesDir on Android). */
 interface FileStore {
@@ -292,11 +294,8 @@ class SessionStore(
         val saltBytes = StoreFormat.fromB64(kdf["salt"]?.asString() ?: "")
         val rounds = ((kdf["iterations"] as? Json.Num)?.value ?: StoreFormat.KDF_ITERATIONS.toDouble()).toInt()
         val candidate = crypto.deriveKey(pin, saltBytes, rounds)
-        val plain = try {
-            crypto.decrypt(candidate, StoreFormat.fromB64(enc["iv"]?.asString() ?: ""), StoreFormat.fromB64(data))
-        } catch (_: DecryptFailed) {
-            throw StoreException("That PIN does not open the saved answers.", "pin")
-        }
+        val plain = crypto.decrypt(candidate, StoreFormat.fromB64(enc["iv"]?.asString() ?: ""), StoreFormat.fromB64(data))
+            ?: throw StoreException("That PIN does not open the saved answers.", "pin")
         val parsed = JsonParser.parse(plain.decodeToString()).asObject() ?: Json.Obj()
         key = candidate
         salt = saltBytes

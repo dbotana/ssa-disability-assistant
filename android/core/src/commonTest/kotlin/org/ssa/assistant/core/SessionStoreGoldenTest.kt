@@ -15,7 +15,6 @@ import org.ssa.assistant.core.json.asString
 import org.ssa.assistant.core.json.deepCopy
 import org.ssa.assistant.core.schema.SchemaLoader
 import org.ssa.assistant.core.store.Crypto
-import org.ssa.assistant.core.store.DecryptFailed
 import org.ssa.assistant.core.store.FileStore
 import org.ssa.assistant.core.store.SessionKey
 import org.ssa.assistant.core.store.SessionStore
@@ -104,8 +103,8 @@ class SessionStoreGoldenTest {
             K((pin.hashCode() xor salt.sum() xor iterations).toByte())
         override fun encrypt(key: SessionKey, iv: ByteArray, plaintext: ByteArray): ByteArray =
             byteArrayOf((key as K).b) + plaintext.map { (it.toInt() xor key.b.toInt()).toByte() }
-        override fun decrypt(key: SessionKey, iv: ByteArray, ciphertext: ByteArray): ByteArray {
-            if (ciphertext[0] != (key as K).b) throw DecryptFailed()
+        override fun decrypt(key: SessionKey, iv: ByteArray, ciphertext: ByteArray): ByteArray? {
+            if (ciphertext.isEmpty() || ciphertext[0] != (key as K).b) return null
             return ciphertext.drop(1).map { (it.toInt() xor key.b.toInt()).toByte() }.toByteArray()
         }
     }

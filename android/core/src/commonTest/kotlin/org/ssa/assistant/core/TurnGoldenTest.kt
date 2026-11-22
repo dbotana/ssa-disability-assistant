@@ -309,13 +309,18 @@ class TurnGoldenTest {
         suspend fun advance(ms: Long) {
             val target = nowMs + ms
             while (true) {
+                // Copy the due timer's id, time and callback before deleting it.
+                // On Kotlin/Native a Map.Entry is not safe to read once its key
+                // has been removed (it segfaulted on `next.value.second`), and
+                // the JS reference copies the pair before `fake.delete` too.
                 val next = fake.entries
                     .filter { it.value.first <= target }
-                    .minByOrNull { it.value.first }
+                    .map { Triple(it.key, it.value.first, it.value.second) }
+                    .minByOrNull { it.second }
                     ?: break
-                fake.remove(next.key)
-                nowMs = next.value.first
-                scope.launch { next.value.second() }.join()
+                fake.remove(next.first)
+                nowMs = next.second
+                scope.launch { next.third() }.join()
             }
             nowMs = target
         }

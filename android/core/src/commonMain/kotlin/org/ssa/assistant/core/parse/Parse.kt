@@ -195,7 +195,13 @@ object Parse {
     // -- free text -------------------------------------------------------------
 
     private val TEXT_LEAD = js("^(?:(?:um+|uh+|er+|erm|hmm+|mm+)[\\s,.]+|(?:my answer is|the answer is)[\\s,:]+)", true)
-    private val LETTER_OR_NUMBER = Regex("[\\p{L}\\p{N}]")
+
+    // The reference is /\p{L}\p{N}/u. Kotlin/Native's regex engine has no
+    // \p{N} class (it throws "No such character class" when the object
+    // initializes), so the three general categories it stands for are spelled
+    // out: Nd (decimal), Nl (letter numbers such as Ⅷ) and No (other numbers
+    // such as ²). The match is the same, code points included.
+    private val LETTER_OR_NUMBER = Regex("[\\p{L}\\p{Nd}\\p{Nl}\\p{No}]")
 
     private fun parseText(raw: String): ParsedValue? {
         var s = jsTrim(raw.replace(js("\\s+"), " "))
