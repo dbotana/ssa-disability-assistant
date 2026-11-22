@@ -66,5 +66,14 @@ androidComponents {
             assetPath.set("fixtures/answers")
         }
         variant.androidTest?.sources?.resources?.addGeneratedSourceDirectory(fixtures, CopyPinnedAssets::outputDir)
+
+        // The fixed translation overlay for the two form versions (Step 2
+        // item 5), pinned the same way.
+        val translations = tasks.register<CopyPinnedAssets>("copy${variant.name.replaceFirstChar { it.uppercase() }}TranslationFixtures") {
+            sourceDir.set(rootProject.layout.projectDirectory.dir("../tests/fixtures/translations"))
+            pins.set(rootProject.layout.projectDirectory.file("core/translation-fixtures.SHA256SUMS"))
+            assetPath.set("fixtures/translations")
+        }
+        variant.androidTest?.sources?.resources?.addGeneratedSourceDirectory(translations, CopyPinnedAssets::outputDir)
     }
 }

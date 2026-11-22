@@ -10,7 +10,7 @@
 //
 // Makes no network requests.
 
-import { SECTIONS, RATING_OPTIONS, RATING_GROUPS, RULE_OPERATORS, evalRule } from '../src/schema.js';
+import { SECTIONS, RATING_OPTIONS, RATING_GROUPS, RULE_OPERATORS, evalRule, SENSITIVE_TYPES, TRANSLATE_FLAG } from '../src/schema.js';
 
 let failures = 0;
 const check = (name, cond, detail = '') => {
@@ -192,6 +192,41 @@ function lintRule(rule, where, scope, keys, problems = []) {
     evalRule(pay.askIf, { answers: {}, item: { pay_amount: 20 } }) === true);
   check('pay frequency is not asked without an amount',
     evalRule(pay.askIf, { answers: {}, item: {} }) === false);
+}
+
+// -- the translate flag names narrative answers only --------------------------
+//
+// Step 4.8: `translate: true` marks the free-text answers NLLB may translate
+// for version B. A name, an address or an identifier must never carry it, or
+// version B would rewrite something that has to stay exactly as given.
+
+{
+  const IDENTIFIER = /(^|_)(name|first_name|last_name|address|city|town|county|state|country|zip|phone|fax|email|ssn|number|title|employer|school|provider|prescribed_by|ordered_by|relationship|source|kind)($|_)/;
+  const marked = [];
+  const problems = [];
+  for (const section of SECTIONS) {
+    for (const q of section.questions) {
+      const fields = q.type === 'loop' ? q.fields : [q];
+      for (const f of fields) {
+        if (!f.translate) continue;
+        marked.push(f.id);
+        if (f.type !== 'text') problems.push(`${f.id}: translate on a ${f.type}`);
+        if (SENSITIVE_TYPES.has(f.type)) problems.push(`${f.id}: translate on a sensitive type`);
+        if (IDENTIFIER.test(f.id)) problems.push(`${f.id}: translate on an identifier-shaped field`);
+      }
+    }
+  }
+  const required = ['medication_allergies', 'food_allergies', 'environmental_allergies',
+    'dietary_restrictions', 'reason', 'vr_involvement', 'volunteer_experience',
+    'living_arrangement', 'eating_explain', 'cooking_explain', 'expressive_explain'];
+  check('the schema marks narrative answers for translation', marked.length >= 25, String(marked.length));
+  check('the questions 4.8 names are marked', required.every(id => marked.includes(id)),
+    required.filter(id => !marked.includes(id)).join(', '));
+  check('translate is never set on an identifier or a non-text answer', problems.length === 0,
+    problems.slice(0, 8).join('\n     '));
+  // The list is a proposal until the owner decides (plan, Open questions 1).
+  check('the translate flag is marked as awaiting the owner',
+    TRANSLATE_FLAG?.status === 'proposed' && TRANSLATE_FLAG.awaitingOwner === true, JSON.stringify(TRANSLATE_FLAG));
 }
 
 console.log(failures === 0 ? 'schema-data: all checks passed' : `schema-data: ${failures} failure(s)`);

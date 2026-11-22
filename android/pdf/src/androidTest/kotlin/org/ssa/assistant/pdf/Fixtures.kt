@@ -10,6 +10,7 @@ import org.ssa.assistant.core.json.asObject
 import org.ssa.assistant.core.json.writeJson
 import org.ssa.assistant.core.pdf.FillPlan
 import org.ssa.assistant.core.pdf.FormDocument
+import org.ssa.assistant.core.pdf.FormVersions
 
 /** Test inputs and outputs shared by the :pdf instrumented tests. */
 object Fixtures {
@@ -22,6 +23,26 @@ object Fixtures {
         val stream = Fixtures::class.java.classLoader!!.getResourceAsStream("fixtures/answers/$name.json")
             ?: error("missing fixture $name.json")
         return JsonParser.parse(stream.readBytes().toString(Charsets.UTF_8)).asObject()!!
+    }
+
+    /**
+     * tests/fixtures/translations/ln-both.json: Lingala answers laid over the
+     * `both` fixture, and the overlay (input languages and translations) the
+     * two form versions are planned from. The same merge the golden
+     * generator does.
+     */
+    fun lingala(): Pair<Json.Obj, FormVersions.Overlay> {
+        val stream = Fixtures::class.java.classLoader!!.getResourceAsStream("fixtures/translations/ln-both.json")
+            ?: error("missing fixture ln-both.json")
+        val doc = JsonParser.parse(stream.readBytes().toString(Charsets.UTF_8)).asObject()!!
+        val answers = answers("both")
+        for ((k, v) in doc["answers"]!!.asObject()!!.entries) {
+            val items = (answers[k] as? Json.Arr)?.items
+            if (items != null && v is Json.Obj) {
+                for ((i, patch) in v.entries) (items[i.toInt()] as Json.Obj).entries.putAll(patch.asObject()!!.entries)
+            } else answers[k] = v
+        }
+        return answers to FormVersions.Overlay.fromJson(doc)
     }
 
     /**

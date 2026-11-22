@@ -20,6 +20,7 @@
 import { toWinAnsi } from './forms/common.js';
 import { buildManifest, parseDa } from './manifest.js';
 import { planFill } from './plan.js';
+import { exportFileName } from './export-name.js';
 import { layoutAddendum } from './addendum.js';
 import { loadPdfLib, downloadWorksheet, fontMetrics, renderAddendum } from './pdf.js';
 import { translate } from './i18n/index.js';
@@ -148,9 +149,6 @@ export { planFill, layoutAddendum, buildManifest };
 
 // -- browser -------------------------------------------------------------------
 
-/** Filename-safe version of the applicant's name. */
-const slug = s => String(s ?? '').trim().replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '');
-
 /**
  * Fill one form and hand it to the user. Returns { filename, fallback }.
  *
@@ -163,10 +161,8 @@ export async function downloadForm(formId, answers, { now = () => new Date(), la
   const spec = FORMS[formId];
   if (!spec) throw new Error(`Unknown form: ${formId}`);
 
-  const who = slug([answers.first_name, answers.last_name].filter(Boolean).join(' '));
-  const d = now();
-  const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  const filename = `${spec.FILE_PREFIX}${who ? `-${who}` : ''}-${stamp}.pdf`;
+  // One version per form on the web, as before: no suffix (export-name.js).
+  const filename = exportFileName(formId, answers, now());
 
   const PDFLib = await loadPdfLib();
   let template;

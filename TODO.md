@@ -37,6 +37,125 @@ and its fixes made the same day. Nothing is committed yet. Where it stands:
 - **`pdf`, `speech`, `llm`, `app`: skeletons**, as the review found. The
   privacy and native audits around them now work and fail closed.
 
+## Mirror X1a (2026-11-21): done on the JVM, Android and the emulator
+
+X1a was the part of the iOS/Android mirror plan that needs only a JDK.
+It passed without a Kotlin change, so no golden moved. The exact commands
+and results are in the plan's *Run 2* section; the short version:
+
+- `node tests/vendor-integrity.js`, `node tests/launcher.js` and all 22
+  `node tests/*.js` pass; the Whisper decoder files are restored.
+- `./gradlew :core:compileCommonMainKotlinMetadata` passes. Kotlin 2.0.21
+  has no `:core:compileTestKotlinMetadata` task, so the common-test
+  metadata check is deferred to X1b; a scan found no `java.*`,
+  `javax.*` or `android.*` references in `commonTest`.
+- `./gradlew :core:jvmTest` passes: 61 tests, 0 failures, 0 skipped, all
+  13 goldens and the 12 turn scenarios.
+- `./gradlew :pdf:assembleDebugAndroidTest
+  :core-device:assembleDebugAndroidTest :app:assembleDebug` passes. On
+  the arm64 API 35 AVD `ssa35`, `:core-device:connectedDebugAndroidTest`
+  passes 61 tests and `android/tools/run-pdf-spike.sh ssa35` passes 23
+  tests, re-reads 12 PDFs with 0 failures, and stays inside the size and
+  time budgets.
+- `node tools/smoke.mjs` passes and
+  `DEVELOPER_DIR=/Library/Developer/CommandLineTools node tools/golden/check.mjs`
+  says `goldens fresh`. Without the prefix it exits 1 at its `git status`
+  step on this Mac (the Xcode license is not accepted).
+- From `android/`, `ANDROID_HOME=~/Library/Android/sdk
+  tools/audit-permissions.sh app/build/outputs/apk/debug/app-debug.apk
+  app/build/intermediates/merged_manifests/debug/processDebugManifest/AndroidManifest.xml`
+  → `permission audit clean (2 artifacts)`. Only the debug APK and debug
+  manifest were audited. The release and staging merged manifests on disk
+  date from 2026-10-24 and were not rebuilt, because Gradle could not run
+  in the revision session's sandbox.
+- [ ] Rebuild and audit the release and staging manifests:
+      `./gradlew :app:processReleaseManifest :app:processStagingManifest`,
+      then `tools/audit-permissions.sh` on all three
+      `app/build/intermediates/merged_manifests/<variant>/process<Variant>Manifest/AndroidManifest.xml`
+      files plus `app-debug.apk`.
+- The iOS-only files were reviewed by reading only (see below).
+
+### X1b: what still needs Xcode
+
+- [ ] Run `:core:iosSimulatorArm64Test` with
+      `SIMCTL_CHILD_GOLDEN_DIR=$PWD/core/build/ios-test-resources` from
+      `android/`.
+- [ ] Build the XCFramework.
+- [ ] Verify that `simctl` turns `SIMCTL_CHILD_GOLDEN_DIR` into
+      `GOLDEN_DIR` in the test process.
+- [ ] Verify that a bare Kotlin/Native test executable's main bundle is
+      the folder it sits in (`build/bin/iosSimulatorArm64/debugTest`).
+- [ ] Put `schema.json`, `golden/metrics.json` and
+      `golden/templateManifest.json` where a real app's
+      `NSBundle.mainBundle.resourcePath` finds them, or change
+      `Platform.ios.kt`'s `readResource` to the framework bundle. No
+      Xcode copy phase exists yet.
+- [ ] Compile `Platform.ios.kt` and `TestPlatform.ios.kt` for the first
+      time: the `String as NSString` bridge, `CC_SHA256` with empty
+      input, `UByteArray.asByteArray()`,
+      `NSString.stringWithContentsOfFile`, and `runBlocking` on
+      Kotlin/Native.
+- [ ] Confirm the default hierarchy creates `iosMain`/`iosTest`, so both
+      iOS-only files are compiled.
+- [ ] Check `copyIosTestBundleResources`: it writes into the link task's
+      output directory and only `mustRunAfter`s the link; a relink or
+      clean must not leave the test executable without resources.
+- [ ] Confirm the `syncIosTestResources` layout (`golden/`,
+      `turn-scenarios/`, `fixtures/answers/`) matches the paths the
+      tests ask for.
+
+Not run in X1a: any iOS task, `xcodebuild`, `xcrun`, `simctl`, a
+simulator, the XCFramework build, or a real phone. The emulator runs
+used the arm64 API 35 image.
+
+## Mirror Run 3 (2026-11-21): Step 2 items 2, 3, 4, 5 and 8
+
+The plan's *Run 3* section has the exact commands and output. In short:
+the session store format (with a WebCrypto test vector), the Lingala
+speech normalizer, the input matrix, the two form versions and the
+export file names are in the JS reference, in goldens (`store`,
+`speech`, `exportnames`, the `versions` cases of `fillplans`) and in
+`android/core` `commonMain`, with a `commonTest` for each. The
+withheld-index quirk is fixed (see *Known quirks*).
+
+- All 25 `node tests/*.js` pass, `node tools/smoke.mjs` passes, and
+  `DEVELOPER_DIR=/Library/Developer/CommandLineTools node tools/golden/check.mjs`
+  says `goldens fresh`, with the new goldens staged rather than
+  committed.
+- Revision 2 fixed `src/store.js` re-saving a session opened at another
+  PBKDF2 count under the 600,000 label (it then would not open); the
+  count now travels with the key, as in `SessionStore.kt`, and
+  `tests/store-format.js` covers unlock → save → unlock at 1,000.
+  `src/turn.js` now imports `repairWithheldList` instead of repeating it.
+- [x] `./gradlew :core:jvmTest :core:compileCommonMainKotlinMetadata
+      --offline` from `android/` → BUILD SUCCESSFUL, 77 tests in 22
+      classes (run by the round-2 reviewer outside the sandbox; no Kotlin
+      changed after it).
+- [x] `./gradlew :pdf:assembleDebugAndroidTest
+      :core-device:assembleDebugAndroidTest` → OK;
+      `copyDebugTranslationFixtures` ran and put `ln-both.json` and
+      `SHA256SUMS` in the test APK's resources.
+- [ ] **Not run:** the emulator could not start in any session of this
+      run. In the sandbox adb cannot bind tcp:5037 (`could not install
+      *smartsocket* listener: Operation not permitted`), the emulator
+      dies (`Illegal instruction: 4`), and Gradle cannot take the
+      `~/.gradle` wrapper lock; running outside the sandbox was refused
+      by the permission mode.
+- [ ] Run `TZ=UTC ./gradlew :core-device:connectedDebugAndroidTest` on
+      `ssa35`: the new commonTest classes under ICU.
+- [ ] Run `./android/tools/run-pdf-spike.sh ssa35`: the new
+      `lingalaVersionsAAndB` test fills and self-checks versions A and B
+      of both forms. Expect 24 tests and 16 PDFs re-read. The adb server
+      could not start in the session's sandbox.
+- [ ] The owner decides which questions get `translate: true` (plan, Open
+      questions 1). The current list is marked `TRANSLATE_FLAG.status:
+      'proposed'`.
+- [ ] iOS (X1b): an iOS `Crypto` (CommonCrypto PBKDF2 plus CryptoKit
+      AES-GCM) that opens the `store` golden's vector on the simulator.
+- [ ] Wire `FormVersions` and `ExportNames` into the export screen
+      (item 1, `AppController`), and cache translations by the SHA-256 of
+      their source (4.8).
+
 ## Open
 
 - [ ] **Run the new CI once and fix what it finds.** Not yet run anywhere:
@@ -376,7 +495,13 @@ With transcription local and the numbers kept out of storage, the downloaded fil
 
 ## Known quirks
 
-- [ ] **Deleting a marriage shifts which spouse's number is owed.** The
+- [x] **Deleting a marriage shifts which spouse's number is owed.** Fixed
+      in mirror Run 3: `repairWithheldList()` (`src/store.js`, and
+      `store/SessionStore.kt` in Kotlin) drops the deleted item's entries
+      and moves later ones down, both in the controller's live list
+      (`src/turn.js`, `TurnController.kt`) and in the store's carried
+      list. Pinned by `tools/turn-scenarios/resume-delete-marriage.yaml`
+      and the `store` golden's repair cases. The original report: the
       re-ask list (`withheld` in main.js, `carried` in store.js) records a
       spouse's SSN by its position in the marriages list. Delete a marriage
       after resuming and the positions after it renumber, so the re-ask can

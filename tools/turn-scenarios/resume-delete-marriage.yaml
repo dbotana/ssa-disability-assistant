@@ -1,0 +1,64 @@
+# The withheld-index quirk (TODO.md, Known quirks). A resumed session did not
+# save the second spouse's Social Security number, so it is withheld by its
+# marriage's position: marriage 2. Deleting the first marriage renumbers the
+# second. Without the repair the withheld entry still points at marriage 2,
+# which no longer exists, and the number is never asked for again.
+scenario: deleting a marriage after a resume keeps the withheld numbers on the right spouse
+steps:
+  - start:
+      mode: text
+      confirm: false
+      resume:
+        fixture: starter-kit
+        answers:
+          marriages:
+            -
+              spouse_name: Ann Smith
+              still_active: false
+              spouse_died: false
+            -
+              spouse_name: Bea Jones
+              spouse_ssn: "987654322"
+              still_active: true
+  - expect:
+      spoken: "were not saved when you stopped last time"
+
+  - command: correct
+  - type: remove the first marriage
+  - expect:
+      question: "Remove marriage 1"
+  - type: "yes"
+  # The review asks again for what was not saved, one at a time: the
+  # applicant's number, then the one spouse left, now marriage 1.
+  - expect:
+      spoken: "I removed marriage 1"
+      question: "Social Security number"
+      answers:
+        marriages:
+          -
+            spouse_name: Bea Jones
+            still_active: true
+  - type: 987-65-4321
+  - type: "yes"
+  - expect:
+      spoken: "This one is for marriage 1"
+      unspoken: "marriage 2"
+      question: "spouse"
+  - type: 987-65-4322
+  - expect:
+      readback: open
+  - type: "yes"
+  - expect:
+      answers:
+        ssn: "987654321"
+        marriages:
+          -
+            spouse_name: Bea Jones
+            still_active: true
+            spouse_ssn: "987654322"
+
+  # Nothing is left to ask for: no deleted spouse, no marriage 2.
+  - finish
+  - expect:
+      unspoken: "This was not saved|marriage 2"
+      panel: review

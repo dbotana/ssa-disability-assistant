@@ -24,6 +24,11 @@
 //   import           v1/v2/v3 export files
 //   tts              every fixed spoken string -> its ttshash
 //   turn             the scenario transcripts
+//   speech           the Lingala speech normalizer over every Lingala string
+//                    the app may speak, with Lingala and French number words
+//   store            the session store format: envelope, payload, expiry,
+//                    withheld repair, and a WebCrypto test vector
+//   exportnames      export file names, with and without the version suffix
 
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
@@ -38,6 +43,12 @@ import { normalize } from '../../src/validate.js';
 import { matchChoice } from '../../src/choice.js';
 import * as correct from '../../src/correct.js';
 import { planFill, buildManifest } from '../../src/fill.js';
+import { planVersions, versionAddendum } from '../../src/versions.js';
+import { exportFileName } from '../../src/export-name.js';
+import {
+  KDF_ITERATIONS, STORE_VERSION, MAX_AGE_MS, MIN_PIN_LENGTH, sessionPayload, sessionEnvelope, isExpired,
+  openedSession, repairWithheldList, mergeWithheld, deriveSessionKey, toB64
+} from '../../src/store.js';
 import { fitTextBox } from '../../src/plan.js';
 import { layoutAddendum } from '../../src/addendum.js';
 import { worksheetContent } from '../../src/pdf.js';
@@ -54,6 +65,10 @@ import {
 } from '../../src/i18n/index.js';
 import { VALUE_CASES, DEFER_CASES } from './parse-corpus.mjs';
 import { runScenario, yamlParse } from '../turn-runner.mjs';
+import {
+  SIMBA_SYMBOLS, NUMBER_WORDS, DEFAULT_NUMBER_LANGUAGE, RESPELL, normalizeForSpeech,
+  speechSegments, unknownSymbols, lingalaSpeechCorpus
+} from '../../src/speech-normalize.js';
 
 // Every golden is generated in UTC. The parser and the DS mapping read the
 // date through local-time getters, so a generator run on a machine in another
@@ -697,7 +712,64 @@ async function goldenPdf() {
       plans.push({ fixture: `random-${i}`, form: formId, answers, plan: planFor(formId, answers) });
     }
   }
-  write('fillplans', { plans }, { compact: true });
+  // -- the two versions of a form (Step 2 item 5) -----------------------------
+  // Planned the way fill.js plans a download (every text value through
+  // toWinAnsi first), from a fixed translation overlay, so the Kotlin
+  // FormVersions re-plans the recorded answers and overlay. Each version
+  // records its plan, notes, appendix, addendum content and pages.
+  const versions = [];
+  {
+    const lnFixture = JSON.parse(readFileSync(join(REPO, 'tests', 'fixtures', 'translations', 'ln-both.json'), 'utf8'));
+    const withPatch = (base, patch) => {
+      const out = structuredClone(base);
+      for (const [k, v] of Object.entries(patch)) {
+        if (v && typeof v === 'object' && !Array.isArray(v) && Array.isArray(out[k])) {
+          for (const [i, item] of Object.entries(v)) out[k][Number(i)] = { ...out[k][Number(i)], ...item };
+        } else out[k] = v;
+      }
+      return out;
+    };
+    const lnAnswers = withPatch(fixture('both'), lnFixture.answers);
+    const overlay = { inputLangs: lnFixture.inputLangs, translations: lnFixture.translations };
+    // The same Lingala answers, with every translation equal to its source:
+    // there is Lingala free text, so A carries its note, but nothing differs.
+    const sameOverlay = {
+      inputLangs: lnFixture.inputLangs,
+      translations: lnFixture.translations.map(t => ({ ...t, text: t.source }))
+    };
+    const winAnsiPlan = (formId, answers) => {
+      const spec = formId === 'ssa' ? ssaKit : dsIntake;
+      const mapping = spec.map(answers, { today: NOW() });
+      const text = Object.fromEntries(Object.entries(mapping.text ?? {}).map(([k, v]) => [k, toWinAnsi(v)]));
+      return planFill({ ...mapping, text }, manifests[formId], metricsOf(fonts.regular));
+    };
+    const record = (formId, v) => {
+      if (!v) return null;
+      const spec = formId === 'ssa' ? ssaKit : dsIntake;
+      const content = versionAddendum(spec.ADDENDUM, v);
+      const hasAddendum = !!(v.notes.length || v.plan.overflowText.length || v.plan.tables.length || content.sections.length);
+      return {
+        answers: v.answers, plan: v.plan, notes: v.notes, appendix: v.appendix, content,
+        pages: hasAddendum ? layoutAddendum(content, { regular: metricsOf(fonts.regular), bold: metricsOf(fonts.bold) }).pages : []
+      };
+    };
+    for (const [name, answers, ov] of [
+      ['ln-both', lnAnswers, overlay],
+      ['ln-both-unchanged', lnAnswers, sameOverlay],
+      ['both-english', fixture('both'), { inputLangs: [], translations: [] }]
+    ]) {
+      for (const formId of ['ssa', 'ds']) {
+        const { a, b } = planVersions(answers, ov, ans => winAnsiPlan(formId, ans));
+        versions.push({ fixture: name, form: formId, answers, overlay: ov, a: record(formId, a), b: record(formId, b) });
+      }
+    }
+    // The Lingala case must actually make a version B for the DS form, or
+    // the golden pins nothing about it.
+    if (!versions.some(v => v.fixture === 'ln-both' && v.form === 'ds' && v.b)) {
+      throw new Error('fillplans golden: the ln-both fixture produced no version B for the DS form');
+    }
+  }
+  write('fillplans', { plans, versions }, { compact: true });
 
   // -- fits: every box x ~40 values ---------------------------------------------
   const fits = [];
@@ -893,6 +965,158 @@ async function goldenTurn() {
 }
 
 // ---------------------------------------------------------------------------
+// speech: the Lingala normalizer
+// ---------------------------------------------------------------------------
+
+async function goldenSpeech() {
+  const cases = [];
+  const bad = [];
+  for (const text of lingalaSpeechCorpus()) {
+    for (const numberLanguage of Object.keys(NUMBER_WORDS)) {
+      const normalized = normalizeForSpeech(text, { numberLanguage });
+      const segments = speechSegments(text, { numberLanguage });
+      for (const out of [normalized, ...segments]) {
+        if (unknownSymbols(out).length || /[0-9]/.test(out)) bad.push(text);
+      }
+      cases.push({ text, numberLanguage, normalized, segments });
+    }
+  }
+  if (bad.length) {
+    console.error('speech golden: strings Simba cannot say:', bad.slice(0, 10));
+    process.exitCode = 1;
+  }
+  // A short maxLength, so the word-gap split is pinned as well.
+  const long = Array.from({ length: 60 }, (_, i) => `liloba ${i}`).join(' ') + '. Iyo!';
+  const split = [20, 50, 220].map(maxLength => ({ text: long, maxLength, segments: speechSegments(long, { maxLength }) }));
+  write('speech', {
+    symbols: SIMBA_SYMBOLS,
+    numberWords: NUMBER_WORDS,
+    defaultNumberLanguage: DEFAULT_NUMBER_LANGUAGE,
+    respell: RESPELL,
+    cases,
+    split
+  }, { compact: true });
+}
+
+// ---------------------------------------------------------------------------
+// store: the saved-session format
+// ---------------------------------------------------------------------------
+
+async function goldenStore() {
+  const marriage = (name, ssn) => ({ spouse_name: name, ...(ssn ? { spouse_ssn: ssn } : {}) });
+  const stateOf = answers => createEngine(SECTIONS, { answers }, { now: () => NOW().getTime() / 1000 }).getState();
+  const three = stateOf({
+    ...fixture('both'),
+    marriages: [marriage('Ann Smith', '987654320'), marriage('Bea Jones', '987654322'), marriage('Cleo Diaz', '987654324')]
+  });
+  const savedAt = NOW().getTime();
+  const translations = [{ id: 'living_arrangement', source: 'Nafandi na libota na ngai', text: 'I live with my family', by: 'mt' }];
+  const inputLangs = [{ id: 'living_arrangement', lang: 'ln' }, { id: 'reason', loopId: 'medications', loopIndex: 0, lang: 'ln' }];
+
+  const payloads = [];
+  for (const [name, state, opts] of [
+    ['both, three marriages', three, {}],
+    ['carried from a resume and the idle lock', three, { carried: [{ id: 'ssn' }, { id: 'spouse_ssn', loopId: 'marriages', loopIndex: 7 }, { id: 'account_number' }] }],
+    ['with translations and input languages', three, { translations, inputLangs }],
+    ['nothing sensitive', stateOf({ forms: 'ssa', first_name: 'Ada' }), { translations: [], inputLangs: [] }]
+  ]) {
+    const carried = opts.carried ?? [];
+    payloads.push({
+      name, state, savedAt, carried, translations: opts.translations ?? [], inputLangs: opts.inputLangs ?? [],
+      payload: sessionPayload(state, { savedAt, carried, translations: opts.translations, inputLangs: opts.inputLangs })
+    });
+  }
+
+  const expiry = [];
+  for (const [at, now] of [[savedAt, savedAt], [savedAt, savedAt + MAX_AGE_MS], [savedAt, savedAt + MAX_AGE_MS + 1], [null, savedAt]]) {
+    expiry.push({ savedAt: at, now, expired: isExpired(at, now) });
+  }
+
+  const opened = [];
+  for (const p of payloads) {
+    opened.push({ parsed: p.payload, envelopeSavedAt: savedAt + 5, opened: openedSession(structuredClone(p.payload), savedAt + 5) });
+  }
+  {
+    // A file that somehow kept a number: it does not come back into memory.
+    const leaky = { savedAt: null, state: structuredClone(three), withheld: [{ id: 'routing_number' }] };
+    opened.push({ parsed: leaky, envelopeSavedAt: savedAt + 5, opened: openedSession(structuredClone(leaky), savedAt + 5) });
+  }
+
+  const list = [
+    { id: 'ssn' },
+    { id: 'spouse_ssn', loopId: 'marriages', loopIndex: 0 },
+    { id: 'spouse_ssn', loopId: 'marriages', loopIndex: 1 },
+    { id: 'spouse_ssn', loopId: 'marriages', loopIndex: 2 },
+    { id: 'account_number', loopId: 'income', loopIndex: 1 }
+  ];
+  const repair = [];
+  for (const [loopId, index, what] of [
+    ['marriages', 1, 'deleting the middle marriage'],
+    ['marriages', 0, 'deleting the first marriage'],
+    ['marriages', 2, 'deleting the last marriage'],
+    ['marriages', 5, 'deleting a marriage past every entry'],
+    ['income', 0, 'another loop moves only its own entries']
+  ]) repair.push({ what, list, loopId, removedIndex: index, out: repairWithheldList(list, loopId, index) });
+  const merge = { lists: [list.slice(0, 3), [{ id: 'ssn' }, { id: 'spouse_ssn', loopId: 'marriages', loopIndex: 2 }]] };
+  merge.out = mergeWithheld(...merge.lists);
+
+  // The WebCrypto test vector: a fixed PIN, salt and iv, the full 600,000
+  // iterations, through crypto.subtle exactly as unlock() reads it back.
+  const pin = 'Café-2468';          // not NFC as typed: e + U+0301, so the NFC step is pinned too
+  const pinTyped = pin.normalize('NFD');
+  const saltBytes = Uint8Array.from({ length: 16 }, (_, i) => (i * 37 + 11) & 0xff);
+  const ivBytes = Uint8Array.from({ length: 12 }, (_, i) => (i * 53 + 7) & 0xff);
+  const payload = payloads[2].payload;
+  const plaintext = JSON.stringify(payload);
+  const key = await deriveSessionKey(pinTyped, saltBytes, { extractable: true });
+  const data = new Uint8Array(await globalThis.crypto.subtle.encrypt({ name: 'AES-GCM', iv: ivBytes }, key, new TextEncoder().encode(plaintext)));
+  const rawKey = new Uint8Array(await globalThis.crypto.subtle.exportKey('raw', key));
+  const envelope = sessionEnvelope({ savedAt, salt: toB64(saltBytes), iv: toB64(ivBytes), data: toB64(data) });
+  const tampered = data.slice();
+  tampered[10] ^= 0x01;
+  // Read it back the way unlock() does, so the vector is known to open.
+  const back = await globalThis.crypto.subtle.decrypt({ name: 'AES-GCM', iv: ivBytes },
+    await deriveSessionKey(pin.normalize('NFC'), saltBytes), data);
+  if (new TextDecoder().decode(back) !== plaintext) throw new Error('store golden: the test vector does not decrypt');
+
+  write('store', {
+    constants: { version: STORE_VERSION, kdfIterations: KDF_ITERATIONS, maxAgeMs: MAX_AGE_MS, minPinLength: MIN_PIN_LENGTH },
+    payloads, expiry, opened, repair, merge,
+    vector: {
+      pin: pinTyped, pinNfc: pin.normalize('NFC'), wrongPin: 'Cafe-2468', iterations: KDF_ITERATIONS,
+      salt: toB64(saltBytes), iv: toB64(ivBytes), key: toB64(rawKey),
+      envelope, plaintext, payload, tamperedData: toB64(tampered)
+    }
+  });
+}
+
+// ---------------------------------------------------------------------------
+// export file names
+// ---------------------------------------------------------------------------
+
+async function goldenExportNames() {
+  const cases = [];
+  const people = [
+    { first_name: 'Ada', last_name: 'Lovelace' },
+    { first_name: 'Zoë “Zo”', last_name: 'O’Brien-Łukasiewicz' },
+    { first_name: '  ', last_name: '' },
+    {},
+    { first_name: 'Jean-Pierre', last_name: 'Mbɔkɔ́ 2' }
+  ];
+  for (const formId of ['ssa', 'ds']) {
+    for (const answers of people) {
+      for (const [y, m, d] of [[2026, 9, 19], [2027, 1, 2]]) {
+        for (const version of [null, 'lingala', 'english']) {
+          const date = new Date(y, m - 1, d);
+          cases.push({ formId, answers, date: { year: y, month: m, day: d }, version, name: exportFileName(formId, answers, date, version) });
+        }
+      }
+    }
+  }
+  write('exportnames', { cases });
+}
+
+// ---------------------------------------------------------------------------
 
 async function main() {
   await goldenI18n();
@@ -903,6 +1127,9 @@ async function main() {
   await goldenImport();
   await goldenTts();
   await goldenTurn();
+  await goldenSpeech();
+  await goldenExportNames();
+  await goldenStore();
   console.log('all goldens written to', DEST);
 }
 

@@ -41,6 +41,336 @@ Open Android items stay in [TODO.md](TODO.md) and [android-to-do.md](android-to-
 `:core` touches JVM-only APIs in about a dozen places, and each has a small replacement. Making
 it multiplatform is cheap.
 
+## Progress
+
+### Run 1 (2026-11-21, committed as 6eda555): X1 code and the 4.5 fix
+
+Run record: `agent-loop-runs/2026-11-21-1126-implement-only-step-1-milestone-x1/`. It passed
+review on round 3.
+
+**What changed:**
+
+- `android/core` is now Kotlin Multiplatform, with `jvm()`, `iosArm64()` and
+  `iosSimulatorArm64()`. Sources and tests moved to `commonMain`/`commonTest`, and the goldens to
+  `commonTest/resources/golden/`.
+- Platform code sits behind `Platform.kt`, with JVM and iOS versions: NFKD, SHA-256 and resource
+  reading.
+- New common code:
+  - `CivilDate.kt` replaces `java.time`;
+  - `CodePoints.kt` replaces `Character.*`;
+  - a common number printer in `js/JsValues.kt`, with an oracle test against the JVM's
+    BigDecimal.
+- `JsRegex` gained tests in `JsRegexTest.kt`.
+- iOS tests read goldens, scenarios and fixtures from `GOLDEN_DIR` (`TestPlatform.ios.kt`). The
+  new Gradle tasks `syncIosTestResources` and `copyIosTestBundleResources` lay them out.
+- `:core-device` leaves out the per-platform test files and supplies its own
+  `TestPlatform.android.kt`.
+- **4.5 is fixed** in the JS reference and in Kotlin. A new lexicon key,
+  `readBackHesitations: ['ɛ', 'e']` ([ln.lexicon.js:12](src/i18n/catalog/ln.lexicon.js#L12)), is
+  removed from the yes words on a read-back ([parse.js:318](src/parse.js#L318), `Parse.kt:268`).
+  In Lingala, `e`, `E.`, `e...` and `ɛ` now give `null` on a read-back, and `ɛɛ` and `iyo` still
+  give yes. Outside a read-back the bare vowels still mean yes. New cases are in the `parse` and
+  `turn` goldens.
+
+**Accepted deviations from Step 1:**
+
+- The number printer ports the old exact half-even method, not Schubfach.
+- The oracle test uses 10⁶ random doubles, not 10⁷.
+- `JsRegex`'s single-thread check is always on, because common Kotlin has no debug-build flag.
+- iOS tests also copy `schema.json`, `metrics.json` and `templateManifest.json` next to the test
+  executable, because main code reads them from the app bundle.
+
+**Verified:** 20 of 22 `node tests/*.js` pass, and `tools/smoke.mjs` passes.
+`node tools/golden/check.mjs` reported fresh goldens after the commit.
+
+**Not verified, so X1 is not done:**
+
+- **None of the Kotlin has ever been compiled.** The agent-loop sandbox image has no JDK, and
+  neither does this Mac: there is no Java runtime, and only the Xcode Command Line Tools, so
+  there is no `simctl` and no iOS SDK. Nothing has run `:core:jvmTest`, the `:core-device` ICU
+  run, `:core:iosSimulatorArm64Test` or the XCFramework build.
+- These assumptions are untested:
+  - `KotlinCompile.exclude(...)` in `:core-device`;
+  - that a bare iOS test executable's main bundle is the folder it sits in;
+  - that `simctl` turns `SIMCTL_CHILD_GOLDEN_DIR` into `GOLDEN_DIR`.
+
+**Found on the way, unrelated to X1:**
+
+- Commit a477005 deleted `models/whisper-base.en/onnx/decoder_model_merged_quantized.onnx`, and
+  `models/whisper-base/onnx/` never had its decoder committed. Both `SHA256SUMS` files still list
+  them.
+- So `tests/launcher.js` and `tests/vendor-integrity.js` fail (2 failures each), the launchers
+  refuse to start, and the web app cannot transcribe.
+- To restore them:
+  - English: `git checkout 39396c5 -- models/whisper-base.en/onnx/decoder_model_merged_quantized.onnx`
+  - Multilingual: `node tools/fetch-model.mjs onnx-community/whisper-base`
+
+### Run 2 (2026-11-21): X1a, everything that does not need Xcode
+
+**Status: done.** No Kotlin source changed: every check below passed on the first run, so there was
+no port to fix and no golden to regenerate. The only edits in this run are this record and TODO.md.
+
+X1 is split in two:
+
+- **X1a, done here:** everything that needs only a JDK.
+- **X1b, next:** the iOS part, once Xcode is installed and its license is accepted.
+
+Kotlin/Native cannot build Apple targets without full Xcode; the Command Line Tools are not
+enough. No iOS Gradle task was run, and nothing here installed, required or called Xcode,
+`xcodebuild`, `xcrun` or a simulator.
+
+**Environment:** macOS arm64; JDK 21.0.12.1 (Temurin); Gradle 8.13; Kotlin 2.0.21; Android SDK at
+`~/Library/Android/sdk`; AVD `ssa35` (API 35, arm64-v8a). Commands ran from `android/` unless the
+path says otherwise.
+
+**The run, with exact results:**
+
+1. **Whisper decoder files.** They were already restored in the working tree when the run began
+   (`models/whisper-base.en/onnx/decoder_model_merged_quantized.onnx` and
+   `models/whisper-base/onnx/decoder_model_merged_quantized.onnx`). `node tests/vendor-integrity.js`
+   → `vendor-integrity: all checks passed`. `node tests/launcher.js` → pass. All 22
+   `node tests/*.js` files pass.
+2. **Common code on its own.** `./gradlew :core:compileCommonMainKotlinMetadata` → BUILD
+   SUCCESSFUL (one warning: unchecked cast at `Correct.kt:385`). `:core:compileTestKotlinMetadata`
+   does not exist in Kotlin 2.0.21: the metadata target has only the `main` compilation, so there is
+   no common-test metadata task. To cover the intent, `commonTest` was scanned for `java.*`,
+   `javax.*` and `android.*` references (none; only comments mention them), and it compiles in
+   `:core:jvmTest` and in `:core-device`'s Android test. The full common-test check waits for the
+   iOS test compile in X1b.
+3. **JVM tests.** `./gradlew :core:jvmTest` → BUILD SUCCESSFUL. 61 tests in 18 classes, 0 failures,
+   0 skipped: all 13 golden readers (addendum, choice, fillplans, fits, i18n, import, metrics,
+   parse, templateManifest, tts, turn, walks, winansi), the 12 shared turn scenarios through
+   `TurnGoldenTest`, `CivilDateTest`, `JsRegexTest`, `JsValuesTest`, `JsNumberOracleTest` and
+   `PhrasesTest`. `DEVELOPER_DIR=/Library/Developer/CommandLineTools node tools/golden/check.mjs`
+   (from the repository root) → `goldens fresh`; no golden changed.
+   `DEVELOPER_DIR=/Library/Developer/CommandLineTools git status --porcelain --
+   android/core/src/commonTest/resources/golden android/core/src/commonMain/resources/golden
+   tools/schema.json` prints nothing. Without the `DEVELOPER_DIR` prefix, `check.mjs` regenerates
+   the goldens and then exits 1 at its `git status` step on this Mac, because `/usr/bin/git` goes
+   through the full Xcode, whose license is not accepted.
+4. **Android consumers.** `./gradlew :pdf:assembleDebugAndroidTest
+   :core-device:assembleDebugAndroidTest :app:assembleDebug` → BUILD SUCCESSFUL (182 tasks).
+   `:app:verifyDebugNoNetworkPermissions` passed. The only new warning is AGP's duplicate-resource
+   warning for `golden/metrics.json` and `golden/templateManifest.json` in `:core-device`'s test
+   APK; the two copies are byte-identical (SHA-256 checked), so this is the existing main/test copy,
+   not a new manifest or permission. An arm64 image is installed, so the emulator runs followed:
+   - `TZ=UTC ./gradlew :core-device:connectedDebugAndroidTest` → 61 tests on `ssa35(AVD) - 15`,
+     0 skipped, 0 failed.
+   - `./android/tools/run-pdf-spike.sh ssa35` → 23 tests, 0 failed; `crosscheck: 12 PDFs re-read
+     with pdf-lib, 0 failure(s)`; max ratio 1.10 (limit 2.00); max total 544 ms (3 s target, 6 s
+     ceiling); size and time budgets ok. `PdfRenderer` drew 0/113 DS and 0/104 SSA widgets, as in
+     M1a, so the visual-preview limitation is unchanged.
+5. **iOS-only files, read not run.** See the X1b list below. The two files and the two tasks are
+   unchanged; the items are questions to answer on the first simulator run, not fixes made on a
+   guess.
+6. **Everything else green.** All 22 `node tests/*.js` pass; `node tools/smoke.mjs` →
+   `Smoke test passed.`; `DEVELOPER_DIR=/Library/Developer/CommandLineTools node
+   tools/golden/check.mjs` → `goldens fresh` (see step 3 for why the prefix is needed). The
+   permission audit, run from `android/`:
+
+   ```
+   ANDROID_HOME=~/Library/Android/sdk tools/audit-permissions.sh \
+     app/build/outputs/apk/debug/app-debug.apk \
+     app/build/intermediates/merged_manifests/debug/processDebugManifest/AndroidManifest.xml
+   ```
+
+   → `permission audit clean (2 artifacts)`, exit 0. **Only the debug APK and the debug merged
+   manifest were audited.** The release and staging merged manifests in `app/build` date from
+   2026-10-24, before `:core` moved to Kotlin Multiplatform, so they say nothing about the current
+   dependency graph and were not counted. Rebuilding them (`./gradlew :app:processReleaseManifest
+   :app:processStagingManifest`) was not possible in the revision session: Gradle could not take
+   its lock in `~/.gradle` from inside the sandbox; this is listed as open in TODO.md. The
+   `:canary` manifests still request INTERNET on purpose.
+7. **Recorded.** This section and TODO.md.
+
+**X1b, deferred until Xcode is installed and its license accepted:**
+
+- `:core:iosSimulatorArm64Test`, with
+  `SIMCTL_CHILD_GOLDEN_DIR=$PWD/core/build/ios-test-resources` (run from `android/`), and the
+  XCFramework build.
+- Verify the two untested assumptions: that `simctl` turns `SIMCTL_CHILD_GOLDEN_DIR` into
+  `GOLDEN_DIR` for the test process, and that a bare Kotlin/Native test executable's main bundle is
+  the folder it sits in (`build/bin/iosSimulatorArm64/debugTest`).
+- Verify that a real app bundle gets `schema.json`, `golden/metrics.json` and
+  `golden/templateManifest.json` where `Platform.ios.kt`'s `NSBundle.mainBundle.resourcePath` looks.
+  The Xcode build phase that copies them does not exist yet; `readResource` may need the framework
+  bundle instead.
+- Compile `Platform.ios.kt` and `TestPlatform.ios.kt` for the first time. Check the
+  `String as NSString` bridge, the `CC_SHA256` empty-input call, `UByteArray.asByteArray()`,
+  `NSString.stringWithContentsOfFile`, and `runBlocking` on Kotlin/Native.
+- Confirm the default hierarchy creates `iosMain`/`iosTest`, so both iOS-only files are in the
+  build at all.
+- Check `copyIosTestBundleResources`: it writes into the link task's output directory
+  (`build/bin/iosSimulatorArm64/debugTest`) and only `mustRunAfter`s the link. Confirm a relink or
+  clean cannot leave the test executable without its resources, and that the resource paths match
+  `readResource`.
+- Confirm the `syncIosTestResources` layout (`golden/`, `turn-scenarios/`, `fixtures/answers/`)
+  matches the paths the tests ask for.
+
+**Not run:** any iOS task, `xcodebuild`, `xcrun`, `simctl`, a simulator, the XCFramework build, or a
+real phone. `:core:compileTestKotlinMetadata` does not exist in this Kotlin version. The emulator
+runs are the arm64 API 35 image, not a physical device.
+
+**Environment note:** full Xcode is now installed at `/Applications/Xcode.app`, but its license is
+not accepted, so `git` itself needs
+`DEVELOPER_DIR=/Library/Developer/CommandLineTools` on this Mac. Nothing in this run used Xcode.
+
+X1b blocks only the iOS spikes (X2) and the iOS half of X6. X6's `core` items (Step 2) can start
+right after X1a, because the JVM tests and the common-metadata compile check them.
+
+### Run 3 (2026-11-21): Step 2 items 2, 3, 4, 5 and 8
+
+Run record: `agent-loop-runs/2026-11-21-1815-do-step-2-items-2-3/`. Items 1, 6 and 7 and all
+iOS work are later runs. Each item went into the JS reference first, with tests, then into a
+golden (or `tools/schema.json`), then into `android/core` `commonMain`, with a `commonTest` that
+reads the golden.
+
+**Status: the code, the JS checks and the Gradle JVM and metadata builds are done (Gradle was
+run by the round-2 reviewer outside the sandbox). The two emulator runs are still owed: adb and
+the emulator could not start in any session of this run** (see *Not run*).
+
+**What changed:**
+
+- **Item 2, the session store.**
+  - `src/store.js` now exports the format as pure functions: `sessionPayload`,
+    `sessionEnvelope`, `isExpired`, `openedSession`, `mergeWithheld`, `deriveSessionKey` and
+    `repairWithheldList`. The existing save, unlock and expiry code uses them.
+  - The payload now carries `translations` and `inputLangs` when there are any. `unlock()`
+    returns them, and `saveState()` accepts them. The web has no translator, so on the web
+    they stay empty.
+  - The Kotlin port is `core/store/SessionStore.kt`. It has the `Crypto`, `SessionKey` and
+    `FileStore` interfaces, `StoreFormat`, `repairWithheldList`, and a `SessionStore` that
+    implements `TurnController.StorePort`.
+  - The JVM `Crypto` is `jvmMain/.../store/JvmCrypto.kt`, with `javax.crypto` only.
+  - **The known quirk is fixed** in `src/turn.js`, `src/store.js` (the carried list) and
+    `TurnController.kt`. `src/turn.js` imports the same `repairWithheldList` from `store.js`
+    (revision 2), so the reference has one copy of the repair, as Kotlin does. The Kotlin attempt from the first round never matched a loop id
+    (`Json.Str.toString()`), and it kept the deleted spouse's entry. It now calls the shared
+    `repairWithheldList` and `StorePort.repairWithheld`.
+  - A new scenario, `tools/turn-scenarios/resume-delete-marriage.yaml`, pins the fix. It is
+    pinned in `turn-scenarios.SHA256SUMS`, and it fails in both JS and Kotlin with the repair
+    turned off; that was checked.
+  - New golden `store.json`: payloads, expiry, opened sessions, repair cases (deleting the
+    middle marriage included), and a **WebCrypto test vector**. The vector was made with
+    `crypto.subtle` in Node, at the full 600,000 iterations, with a PIN typed in NFD.
+  - `unlock()` derives the key at the envelope's `kdf.iterations`. Revision 2 fixed a bug in
+    the JS reference: `saveState()` always labelled the envelope 600,000, so a session opened
+    at another count was re-saved under the wrong label and would not open again. `store.js`
+    now keeps the count with the key (set by `usePin()` and `unlock()`, reset by
+    `forgetKey()`) and writes it into every save, as `SessionStore.kt` already did.
+    `tests/store-format.js` drives `unlock` → `saveState` → `flush` → `unlock` with a stubbed
+    `localStorage` and an envelope at 1,000 iterations; with the fix removed, it fails three
+    checks (the label is 600,000 and the PIN is refused).
+- **Item 3, the Lingala speech normalizer.**
+  - The first round had overwritten `src/speech.js`, which is the web app's playback queue,
+    imported by `main.js`. It is restored unchanged, and the normalizer now lives in
+    `src/speech-normalize.js`.
+  - Number words are data (`NUMBER_WORDS.ln` and `.fr`), with Lingala as the default. The
+    caller chooses, because reviewers have not decided (4.1).
+  - `core/SpeechNormalizer.kt` is rewritten as common Kotlin. It uses `nfkd()` and
+    `lowercase()`, spells out every character class, uses the chosen number words, folds
+    `’‘`´` and `‐‑‒–—―`, keeps `ʼ`, and normalizes and filters segments. It also has
+    `unknownSymbols`.
+  - New golden `speech.json`: 791 strings × 2 number languages. All pass with no unknown symbol
+    and no digit.
+- **Item 4, the input matrix.**
+  - The JS matrix already landed in `src/i18n/languages.js`. This run adds `voiceOffered()` in
+    `src/i18n/index.js` and checks in `tests/i18n.js`.
+  - Kotlin has a typed `I18n.inputMatrix()`, checked against the `i18n` golden.
+- **Item 5, the two versions.**
+  - `TRANSLATE_FLAG` in `src/schema.js`, exported as `translateFlag` in `tools/schema.json`,
+    marks the `translate: true` list as **proposed, awaiting the owner** (Open questions, 1).
+    `tests/schema-data.js` lints this.
+  - The fixed overlay is `tests/fixtures/translations/ln-both.json`. It is pinned for `:pdf` in
+    `core/translation-fixtures.SHA256SUMS`.
+  - `src/versions.js` builds plan A, and plan B only when a translation changes the plan, both
+    through `planFill`. Plan B carries the `[MT]` marks, the version note and the appendix.
+  - The Kotlin port is `core/pdf/FormVersions.kt`. `FormDocuments` gained `planOnly` and
+    `document`; `plan()` gives exactly the document it gave before.
+  - New `versions` cases in `fillplans.json`.
+  - `:pdf` `FillSpikeTest.lingalaVersionsAAndB` fills both versions of both forms through
+    `FormFiller`, and so through `PdfSelfCheck`, and publishes them for `crosscheck.mjs`.
+- **Item 8, file names.**
+  - The first round's `-v3` suffix in `src/fill.js` is reverted.
+  - `src/export-name.js` has `exportFileName(formId, answers, date, version)`, where `version`
+    is `null`, `'lingala'` or `'english'`. English and single-version names are unchanged.
+  - The Kotlin port is `core/pdf/ExportNames.kt`. New golden: `exportnames.json`.
+
+**The run, with exact results** (from the repository root unless the path says otherwise):
+
+1. Each file, `for f in tests/*.js; do node $f; done` → all 25 pass (22 before, plus
+   `speech-normalize.js`, `store-format.js` and `form-versions.js`). Re-run after revision 2:
+   all 25 pass, `turn-scenarios` and `delete-item` included.
+2. `node tools/smoke.mjs` → `Smoke test passed.`
+3. `DEVELOPER_DIR=/Library/Developer/CommandLineTools node tools/golden/check.mjs` →
+   `goldens fresh`.
+   - The run first staged, but did not commit, the golden directories and `tools/schema.json`
+     with `git add`, because `check.mjs` compares against git's index and the new goldens have
+     never been committed. `check.mjs` then regenerated them and found nothing different from
+     what was staged.
+   - Undo the staging with `git restore --staged <paths>`.
+4. **Gradle could not start in this session's sandbox.**
+   - `./gradlew …` fails taking `~/.gradle/wrapper/dists/…/gradle-8.13-bin.zip.lck`
+     (Operation not permitted).
+   - With `GRADLE_USER_HOME` inside the repository, it fails at
+     `FileLockContentionHandler` (`java.net.SocketException: Operation not permitted`), because
+     the sandbox forbids binding a local socket.
+   - In their place, `android/.gradle/kc/kc.sh` (gitignored, not part of the build) runs the
+     same Kotlin 2.0.21 compiler jars from `~/.gradle/caches`, read-only:
+     - `kc.sh meta`: `K2MetadataCompiler` over `commonMain`, against only the common stdlib and
+       coroutines klibs → `metadata compile: OK`. The only warning is the known one at
+       `Correct.kt:385`. A probe file importing `java.text.Normalizer` was rejected
+       (`unresolved reference 'java'`), so this does catch JVM APIs in common code.
+     - `kc.sh jvm`: `commonMain`+`jvmMain`, then `commonTest`+`jvmTest`, with the scenario and
+       fixture pins checked by `shasum -c`, run under JUnit 4 with `TZ=UTC` → `OK (77 tests)`,
+       22 classes, 0 failures. That is Run 2's 61, plus `SpeechNormalizerGoldenTest` (4),
+       `SessionStoreGoldenTest` (5), `FormVersionsGoldenTest` (4) and `JvmCryptoVectorTest` (3).
+       `TurnGoldenTest` includes the new scenario.
+     - `kc.sh pdf`: a type-check of `:pdf` main and androidTest against `android-35/android.jar`
+       and the cached PdfBox-Android and androidx.test AARs → OK. Nothing was dexed or run.
+5. `~/Library/Android/sdk/platform-tools/adb devices` → `ADB server didn't ACK`. The server
+   cannot bind tcp:5037 in the sandbox.
+6. **Real Gradle**, run by the round-2 reviewer outside the sandbox, from `android/`:
+   - `./gradlew :core:jvmTest :core:compileCommonMainKotlinMetadata --offline` →
+     **BUILD SUCCESSFUL in 31s**, 77 tests in 22 classes in `core/build/test-results/jvmTest/`
+     (`SpeechNormalizerGoldenTest` 4, `SessionStoreGoldenTest` 5, `FormVersionsGoldenTest` 4,
+     `JvmCryptoVectorTest` 3). Only the known `Correct.kt:385` and `TurnGoldenTest`
+     unchecked-cast warnings.
+   - `./gradlew :pdf:compileDebugAndroidTestKotlin :core-device:compileDebugAndroidTestKotlin`
+     → OK.
+   - `./gradlew :pdf:assembleDebugAndroidTest :core-device:assembleDebugAndroidTest` → OK.
+     `copyDebugTranslationFixtures` ran, and `ln-both.json` and `SHA256SUMS` are in
+     `processDebugAndroidTestJavaRes/out/fixtures/translations/`.
+   - Revision 2 changed no Kotlin, so this result stands for the final code.
+7. **Device runs, revision 2 (failed to start, sandbox):**
+   - `./tools/run-pdf-spike.sh ssa35` from `android/`, in the sandbox → exit 1. adb:
+     `could not install *smartsocket* listener: Operation not permitted`, `failed to start
+     daemon`; the emulator process died with `Illegal instruction: 4`; the script stopped. The
+     same command outside the sandbox was refused by the session's permission mode.
+   - `TZ=UTC ./gradlew :core-device:connectedDebugAndroidTest --offline` in the sandbox → exit
+     1: `java.io.FileNotFoundException: ~/.gradle/wrapper/dists/gradle-8.13-bin/…/
+     gradle-8.13-bin.zip.lck (Operation not permitted)`.
+
+**Not run, and still owed before Run 3 counts as verified:**
+
+- `TZ=UTC ./gradlew :core-device:connectedDebugAndroidTest`. The ICU run of the new
+  `commonTest` classes is unverified.
+- `./android/tools/run-pdf-spike.sh ssa35`. Nothing has filled or self-checked version A or B
+  on a device, and `crosscheck.mjs` has not re-read them. Expect 24 tests and 16 PDFs.
+- Everything iOS: the iOS `Crypto`, the vector on the simulator, `Platform.ios.kt`. No Xcode,
+  `xcodebuild`, `xcrun` or simulator was used.
+
+**Choices made without the owner:**
+
+- The overlay is keyed by field, with its `source` text, so a translation whose answer changed
+  is ignored. The SHA-256 cache of 4.8 is later work.
+- `[MT]` is a prefix. A translation a person edited carries no mark.
+- The appendix lists every translated answer, including ones not printed on that form.
+- The PIN's NFC step happens inside `Crypto.deriveKey`, because common Kotlin has no Unicode
+  normalizer.
+- `SessionStore` is synchronous, so the app derives the key off the main thread.
+- Kotlin has no v1/v2 legacy path, because the apps never wrote one.
+
 ## Decisions
 
 | # | Decision | Choice |
@@ -411,7 +741,7 @@ One local voice does all Lingala speech. There is no cloud voice and no OS voice
   the time, which is a proposed bar, Lingala sessions answer it by tapping or typing and the
   prompt says so.
 
-### 4.5 Yes and no: a bug to fix first
+### 4.5 Yes and no: a bug to fix first (fixed in run 1, see Progress)
 
 The Lingala yes list includes the bare vowels `e` and `ɛ`
 ([ln.lexicon.js:7](src/i18n/catalog/ln.lexicon.js#L7)). The same lexicon treats `e` as a
@@ -650,12 +980,13 @@ Android milestones keep their numbers (M0–M8). Mirror milestones are X1–X8.
 
 | # | Milestone | Needs | Done when |
 |---|---|---|---|
-| X1 | `core` multiplatform | — | Step 1's done criteria hold: goldens and scenarios pass on the JVM, under ICU and on the iOS simulator, and the iOS framework builds |
-| X2 | Spikes | X1, for 3a only | `ios/SPIKES.md` records: the PDF go-or-fallback decision with timings; the 3b table for every model on both platforms, including whether MMS fits low-end iPhones; an audit that fails on the canary; the 3d VoiceOver and TalkBack results, and which controls went native |
+| X1a | `core` multiplatform, without Xcode | A JDK 21 on the host | The common-metadata compile passes, `:core:jvmTest` is green, the Android consumers compile, the JS tests are all green, and the iOS files have been reviewed by reading. **Status:** done 2026-11-21, run 2; Kotlin 2.0.21 has no common-test metadata task, so that half waits for X1b |
+| X1b | `core` on iOS | X1a, and Xcode with an iOS simulator runtime | The goldens and scenarios pass on the iOS simulator, and the XCFramework builds. **Status:** next; needs Xcode and an accepted license |
+| X2 | Spikes | X1b, for the iOS parts; X1a for the Android parts | `ios/SPIKES.md` records: the PDF go-or-fallback decision with timings; the 3b table for every model on both platforms, including whether MMS fits low-end iPhones; an audit that fails on the canary; the 3d VoiceOver and TalkBack results, and which controls went native |
 | X3 | Lingala voice | X2 (3b, for the on-phone part) | The normalizer and its golden are in place. Every fixed string is rendered with Simba into `audio-ln/`, and the audio-manifest test covers Lingala. Simba runs on both phones within budget. Volunteers have listened to a sample. The 4.5 fix has landed |
 | X4 | Lingala words | Nothing; start now | Volunteer review imported, with `reviewedByNativeSpeaker: true`. Until then, the disclosure in 4.1 ships |
 | X5 | Understanding spoken Lingala | X2 (3b) | Evaluation set recorded by volunteers. Scores per type, with language ID on and off. Input matrix narrowed |
-| X6 | Shared app layer and UI | X1, X2 (3d) | Step 2's eight items in `core`, with the JS reference updated first and goldens fresh. The shared UI runs on both platforms. The Lingala scenarios pass on both |
+| X6 | Shared app layer and UI | X1a for the `core` items; X1b and X2 (3d) for the iOS UI | Step 2's eight items in `core`, with the JS reference updated first and goldens fresh. The shared UI runs on both platforms. The Lingala scenarios pass on both |
 | X7 | Both apps, deterministic only | X2, X6, Android M4 | On both platforms, in English and Lingala, full "both forms" interviews by voice, tap and typing in airplane mode, exporting both versions. Privacy checklists pass. APK and pack published, and iOS build steps written and tried on a clean Mac |
 | X8 | Checks with people | X3, X5, X7 | Blind testers on VoiceOver and TalkBack in both languages. Volunteers rate the translations. App Privacy Report checked |
 

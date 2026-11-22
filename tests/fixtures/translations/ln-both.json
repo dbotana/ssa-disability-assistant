@@ -1,0 +1,33 @@
+{
+  "description": "A fixed translation overlay for plan B (Step 2 item 5). Lingala answers laid over tests/fixtures/answers/both.json, with the language each was given in and the English an NLLB run might give. The English is written by hand, not by a model, so the goldens never move with one. It covers: machine translations on top-level and loop fields; a translation a person edited (no [MT] mark); a stale translation whose source changed (not used); a Lingala answer with no translation yet (kept as given); and an answer given in English (never translated).",
+  "answers": {
+    "medication_allergies": "Nazali na allergie ya pénicilline",
+    "living_arrangement": "Nafandi na libota na ngai",
+    "eating_explain": "Basalisaka ngai na kolya mokolo nyonso",
+    "dietary_restrictions": "Nalyaka mbuma te",
+    "volunteer_experience": "Nasalisaka na lingomba mokolo ya poso",
+    "medications": {
+      "0": { "reason": "Mpo na motó ekobɛta" },
+      "1": { "reason": "Mpo na makila makasi" }
+    }
+  },
+  "inputLangs": [
+    { "id": "medication_allergies", "lang": "ln" },
+    { "id": "living_arrangement", "lang": "ln" },
+    { "id": "eating_explain", "lang": "ln" },
+    { "id": "dietary_restrictions", "lang": "ln" },
+    { "id": "volunteer_experience", "lang": "ln" },
+    { "id": "food_allergies", "lang": "en" },
+    { "id": "reason", "loopId": "medications", "loopIndex": 0, "lang": "ln" },
+    { "id": "reason", "loopId": "medications", "loopIndex": 1, "lang": "ln" }
+  ],
+  "translations": [
+    { "id": "medication_allergies", "source": "Nazali na allergie ya pénicilline", "text": "I am allergic to penicillin", "by": "mt" },
+    { "id": "living_arrangement", "source": "Nafandi na libota na ngai", "text": "I live with my family", "by": "mt" },
+    { "id": "eating_explain", "source": "Basalisaka ngai na kolya mokolo nyonso", "text": "They help me eat every day", "by": "mt" },
+    { "id": "dietary_restrictions", "source": "Nalyaka mbuma te mpe mungwa", "text": "I do not eat fruit or salt", "by": "mt" },
+    { "id": "food_allergies", "source": "Peanuts", "text": "Peanuts", "by": "mt" },
+    { "id": "reason", "loopId": "medications", "loopIndex": 0, "source": "Mpo na motó ekobɛta", "text": "For headaches", "by": "mt" },
+    { "id": "reason", "loopId": "medications", "loopIndex": 1, "source": "Mpo na makila makasi", "text": "For high blood pressure", "by": "person" }
+  ]
+}

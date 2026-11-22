@@ -40,10 +40,20 @@
         "manifest": "audio/manifest.json"
       },
       "stt": {
+        "engine": "whisper",
         "model": "whisper-base.en",
         "language": null,
         "multilingual": false,
-        "installed": true
+        "installed": true,
+        "lid": false,
+        "adapters": [
+          "eng"
+        ],
+        "voiceTypes": "all",
+        "alwaysReadBack": false,
+        "lexicons": [
+          "en"
+        ]
       }
     },
     "fr": {
@@ -74,10 +84,20 @@
       ],
       "clips": null,
       "stt": {
+        "engine": "whisper",
         "model": "whisper-base",
         "language": "fr",
         "multilingual": true,
-        "installed": true
+        "installed": true,
+        "lid": false,
+        "adapters": [
+          "fra"
+        ],
+        "voiceTypes": "all",
+        "alwaysReadBack": false,
+        "lexicons": [
+          "fr"
+        ]
       }
     },
     "ln": {
@@ -108,10 +128,23 @@
       ],
       "clips": null,
       "stt": {
+        "engine": "mms",
         "model": "whisper-base",
         "language": "ln",
         "multilingual": true,
-        "installed": true
+        "installed": true,
+        "lid": true,
+        "adapters": [
+          "lin",
+          "fra",
+          "eng"
+        ],
+        "voiceTypes": "all",
+        "alwaysReadBack": true,
+        "lexicons": [
+          "ln",
+          "fr"
+        ]
       }
     }
   },

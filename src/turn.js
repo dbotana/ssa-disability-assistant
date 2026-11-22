@@ -21,6 +21,7 @@
 
 import { localCommand } from './commands.js';
 import { SECTIONS, SENSITIVE_TYPES } from './schema.js';
+import { repairWithheldList } from './store.js';
 import * as defaultI18n from './i18n/index.js';
 
 export const MIN_CAPTURE_MS = 350;
@@ -1014,6 +1015,13 @@ export function createTurnController(ports) {
     }
 
     const removed = engine.removeItem(loopId, item.index);
+    if (removed) {
+      // The withheld list records loop fields by position; deleting an item
+      // renumbers the ones after it. Drop the entry for the removed item and
+      // shift the rest, in this live list and in the store's carried list.
+      withheld = repairWithheldList(withheld, loopId, item.index);
+      store.repairWithheld?.(loopId, item.index);
+    }
     saveSession();
     await returnToReview(removed
       ? pair('removed_item',

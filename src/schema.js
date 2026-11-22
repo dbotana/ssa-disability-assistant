@@ -250,6 +250,7 @@ function ratingSection(group) {
       id: `${act.key}_explain`,
       prompt: `Briefly, what help is needed with ${act.short}?`,
       type: 'text',
+      translate: true,
       askIf: { and: [{ present: level }, { ne: [level, 'A'] }] },
       hint: 'For example, who helps, and how often. You can say skip.'
     });
@@ -499,10 +500,10 @@ export const SECTIONS = [
     title: 'Allergies, diet, and developmental diagnosis',
     forms: ['ds'],
     questions: [
-      { id: 'medication_allergies', prompt: 'Do you have any medication allergies? Tell me what they are, or say none.', type: 'text' },
-      { id: 'food_allergies', prompt: 'Any food allergies? Tell me what they are, or say none.', type: 'text' },
-      { id: 'environmental_allergies', prompt: 'Any environmental allergies, such as pollen, dust, or animals? Tell me what they are, or say none.', type: 'text' },
-      { id: 'dietary_restrictions', prompt: 'Do you have any dietary restrictions? Tell me what they are, or say none.', type: 'text' },
+      { id: 'medication_allergies', prompt: 'Do you have any medication allergies? Tell me what they are, or say none.', type: 'text', translate: true },
+      { id: 'food_allergies', prompt: 'Any food allergies? Tell me what they are, or say none.', type: 'text', translate: true },
+      { id: 'environmental_allergies', prompt: 'Any environmental allergies, such as pollen, dust, or animals? Tell me what they are, or say none.', type: 'text', translate: true },
+      { id: 'dietary_restrictions', prompt: 'Do you have any dietary restrictions? Tell me what they are, or say none.', type: 'text', translate: true },
       { id: 'has_idd_dx', prompt: 'Have you been diagnosed with an intellectual disability, a developmental disability, or autism?', type: 'yesno' },
       { id: 'idd_dx_date', prompt: 'About when were you diagnosed? A month and year is fine.', type: 'monthyear', askIf: { eq: ['has_idd_dx', true] },
         hint: 'If you do not know, say skip.' },
@@ -576,7 +577,7 @@ export const SECTIONS = [
         itemLabel: 'medication',
         fields: [
           { id: 'name', prompt: 'What is the name of this medication?', type: 'text', required: true },
-          { id: 'reason', prompt: 'Why do you take it?', type: 'text', hint: 'If you are not sure, you can say skip.' },
+          { id: 'reason', prompt: 'Why do you take it?', type: 'text', translate: true, hint: 'If you are not sure, you can say skip.' },
           { id: 'prescribed_by', prompt: 'Which provider prescribed it?', type: 'text' }
         ]
       }
@@ -685,8 +686,8 @@ export const SECTIONS = [
           { id: 'end', prompt: 'What month and year did it end? You can say still working.', type: 'monthyear' }
         ]
       },
-      { id: 'vr_involvement', prompt: 'Have you worked with Vocational Rehabilitation? If so, tell me briefly what they helped with. If not, say no.', type: 'text', forms: ['ds'] },
-      { id: 'volunteer_experience', prompt: 'Have you done any volunteer work? If so, tell me about it, or say none.', type: 'text', forms: ['ds'] }
+      { id: 'vr_involvement', prompt: 'Have you worked with Vocational Rehabilitation? If so, tell me briefly what they helped with. If not, say no.', type: 'text', translate: true, forms: ['ds'] },
+      { id: 'volunteer_experience', prompt: 'Have you done any volunteer work? If so, tell me about it, or say none.', type: 'text', translate: true, forms: ['ds'] }
     ]
   },
 
@@ -785,6 +786,7 @@ export const SECTIONS = [
         id: 'living_arrangement',
         prompt: 'What is your current living arrangement? For example, living with family, in your own apartment, or in a group home.',
         type: 'text',
+        translate: true,
         forms: ['ds']
       },
       {
@@ -978,6 +980,21 @@ export const DIGIT_TYPES = new Set(['ssn', 'phone', 'routing', 'account', 'zip']
  * memory after a period of inactivity (main.js).
  */
 export const SENSITIVE_TYPES = new Set(['ssn', 'routing', 'account']);
+
+/**
+ * The `translate: true` flag (plan 4.8) marks the narrative text questions
+ * whose Lingala answers version B translates to English. Which questions get
+ * it is the owner's decision (ios-android-mirror-plan.md, "Open questions for
+ * the owner", 1). The list in SECTIONS is a proposal, narrative answers only,
+ * and stays marked as awaiting the owner until they decide.
+ * tests/schema-data.js lints the flag.
+ */
+export const TRANSLATE_FLAG = {
+  status: 'proposed',
+  awaitingOwner: true,
+  scope: 'narrative text questions only; never names, addresses, phone numbers, emails or identifiers',
+  decision: 'ios-android-mirror-plan.md, Open questions for the owner, 1'
+};
 
 /** Section id -> title, for progress announcements. */
 export const SECTION_TITLES = Object.fromEntries(SECTIONS.map(s => [s.id, s.title]));

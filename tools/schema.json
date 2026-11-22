@@ -818,22 +818,26 @@
         {
           "id": "medication_allergies",
           "prompt": "Do you have any medication allergies? Tell me what they are, or say none.",
-          "type": "text"
+          "type": "text",
+          "translate": true
         },
         {
           "id": "food_allergies",
           "prompt": "Any food allergies? Tell me what they are, or say none.",
-          "type": "text"
+          "type": "text",
+          "translate": true
         },
         {
           "id": "environmental_allergies",
           "prompt": "Any environmental allergies, such as pollen, dust, or animals? Tell me what they are, or say none.",
-          "type": "text"
+          "type": "text",
+          "translate": true
         },
         {
           "id": "dietary_restrictions",
           "prompt": "Do you have any dietary restrictions? Tell me what they are, or say none.",
-          "type": "text"
+          "type": "text",
+          "translate": true
         },
         {
           "id": "has_idd_dx",
@@ -995,6 +999,7 @@
               "id": "reason",
               "prompt": "Why do you take it?",
               "type": "text",
+              "translate": true,
               "hint": "If you are not sure, you can say skip."
             },
             {
@@ -1348,6 +1353,7 @@
           "id": "vr_involvement",
           "prompt": "Have you worked with Vocational Rehabilitation? If so, tell me briefly what they helped with. If not, say no.",
           "type": "text",
+          "translate": true,
           "forms": [
             "ds"
           ]
@@ -1356,6 +1362,7 @@
           "id": "volunteer_experience",
           "prompt": "Have you done any volunteer work? If so, tell me about it, or say none.",
           "type": "text",
+          "translate": true,
           "forms": [
             "ds"
           ]
@@ -1637,6 +1644,7 @@
           "id": "living_arrangement",
           "prompt": "What is your current living arrangement? For example, living with family, in your own apartment, or in a group home.",
           "type": "text",
+          "translate": true,
           "forms": [
             "ds"
           ]
@@ -1882,6 +1890,7 @@
           "id": "eating_explain",
           "prompt": "Briefly, what help is needed with eating?",
           "type": "text",
+          "translate": true,
           "askIf": {
             "and": [
               {
@@ -1974,6 +1983,7 @@
           "id": "dressing_explain",
           "prompt": "Briefly, what help is needed with dressing?",
           "type": "text",
+          "translate": true,
           "askIf": {
             "and": [
               {
@@ -2066,6 +2076,7 @@
           "id": "toileting_explain",
           "prompt": "Briefly, what help is needed with toileting?",
           "type": "text",
+          "translate": true,
           "askIf": {
             "and": [
               {
@@ -2158,6 +2169,7 @@
           "id": "bathing_explain",
           "prompt": "Briefly, what help is needed with bathing?",
           "type": "text",
+          "translate": true,
           "askIf": {
             "and": [
               {
@@ -2250,6 +2262,7 @@
           "id": "grooming_explain",
           "prompt": "Briefly, what help is needed with grooming?",
           "type": "text",
+          "translate": true,
           "askIf": {
             "and": [
               {
@@ -2342,6 +2355,7 @@
           "id": "mobility_explain",
           "prompt": "Briefly, what help is needed with mobility?",
           "type": "text",
+          "translate": true,
           "askIf": {
             "and": [
               {
@@ -2444,6 +2458,7 @@
           "id": "physical_danger_explain",
           "prompt": "Briefly, what help is needed with physical danger?",
           "type": "text",
+          "translate": true,
           "askIf": {
             "and": [
               {
@@ -2536,6 +2551,7 @@
           "id": "emotional_jeopardy_explain",
           "prompt": "Briefly, what help is needed with emotional harm?",
           "type": "text",
+          "translate": true,
           "askIf": {
             "and": [
               {
@@ -2628,6 +2644,7 @@
           "id": "healthy_relationships_explain",
           "prompt": "Briefly, what help is needed with healthy relationships?",
           "type": "text",
+          "translate": true,
           "askIf": {
             "and": [
               {
@@ -2720,6 +2737,7 @@
           "id": "judgment_explain",
           "prompt": "Briefly, what help is needed with judgment?",
           "type": "text",
+          "translate": true,
           "askIf": {
             "and": [
               {
@@ -2822,6 +2840,7 @@
           "id": "cooking_explain",
           "prompt": "Briefly, what help is needed with cooking?",
           "type": "text",
+          "translate": true,
           "askIf": {
             "and": [
               {
@@ -2914,6 +2933,7 @@
           "id": "laundry_explain",
           "prompt": "Briefly, what help is needed with laundry?",
           "type": "text",
+          "translate": true,
           "askIf": {
             "and": [
               {
@@ -3016,6 +3036,7 @@
           "id": "shopping_explain",
           "prompt": "Briefly, what help is needed with shopping?",
           "type": "text",
+          "translate": true,
           "askIf": {
             "and": [
               {
@@ -3108,6 +3129,7 @@
           "id": "transportation_explain",
           "prompt": "Briefly, what help is needed with transportation?",
           "type": "text",
+          "translate": true,
           "askIf": {
             "and": [
               {
@@ -3200,6 +3222,7 @@
           "id": "banking_explain",
           "prompt": "Briefly, what help is needed with banking?",
           "type": "text",
+          "translate": true,
           "askIf": {
             "and": [
               {
@@ -3292,6 +3315,7 @@
           "id": "recreation_explain",
           "prompt": "Briefly, what help is needed with recreation?",
           "type": "text",
+          "translate": true,
           "askIf": {
             "and": [
               {
@@ -3394,6 +3418,7 @@
           "id": "rel_family_explain",
           "prompt": "Briefly, what help is needed with family relationships?",
           "type": "text",
+          "translate": true,
           "askIf": {
             "and": [
               {
@@ -3486,6 +3511,7 @@
           "id": "rel_friends_explain",
           "prompt": "Briefly, what help is needed with friends?",
           "type": "text",
+          "translate": true,
           "askIf": {
             "and": [
               {
@@ -3578,6 +3604,7 @@
           "id": "rel_coworkers_explain",
           "prompt": "Briefly, what help is needed with coworkers?",
           "type": "text",
+          "translate": true,
           "askIf": {
             "and": [
               {
@@ -3670,6 +3697,7 @@
           "id": "rel_support_staff_explain",
           "prompt": "Briefly, what help is needed with support staff?",
           "type": "text",
+          "translate": true,
           "askIf": {
             "and": [
               {
@@ -3772,6 +3800,7 @@
           "id": "expressive_explain",
           "prompt": "Briefly, what help is needed with expressive communication?",
           "type": "text",
+          "translate": true,
           "askIf": {
             "and": [
               {
@@ -3864,6 +3893,7 @@
           "id": "receptive_explain",
           "prompt": "Briefly, what help is needed with receptive communication?",
           "type": "text",
+          "translate": true,
           "askIf": {
             "and": [
               {
@@ -3956,6 +3986,7 @@
           "id": "sign_language_explain",
           "prompt": "Briefly, what help is needed with sign language?",
           "type": "text",
+          "translate": true,
           "askIf": {
             "and": [
               {
@@ -4048,6 +4079,7 @@
           "id": "visual_gestural_explain",
           "prompt": "Briefly, what help is needed with visual communication?",
           "type": "text",
+          "translate": true,
           "askIf": {
             "and": [
               {
@@ -4383,6 +4415,12 @@
     "routing",
     "account"
   ],
+  "translateFlag": {
+    "status": "proposed",
+    "awaitingOwner": true,
+    "scope": "narrative text questions only; never names, addresses, phone numbers, emails or identifiers",
+    "decision": "ios-android-mirror-plan.md, Open questions for the owner, 1"
+  },
   "correct": {
     "aliases": {
       "first_name": [
@@ -5904,10 +5942,20 @@
           "manifest": "audio/manifest.json"
         },
         "stt": {
+          "engine": "whisper",
           "model": "whisper-base.en",
           "language": null,
           "multilingual": false,
-          "installed": true
+          "installed": true,
+          "lid": false,
+          "adapters": [
+            "eng"
+          ],
+          "voiceTypes": "all",
+          "alwaysReadBack": false,
+          "lexicons": [
+            "en"
+          ]
         }
       },
       "fr": {
@@ -5938,10 +5986,20 @@
         ],
         "clips": null,
         "stt": {
+          "engine": "whisper",
           "model": "whisper-base",
           "language": "fr",
           "multilingual": true,
-          "installed": true
+          "installed": true,
+          "lid": false,
+          "adapters": [
+            "fra"
+          ],
+          "voiceTypes": "all",
+          "alwaysReadBack": false,
+          "lexicons": [
+            "fr"
+          ]
         }
       },
       "ln": {
@@ -5972,10 +6030,23 @@
         ],
         "clips": null,
         "stt": {
+          "engine": "mms",
           "model": "whisper-base",
           "language": "ln",
           "multilingual": true,
-          "installed": true
+          "installed": true,
+          "lid": true,
+          "adapters": [
+            "lin",
+            "fra",
+            "eng"
+          ],
+          "voiceTypes": "all",
+          "alwaysReadBack": true,
+          "lexicons": [
+            "ln",
+            "fr"
+          ]
         }
       }
     },

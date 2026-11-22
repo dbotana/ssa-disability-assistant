@@ -75,16 +75,45 @@ object FormDocuments {
         today: CivilDate,
         lang: String = "en",
         i18n: I18n = I18n(schema),
-    ): FormDocument {
-        val spec = schema.formSpecs[formId] ?: throw IllegalArgumentException("schema.json has no formSpecs.$formId")
+    ): FormDocument = document(schema, formId, planOnly(schema, formId, answers, today, lang, i18n), emptyList(), emptyList(), lang, i18n)
+
+    /** The plan alone, as plan() makes it: WinAnsi text, then planFill(). */
+    fun planOnly(
+        schema: Schema,
+        formId: String,
+        answers: Json.Obj,
+        today: CivilDate,
+        lang: String = "en",
+        i18n: I18n = I18n(schema),
+    ): FillPlan {
         val raw = mapping(schema, formId, answers, today, lang, i18n)
         val text = LinkedHashMap<String, String>()
         raw.text.forEach { (k, v) -> text[k] = WinAnsi.toWinAnsi(v) }
-        val manifest = TemplateManifest.forForm(formId)
-        val plan = planFill(raw.copy(text = text), manifest, WinAnsiMetrics.REGULAR)
+        return planFill(raw.copy(text = text), TemplateManifest.forForm(formId), WinAnsiMetrics.REGULAR)
+    }
 
-        val addendum = if (plan.overflowText.isNotEmpty() || plan.tables.isNotEmpty() || plan.sections.isNotEmpty()) {
-            AddendumLayout.layout(addendumContent(spec, plan, lang, i18n), WinAnsiMetrics.REGULAR, WinAnsiMetrics.BOLD, lang, i18n)
+    /**
+     * A finished document from a plan, with a form version's [notes] after
+     * the addendum's intro and its [appendix] as the last section
+     * (versionAddendum() in src/versions.js). Both are empty for a single
+     * version, which is then exactly what plan() always made.
+     */
+    fun document(
+        schema: Schema,
+        formId: String,
+        plan: FillPlan,
+        notes: List<String>,
+        appendix: List<Pair<String, String>>,
+        lang: String = "en",
+        i18n: I18n = I18n(schema),
+    ): FormDocument {
+        val spec = schema.formSpecs[formId] ?: throw IllegalArgumentException("schema.json has no formSpecs.$formId")
+        val manifest = TemplateManifest.forForm(formId)
+        val addendum = if (notes.isNotEmpty() || appendix.isNotEmpty() || plan.overflowText.isNotEmpty() || plan.tables.isNotEmpty() || plan.sections.isNotEmpty()) {
+            AddendumLayout.layout(
+                AddendumLayout.Content.fromJson(addendumContentJson(spec, plan, lang, i18n, notes, appendix)),
+                WinAnsiMetrics.REGULAR, WinAnsiMetrics.BOLD, lang, i18n,
+            )
         } else {
             emptyList()
         }
@@ -97,7 +126,17 @@ object FormDocuments {
         plan: FillPlan,
         lang: String = "en",
         i18n: I18n? = null,
-    ): AddendumLayout.Content {
+    ): AddendumLayout.Content = AddendumLayout.Content.fromJson(addendumContentJson(spec, plan, lang, i18n))
+
+    /** The addendum content as data, as the goldens record it. */
+    fun addendumContentJson(
+        spec: FormSpecInfo,
+        plan: FillPlan,
+        lang: String = "en",
+        i18n: I18n? = null,
+        notes: List<String> = emptyList(),
+        appendix: List<Pair<String, String>> = emptyList(),
+    ): Json.Obj {
         val table = i18n ?: I18n.default
         fun translated(value: Json?): Json {
             val s = value?.asString() ?: return value ?: Json.Null
@@ -107,16 +146,26 @@ object FormDocuments {
             ((value as? Json.Arr)?.items ?: emptyList())
                 .mapTo(mutableListOf()) { translated(it) }
         )
-        return AddendumLayout.Content.fromJson(Json.Obj().also { o ->
+        return Json.Obj().also { o ->
             o["title"] = translated(spec.addendum["title"])
-            o["intro"] = translatedList(spec.addendum["intro"])
+            o["intro"] = Json.Arr(translatedList(spec.addendum["intro"]).items.also { intro ->
+                notes.forEach { intro.add(Json.Str(table.translate(it, lang))) }
+            })
             o["overflowText"] = Json.Arr(plan.overflowText.mapTo(mutableListOf()) { (label, value) ->
                 Json.Obj().also { e -> e["label"] = Json.Str(label); e["value"] = Json.Str(value) }
             })
             o["tables"] = Json.Arr(plan.tables.toMutableList())
-            o["sections"] = Json.Arr(plan.sections.toMutableList())
+            o["sections"] = Json.Arr(plan.sections.toMutableList().also { sections ->
+                if (appendix.isNotEmpty()) sections.add(Json.Obj().also { a ->
+                    a["id"] = Json.Str("appendix")
+                    a["title"] = Json.Str(table.translate(FormVersions.APPENDIX_TITLE, lang))
+                    a["blocks"] = Json.Arr(appendix.mapTo(mutableListOf()) { (label, value) ->
+                        Json.Obj().also { b -> b["label"] = Json.Str(label); b["value"] = Json.Str(value) }
+                    })
+                })
+            })
             o["footer"] = translatedList(spec.addendum["footer"])
-        })
+        }
     }
 
     /**

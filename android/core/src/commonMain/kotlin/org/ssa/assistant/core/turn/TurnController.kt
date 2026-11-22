@@ -1,5 +1,6 @@
 package org.ssa.assistant.core.turn
 
+import org.ssa.assistant.core.store.repairWithheldList
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
@@ -75,6 +76,8 @@ class TurnController(private val ports: Ports, schema: Schema) {
         fun isPersisting(): Boolean
         fun clearState()
         fun forgetKey()
+        /** After a loop item is deleted: the same repair for the carried withheld list. */
+        fun repairWithheld(loopId: String, removedIndex: Int) {}
     }
 
     interface SpeechPort {
@@ -1147,6 +1150,15 @@ class TurnController(private val ports: Ports, schema: Schema) {
         }
 
         val removed = engine!!.removeItem(c.loopId, c.item.index)
+        if (removed) {
+            // The withheld list records loop fields by position; deleting an
+            // item renumbers the ones after it. Drop the removed item's
+            // entries and shift the rest, here and in the store's carried
+            // list, exactly as turn.js does (TODO.md, Known quirks).
+            withheld = repairWithheldList(withheld, c.loopId, c.item.index).toMutableList()
+            ports.store.repairWithheld(c.loopId, c.item.index)
+        }
+
         saveSession()
         returnToReview(
             if (removed) pair(

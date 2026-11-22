@@ -11,7 +11,8 @@ import {
   CHANNELS, DEFAULT_SETTINGS, LANGUAGES, LANGUAGE_ORDER, MESSAGES, UI, STRINGS, LEXICONS,
   normalizeSettings, langFor, loadSettings, saveSettings, SETTINGS_KEY,
   translationCorpus, translate, message, fold, sttFor, formatDate, formatMonthYear,
-  formatMoney, formatTimeRemaining, missingKeys
+  formatMoney, formatTimeRemaining, missingKeys,
+  voiceOffered
 } from '../src/i18n/index.js';
 import { summaryText } from '../src/summary.js';
 import { localCommand } from '../src/commands.js';
@@ -281,6 +282,19 @@ eq('a typed French date is read day first, the order its prompts ask for',
   const failuresInRun = await runScenario(doc.scenario, doc.steps);
   check('French turn scenario passes', failuresInRun.length === 0, failuresInRun.join(' | '));
   eq('French turn scenario records no missing keys', missingKeys(), []);
+}
+
+// -- the input matrix (Step 2 item 4) -------------------------------------------
+
+{
+  const ln = sttFor('ln');
+  check('Lingala listens with MMS, after language ID, with the lin, fra and eng adapters',
+    ln.engine === 'mms' && ln.lid === true && JSON.stringify(ln.adapters) === '["lin","fra","eng"]', JSON.stringify(ln));
+  check('Lingala offers voice for every type until measured, and always reads back',
+    ln.voiceTypes === 'all' && ln.alwaysReadBack === true, JSON.stringify(ln));
+  check('Lingala sessions accept French digit words', JSON.stringify(ln.lexicons) === '["ln","fr"]');
+  check('voice is offered for an SSN in Lingala', voiceOffered('ln', 'ssn'));
+  check('English keeps Whisper and the read-back setting', sttFor('en').engine === 'whisper' && sttFor('en').alwaysReadBack === false);
 }
 
 // translate() itself never invents text for a missing key.

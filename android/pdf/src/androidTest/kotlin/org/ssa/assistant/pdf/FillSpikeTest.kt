@@ -6,6 +6,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.ssa.assistant.core.json.Json
 import org.ssa.assistant.core.pdf.FormDocuments
+import org.ssa.assistant.core.pdf.FormVersions
 import org.ssa.assistant.core.schema.SchemaLoader
 
 /**
@@ -52,6 +53,31 @@ class FillSpikeTest {
     @Test fun dsOnly() = fillAndPublish("ds-only", Fixtures.answers("ds-only"))
     @Test fun minimal() = fillAndPublish("minimal", Fixtures.answers("minimal"))
     @Test fun long() = fillAndPublish("long", Fixtures.long())
+
+    /**
+     * Step 2 item 5: a Lingala session's two versions of each form, from the
+     * fixed translation fixture, both filled and both through PdfSelfCheck.
+     * Published as ln-both-a and ln-both-b, so crosscheck.mjs re-plans each
+     * version's answers with the JS reference too.
+     */
+    @Test
+    fun lingalaVersionsAAndB() {
+        val (answers, overlay) = Fixtures.lingala()
+        for (formId in listOf("ssa", "ds")) {
+            val versions = FormVersions.plan(schema, formId, answers, overlay, Fixtures.TODAY)
+            val b = checkNotNull(versions.b) { "$formId: the fixture makes no version B" }
+            check(versions.a.notes == listOf(FormVersions.NOTE_A)) { "$formId: version A has no interpreter note" }
+            check(b.appendix.isNotEmpty()) { "$formId: version B has no appendix" }
+            for (v in listOf(versions.a, b)) {
+                val case = "ln-both-${v.version}"
+                val filled = filler.fill(v.document)
+                Fixtures.publish(case, v.document, v.answers, filled)
+                assertEquals("$case $formId: names the template lacks", emptyList<String>(), filled.missing)
+                check(filled.check.ok) { "$case $formId self-check: ${filled.check}" }
+                check(v.document.addendum.isNotEmpty()) { "$case $formId: the version's note needs an addendum page" }
+            }
+        }
+    }
 
     @Test
     fun accentsAndCurlyQuotes() {

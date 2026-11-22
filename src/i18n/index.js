@@ -69,6 +69,16 @@ export function sttFor(lang = 'en') {
   return LANGUAGES[lang]?.stt ?? LANGUAGES.en.stt;
 }
 
+/**
+ * The input matrix (Step 2 item 4): is voice offered for a question type in
+ * this language? `voiceTypes` is 'all' until Step 4.4 narrows it to a list.
+ * Tapping and typing are always offered, whatever this says.
+ */
+export function voiceOffered(lang, type) {
+  const types = sttFor(lang).voiceTypes ?? 'all';
+  return types === 'all' || (Array.isArray(types) && types.includes(type));
+}
+
 const MONTHS_EN = LANGUAGES.en.months;
 
 /** A date the way the language writes it. English output is unchanged. */

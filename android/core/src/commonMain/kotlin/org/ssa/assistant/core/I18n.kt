@@ -135,6 +135,38 @@ class I18n(private val table: Json.Obj) {
     fun sttInstalled(lang: String = "en"): Boolean =
         language(lang)["stt"]?.asObject()?.get("installed")?.asBoolean() ?: true
 
+    /**
+     * The input matrix (Step 2 item 4, `stt` in src/i18n/languages.js): which
+     * recognizer and adapters a language uses, whether voice is offered for a
+     * question type, and whether every voice answer is read back.
+     */
+    data class InputMatrix(
+        val engine: String,
+        val lid: Boolean,
+        val adapters: List<String>,
+        /** null means 'all'; otherwise the question types voice is offered for. */
+        val voiceTypes: List<String>?,
+        val alwaysReadBack: Boolean,
+        val lexicons: List<String>,
+    ) {
+        /** voiceOffered() in src/i18n/index.js. Tapping and typing are always offered. */
+        fun voiceOffered(type: String): Boolean = voiceTypes == null || type in voiceTypes
+    }
+
+    fun inputMatrix(lang: String = "en"): InputMatrix {
+        val stt = language(lang)["stt"]?.asObject() ?: Json.Obj()
+        fun strings(key: String) = stt[key]?.asArray()?.items?.mapNotNull { it.asString() } ?: emptyList()
+        val types = stt["voiceTypes"]
+        return InputMatrix(
+            engine = stt["engine"]?.asString() ?: "whisper",
+            lid = stt["lid"]?.asBoolean() ?: false,
+            adapters = strings("adapters"),
+            voiceTypes = if (types == null || types.asString() == "all") null else strings("voiceTypes"),
+            alwaysReadBack = stt["alwaysReadBack"]?.asBoolean() ?: false,
+            lexicons = strings("lexicons"),
+        )
+    }
+
     private fun months(lang: String): List<String> =
         language(lang)["months"]?.asArray()?.items?.mapNotNull { it.asString() }
             ?: EN_MONTHS
