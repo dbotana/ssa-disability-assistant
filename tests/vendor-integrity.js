@@ -44,6 +44,7 @@ async function verify(dir, listFile) {
 
 const libraries = await verify(join(ROOT, 'vendor'), 'SHA256SUMS');
 check('pdf-lib is pinned', libraries.includes('pdf-lib.min.js'));
+check('the iOS writer bundle is pinned', libraries.includes('ssa-pdf-writer.js'));
 
 const vendored = await verify(join(ROOT, 'vendor', 'transformers'), 'VERSIONS.txt');
 for (const need of ['transformers.min.js', 'ort-wasm-simd-threaded.jsep.mjs', 'ort-wasm-simd-threaded.jsep.wasm']) {

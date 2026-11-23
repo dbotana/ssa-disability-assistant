@@ -9,8 +9,11 @@
 
 import { buildReport } from './summary.js';
 import { toWinAnsi } from './forms/common.js';
-import { layoutAddendum, COLORS } from './addendum.js';
+import { layoutAddendum } from './addendum.js';
 import { translate, message, formatDate } from './i18n/index.js';
+import { renderAddendum } from './pdf-writer.js';
+
+export { renderAddendum };
 
 let pdfLibPromise = null;
 
@@ -44,38 +47,6 @@ export function fontMetrics(font, boldFont) {
       heightAtSize: size => boldFont.heightAtSize(size)
     }
   };
-}
-
-/**
- * Replay an addendum draw list onto `doc` with `PDFLib`.
- *
- * Every page the list describes is added by this function, so nothing the
- * replayer draws ever lands over the artwork of a form the pages were
- * appended to.
- */
-export function renderAddendum(doc, PDFLib, drawList, { font, bold }) {
-  const { rgb } = PDFLib;
-  const fonts = { regular: font, bold };
-  const colors = Object.fromEntries(Object.entries(COLORS).map(([k, c]) => [k, rgb(c.r, c.g, c.b)]));
-
-  for (const items of drawList.pages) {
-    const page = doc.addPage([612, 792]);
-    for (const item of items) {
-      if (item.op === 'text') {
-        page.drawText(toWinAnsi(item.text), {
-          x: item.x, y: item.y, size: item.size,
-          font: fonts[item.font], color: colors[item.color]
-        });
-      } else if (item.op === 'rule') {
-        page.drawLine({
-          start: { x: item.x, y: item.y },
-          end: { x: item.x + item.width, y: item.y },
-          thickness: item.thickness, color: colors.rule
-        });
-      }
-    }
-  }
-  return drawList.pages.length;
 }
 
 /**

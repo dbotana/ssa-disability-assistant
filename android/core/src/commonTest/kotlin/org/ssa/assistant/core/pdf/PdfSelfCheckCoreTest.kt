@@ -172,4 +172,25 @@ class PdfSelfCheckCoreTest {
         assertTrue(result.problems.any { it.field == target.name }, "no problem names ${target.name}: $result")
         assertTrue(result.problems.none { it.check.contains(secret) }, "a problem leaked the value: $result")
     }
+
+    @Test
+    fun aChangedValueTypeOnAnUntouchedFieldIsCaught() {
+        val fd = plan()
+        val untouched = fd.manifest.fields.entries
+            .first { (name, e) -> e.type == "text" && fd.plan.fields.none { it.name == name } }.key
+        val doc = docFields(fd).toMutableMap()
+        val tpl = tplFields(fd).toMutableMap()
+        doc[untouched] = doc[untouched]!!.copy(value = null, rawValue = "s:x")
+        tpl[untouched] = tpl[untouched]!!.copy(value = null, rawValue = "n:x")
+        val port = ScriptedPort(
+            doc = ScriptedReader(doc, 1 + fd.addendum.size),
+            tpl = ScriptedReader(tpl, 1),
+        )
+        val result = PdfSelfCheck.check(byteArrayOf(), byteArrayOf(), fd, port)
+        assertFalse(result.ok, "the changed /V COS type went unnoticed")
+        assertTrue(
+            result.problems.any { it.field == untouched && it.check == "value changed though the plan left it alone" },
+            "no problem names $untouched: $result"
+        )
+    }
 }

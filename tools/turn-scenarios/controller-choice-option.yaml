@@ -1,0 +1,18 @@
+# A language chosen on setup, then the "Both forms" option is tapped on the
+# forms choice question (a real choice, not a read-back accept), and going
+# back returns to that question, whose translated option labels are pinned
+# in appstate.json.
+scenario: controller choice option
+steps:
+  - choose:
+      screen: fr
+  - start:
+      mode: voice
+  - option: both
+  - expect:
+      answers:
+        forms: both
+  - command: back
+  - expect:
+      panel: interview
+      question: Quel formulaire

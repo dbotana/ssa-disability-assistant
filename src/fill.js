@@ -18,29 +18,17 @@
 // signature.
 
 import { toWinAnsi } from './forms/common.js';
-import { buildManifest, parseDa } from './manifest.js';
+import { buildManifest } from './manifest.js';
 import { planFill } from './plan.js';
 import { exportFileName } from './export-name.js';
 import { layoutAddendum } from './addendum.js';
-import { loadPdfLib, downloadWorksheet, fontMetrics, renderAddendum } from './pdf.js';
+import { loadPdfLib, downloadWorksheet, fontMetrics } from './pdf.js';
+import { writeFilledPdf } from './pdf-writer.js';
 import { translate } from './i18n/index.js';
 import * as ssaKit from './forms/ssa-starter-kit.js';
 import * as dsIntake from './forms/ds-intake.js';
 
 export const FORMS = { ssa: ssaKit, ds: dsIntake };
-
-/**
- * The font resource a field's appearance is allowed to name: the one its own
- * DA already uses. pdf-lib's updateFieldAppearances() rewrites every DA with
- * the name of the font it was handed — "/Helvetica" — which the DS form's
- * /DR does not contain, leaving viewers without a font to regenerate the
- * appearance. Both forms' /DR contain /Helv, so a field that named /Helv
- * keeps naming /Helv. A field with no DA at all (the DS form has 27) gets
- * /Helv, which is the name fill.js has always written for those.
- */
-function daFontFor(fieldEntry) {
-  return fieldEntry?.da?.font ?? fieldEntry?.widgets?.find(w => w?.da?.font)?.da?.font ?? '/Helv';
-}
 
 /**
  * Fill a form from a plan. Returns { bytes, missing, overflowText }:
@@ -69,83 +57,37 @@ export async function fillTemplate(PDFLib, templateBytes, mapping, { title, adde
   const manifest = buildManifest(form, PDFLib);
   const plan = planFill(planMapping, manifest, metrics.regular);
 
-  const missing = [...plan.missing];
   const overflowText = [...plan.overflowText];
-
-  for (const pf of plan.fields) {
-    let field;
-    try { field = form.getTextField(pf.name); } catch { missing.push(pf.name); continue; }
-    // A few fields on the DS form were authored with no default appearance,
-    // and pdf-lib cannot size text without one.
-    if (!field.acroField.getDefaultAppearance()) field.acroField.setDefaultAppearance('/Helv 0 Tf 0 g');
-    field.setFontSize(pf.fit.size);
-    field.setText(pf.fit.text);
-
-    // A widget's own DA overrides the field's: without this, pdf-lib lays the
-    // appearance out at the widget's printed size (8) instead of the fitted
-    // one (8.5). Rewrite every widget DA to the fitted size before the
-    // appearances are generated, keeping its original font name.
-    const entry = manifest.fields[pf.name];
-    const name = daFontFor(entry);
-    field.acroField.getWidgets().forEach(w => {
-      if (w.getDefaultAppearance()) w.setDefaultAppearance(`${name} ${pf.fit.size} Tf 0 g`);
-    });
-    if (field.acroField.getDefaultAppearance()) {
-      field.acroField.setDefaultAppearance(`${name} ${pf.fit.size} Tf 0 g`);
-    }
-  }
-
-  for (const [name, option] of Object.entries(plan.radios)) {
-    if (option == null || option === '') continue;
-    try { form.getRadioGroup(name).select(option); } catch { missing.push(name); }
-  }
-
-  for (const name of plan.checks) {
-    try { form.getCheckBox(name).check(); } catch { missing.push(name); }
-  }
-
-  form.updateFieldAppearances(font);
-
-  // updateFieldAppearances() rewrites every DA with the name of the font it
-  // drew with ("/Helvetica") — including blank fields it still touched, like
-  // the DS form's signature dates. Put the original names back everywhere,
-  // keeping the size pdf-lib just wrote, so the DA font always exists in the
-  // form's /DR and Acrobat can regenerate any appearance.
-  for (const field of form.getFields()) {
-    if (!(field instanceof PDFLib.PDFTextField)) continue;
-    const entry = manifest.fields[field.getName()];
-    const name = daFontFor(entry);
-    field.acroField.getWidgets().forEach(w => {
-      const current = parseDa(w.getDefaultAppearance());
-      if (current) w.setDefaultAppearance(`${name} ${current.size} Tf 0 g`);
-    });
-    const current = parseDa(field.acroField.getDefaultAppearance());
-    if (current) field.acroField.setDefaultAppearance(`${name} ${current.size} Tf 0 g`);
-  }
-
   const tables = plan.tables;
   const sections = plan.sections;
+  let drawList = null;
   if (addendum && (overflowText.length || tables.length || sections.length)) {
-    const bold = await doc.embedFont(StandardFonts.HelveticaBold);
-    const drawList = layoutAddendum({
+    // The bold metrics only feed layoutAddendum; the real document still gets
+    // its bold font inside the writer, at the same point it always did.
+    const scratch = await PDFDocument.create();
+    const boldForMetrics = await scratch.embedFont(StandardFonts.HelveticaBold);
+    drawList = layoutAddendum({
       title: translate(addendum.title, lang),
       intro: (addendum.intro ?? []).map(line => translate(line, lang)),
       overflowText,
       tables,
       sections,
       footer: (addendum.footer ?? []).map(line => translate(line, lang))
-    }, { ...fontMetrics(font, bold), lang });
-    renderAddendum(doc, PDFLib, drawList, { font, bold });
+    }, { ...fontMetrics(font, boldForMetrics), lang });
   }
 
-  if (title) doc.setTitle(title);
-  doc.setCreator(translate('Voice Assistant for Disability Forms', lang));
-
-  return { bytes: await doc.save(), missing, overflowText };
+  return writeFilledPdf(PDFLib, doc, {
+    plan,
+    manifest,
+    drawList,
+    title,
+    creator: translate('Voice Assistant for Disability Forms', lang),
+    font
+  });
 }
 
 /** Re-exported for tests and the golden generator. */
-export { planFill, layoutAddendum, buildManifest };
+export { planFill, layoutAddendum, buildManifest, writeFilledPdf };
 
 // -- browser -------------------------------------------------------------------
 

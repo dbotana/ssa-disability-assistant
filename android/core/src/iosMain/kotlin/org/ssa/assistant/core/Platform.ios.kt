@@ -10,6 +10,7 @@ import kotlinx.cinterop.usePinned
 import platform.CoreCrypto.CC_SHA256
 import platform.CoreCrypto.CC_SHA256_DIGEST_LENGTH
 import platform.Foundation.NSBundle
+import platform.Foundation.NSFileManager
 import platform.Foundation.NSString
 import platform.Foundation.NSUTF8StringEncoding
 import platform.Foundation.decomposedStringWithCanonicalMapping
@@ -35,6 +36,16 @@ actual fun sha256(bytes: ByteArray): ByteArray {
 }
 
 actual fun readResource(path: String): String {
+    // XCTest bundles have no app main bundle, so the tests point readResource
+    // at the repository directories first (IosResources.roots). In an app this
+    // list is empty and the main bundle is used as before.
+    for (root in IosResources.roots) {
+        val candidate = "$root/$path"
+        if (NSFileManager.defaultManager.fileExistsAtPath(candidate)) {
+            return NSString.stringWithContentsOfFile(candidate, NSUTF8StringEncoding, null)
+                ?: throw IllegalArgumentException("missing resource: $path")
+        }
+    }
     val root = NSBundle.mainBundle.resourcePath ?: throw IllegalArgumentException("missing resource: $path")
     return NSString.stringWithContentsOfFile("$root/$path", NSUTF8StringEncoding, null)
         ?: throw IllegalArgumentException("missing resource: $path")

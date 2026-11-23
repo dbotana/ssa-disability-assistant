@@ -947,3 +947,55 @@ Verification (exact commands, all pass):
 
 Still open: real-app-bundle resources for `NSBundle.mainBundle` (X6) — no app target yet, so
 step 10 is not run.
+
+## Mirror Run 6 (2026-11-22): spike 3a on the simulator, plus Run 5's two gaps
+
+The plan's *Run 6* section has the exact commands and output. In short: Run 5's two gaps are
+closed, the JS writer is split out of `fill.js` and run inside `JSContext` on the iOS simulator,
+and the result is a **provisional fallback** for spike 3a, recorded in `ios/SPIKES.md`.
+
+- Run 5 gap (a): `tools/turn-scenarios/controller-choice-option.yaml` pins a translated option
+  label (`Les deux formulaires`, plus `Demande d'admission aux Developmental Services`) by tapping
+  `both` on a French screen. `turn.json`/`appstate.json` regenerated; hash added to
+  `turn-scenarios.SHA256SUMS`.
+- Run 5 gap (b): `PdfFieldView.rawValue` catches a `/V` whose COS type changes; JVM and `:pdf`
+  tests added (`aChangedValueTypeOnAnUntouchedFieldIsCaught`, `aValueTypeChangeIsCaught`).
+- Split writer: `src/winansi.js`, `src/addendum-colors.js`, `src/pdf-writer.js`; `fill.js` calls
+  `writeFilledPdf`. `tools/build-ios-writer.mjs` generates the pinned `vendor/ssa-pdf-writer.js`;
+  `tests/ios-writer-bundle.js` proves it is byte-identical to the ESM writer in `node:vm`.
+- iOS: `IosResources.kt` + `Platform.ios.kt` search it first; `Package.swift` adds `SsaPdf` /
+  `SsaPdfTests`; new `PdfWriter.swift` (JSContext, hash-pinned scripts, no network globals),
+  `KotlinBytes.swift`, `CgPdfReadPort.swift` (CGPDF) and `PdfSpikeTests.swift`.
+- [x] All 26 `node tests/*.js` pass; `node tools/smoke.mjs` passes; `node
+      tools/build-ios-writer.mjs --check` passes; `check.mjs` reports only the new
+      `controller choice option` transcript in `turn.json`/`appstate.json` (`tools/schema.json`
+      unchanged).
+- [x] `:core:jvmTest` → 91 tests, 0 failures; `:core:iosSimulatorArm64Test` → 72 tests, 0
+      failures; `:core-device:connectedDebugAndroidTest` → 91 tests, 0 failures;
+      `:core:assembleSsaCoreDebugXCFramework` → success; `:app:assembleDebug` + release/staging
+      manifests → success; permission audit → `clean (4 artifacts)`.
+- [x] `./android/tools/run-pdf-spike.sh ssa35` → 25 tests, 0 failures;
+      `crosscheck: 16 PDFs re-read with pdf-lib, 0 failure(s)`.
+- [x] `xcodebuild test -scheme CoreCrypto-Package` → `CoreCryptoTests` 3 tests and `SsaPdfTests`
+      3 tests, 0 failures; `crosscheck: 4 PDFs re-read with pdf-lib, 0 failure(s)`. This scheme is
+      new in Run 6: `-scheme CoreCrypto` passed in Run 5, but adding the `SsaPdf` product gave
+      SwiftPM a second product, and only the package scheme has a test action.
+- 3a timings (simulator, iPhone 18 Pro, not a phone; from the last `CoreCrypto-Package` run):
+  cold `JSContext` load 1068 ms; per-PDF totals 9071 / 1165 / 888 / 1288 ms; warm writes 68–77 ms;
+  four-PDF session total 12412 ms; size ratios 1.01–1.04. The first form's total varies run to run
+  (6.39, 7.98, 8.47, 9.10 and 9.07 s in five runs) and the cold cost does not always land on the
+  same step: in three runs most of it was in the first `PdfSelfCheck` call, in two it was in the
+  first JS fill. The cause is not established.
+- Self-check: 313 (ssa) / 344 (ds) problems, all group (a) `/HelvWA` convention mismatches; no
+  CGPDF limitations; `missing` empty everywhere.
+
+Still not verified: real-phone timings; the PDFKit preview; opening/editing in Acrobat, Chrome and
+Preview; app-bundle resources for `NSBundle.mainBundle` (X6); the self-check convention mismatch,
+if it stands after the owner decides whether the JS writer should adopt `/HelvWA`. The
+`xcodebuild test -scheme CoreCrypto` and `-scheme SsaPdf` commands fail with xcodebuild errors
+(`error: Scheme CoreCrypto is not currently configured for the test action.` and
+`error: Scheme SsaPdf is not currently configured for the test action.`), caused by this run's
+second `SsaPdf` product; Run 5's `-scheme CoreCrypto` command passed. The tests ran under
+`-scheme CoreCrypto-Package` instead, and `ios/CoreCrypto/Package.swift`'s header comment now says
+so. **Owner:** `AGENTS.md`'s "Common checks" line must change from `-scheme CoreCrypto` to
+`-scheme CoreCrypto-Package`; AGENTS.md was not edited in this run.

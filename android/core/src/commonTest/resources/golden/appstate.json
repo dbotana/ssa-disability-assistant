@@ -91,6 +91,106 @@
       }
     },
     {
+      "scenario": "controller choice option",
+      "uiState": {
+        "panel": "interview",
+        "sectionLabel": "Choix de votre formulaire",
+        "questionText": "Quel formulaire remplissons-nous aujourd'hui : l'Adult Disability Starter Kit de la Social Security, la demande d'admission aux Developmental Services du Maine, ou les deux ?",
+        "hintText": "Le Starter Kit vous aide à vous préparer à demander des prestations d'invalidité de la Social Security. La demande Developmental Services est la façon dont les adultes ayant une déficience intellectuelle ou de l'autisme demandent des services au Maine. Dites starter kit, developmental services, ou les deux.",
+        "statusText": "",
+        "readbackOpen": false,
+        "inputMasked": false,
+        "voiceDisabled": false,
+        "progressText": "1 % terminé",
+        "reviewIntro": "",
+        "answers": {},
+        "revealSensitive": false,
+        "languages": {
+          "input": "en",
+          "output": "en",
+          "screen": "fr",
+          "fill": "en"
+        },
+        "sttUnavailable": false,
+        "lane": "text",
+        "focus": null,
+        "section": {
+          "section": "forms",
+          "sectionTitle": "Choosing your form",
+          "sectionNumber": null,
+          "sectionCount": null,
+          "answered": 0,
+          "remaining": 71,
+          "total": 71,
+          "percent": 1,
+          "rawPercent": 0,
+          "secondsRemaining": null
+        },
+        "missing": "Which form are we filling out today: Social Security's Adult Disability Starter Kit, Maine's Developmental Services Intake Application, or both? | What is your legal first name? | What is your legal last name? | What is your date of birth? Say the month, the day, and then the year. | What city were you born in? | What state or province were you born in? | What country were you born in? | What is your Social Security number? | What month and year did your condition begin to limit your ability to work? | Do you receive workers' compensation or another disability benefit? | Do you give permission for Social Security to request your medical records directly from your providers?",
+        "controls": {
+          "talk": true,
+          "text": true,
+          "yes": false,
+          "no": false,
+          "options": [
+            {
+              "value": "ssa",
+              "label": "Adult Disability Starter Kit"
+            },
+            {
+              "value": "ds",
+              "label": "Demande d'admission aux Developmental Services"
+            },
+            {
+              "value": "both",
+              "label": "Les deux formulaires"
+            }
+          ]
+        },
+        "exportList": [
+          "ssa"
+        ],
+        "runs": {
+          "questionText": [
+            {
+              "text": "Quel formulaire remplissons-nous aujourd'hui : l'Adult Disability Starter Kit de la Social Security, la demande d'admission aux Developmental Services du Maine, ou les deux ?",
+              "lang": "fr"
+            }
+          ],
+          "hintText": [
+            {
+              "text": "Le Starter Kit vous aide à vous préparer à demander des prestations d'invalidité de la Social Security. La demande Developmental Services est la façon dont les adultes ayant une déficience intellectuelle ou de l'autisme demandent des services au Maine. Dites starter kit, developmental services, ou les deux.",
+              "lang": "fr"
+            }
+          ],
+          "statusText": [
+            {
+              "text": "",
+              "lang": "fr"
+            }
+          ],
+          "sectionLabel": [
+            {
+              "text": "Choix de votre formulaire",
+              "lang": "fr"
+            }
+          ],
+          "reviewIntro": [
+            {
+              "text": "",
+              "lang": "fr"
+            }
+          ],
+          "progressText": [
+            {
+              "text": "1 % terminé",
+              "lang": "fr"
+            }
+          ]
+        }
+      }
+    },
+    {
       "scenario": "controller choice",
       "uiState": {
         "panel": "review",

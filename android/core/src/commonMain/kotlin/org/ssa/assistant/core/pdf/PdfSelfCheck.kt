@@ -163,7 +163,7 @@ object PdfSelfCheck {
         }
 
         fun untouched(name: String, field: PdfFieldView, original: PdfFieldView) {
-            if (field.value != original.value) fail(name, "value changed though the plan left it alone")
+            if (field.value != original.value || field.rawValue != original.rawValue) fail(name, "value changed though the plan left it alone")
             val ws = field.widgets
             val os = original.widgets
             if (ws.size != os.size) { fail(name, "widget count changed"); return }

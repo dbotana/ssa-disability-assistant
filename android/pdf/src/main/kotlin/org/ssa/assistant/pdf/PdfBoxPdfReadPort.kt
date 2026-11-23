@@ -1,5 +1,6 @@
 package org.ssa.assistant.pdf
 
+import com.tom_roush.pdfbox.cos.COSBase
 import com.tom_roush.pdfbox.cos.COSDictionary
 import com.tom_roush.pdfbox.cos.COSName
 import com.tom_roush.pdfbox.cos.COSString
@@ -106,7 +107,7 @@ object PdfBoxPdfReadPort : PdfReadPort {
         val readOnly = f.isReadOnly
         val da = f.cosObject.getString(COSName.DA)
         val widgets = (f as? PDTerminalField)?.widgets?.map { toWidgetView(f, it) } ?: emptyList()
-        return PdfFieldView(type, value, readOnly, da, widgets)
+        return PdfFieldView(type, value, readOnly, da, widgets, rawValue = str(f.cosObject.getDictionaryObject(COSName.V)))
     }
 
     private fun toWidgetView(f: PDField, w: PDAnnotationWidget): PdfWidgetView {
@@ -168,4 +169,11 @@ object PdfBoxPdfReadPort : PdfReadPort {
         font != null &&
             font.getCOSName(COSName.BASE_FONT)?.name == "Helvetica" &&
             font.getCOSName(COSName.ENCODING) == COSName.WIN_ANSI_ENCODING
+
+    private fun str(b: COSBase?): String? = when (b) {
+        null -> null
+        is COSString -> "s:" + b.string
+        is COSName -> "n:" + b.name
+        else -> b.toString()
+    }
 }

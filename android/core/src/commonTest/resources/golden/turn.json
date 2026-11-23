@@ -34,6 +34,28 @@
       }
     },
     {
+      "scenario": "controller choice option",
+      "languages": {
+        "input": "en",
+        "output": "en",
+        "screen": "fr",
+        "fill": "en"
+      },
+      "spoken": [
+        "Voice mode. Hold the space bar while you answer, and let go when you are done. When I read an answer back, tap the space bar to keep it, or press N to answer again. You can type an answer instead at any point, and speaking still works afterwards. Say repeat, go back, or skip at any time.",
+        "Choosing your form.",
+        "Which form are we filling out today: Social Security's Adult Disability Starter Kit, Maine's Developmental Services Intake Application, or both?",
+        "Section 2 of 32.",
+        "Who is filling out this application.",
+        "Are you filling out this application for yourself?",
+        "Choosing your form.",
+        "Going back.",
+        "Which form are we filling out today: Social Security's Adult Disability Starter Kit, Maine's Developmental Services Intake Application, or both?"
+      ],
+      "announced": [],
+      "answers": {}
+    },
+    {
       "scenario": "controller choice",
       "languages": {
         "input": "en",

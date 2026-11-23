@@ -75,6 +75,14 @@ class SelfCheckTest {
     }
 
     @Test
+    fun aValueTypeChangeIsCaught() {
+        val blank = fd.manifest.fields.entries.first { (name, e) -> e.type == "text" && fd.plan.fields.none { it.name == name } }.key
+        assertCaught(damaged { doc ->
+            doc.documentCatalog.acroForm.getField(blank).cosObject.setName(COSName.V, "Yes")
+        }, blank)
+    }
+
+    @Test
     fun aMissingAddendumPageIsCaught() {
         check(fd.addendum.isNotEmpty()) { "this case has no addendum to remove" }
         assertCaught(damaged { doc -> doc.removePage(doc.numberOfPages - 1) }, null)

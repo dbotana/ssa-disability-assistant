@@ -22,24 +22,25 @@ The web app stays the reference implementation. The Android plan,
 stays in force except where this plan replaces it: the UI, speech recognition, and distribution.
 Open Android items stay in [TODO.md](TODO.md) and [android-to-do.md](android-to-do.md).
 
-## Where things stand (2026-11-21)
+## Where things stand (2026-11-22, after Run 6)
 
 - **Web:** complete. English, French and Lingala are data, each chosen separately for input,
   output, screen and fill. The Lingala text is machine-authored and records
-  `reviewedByNativeSpeaker: false` ([ln.strings.js:5](src/i18n/catalog/ln.strings.js#L5)): 769
-  strings, about 36,000 characters. Only English clips exist (552 in `audio/`). Nobody has
-  measured how well Lingala speech is transcribed, and there are no Lingala recordings.
-- **Android `:core`:** 7,489 lines of pure Kotlin/JVM. It ports the schema, engine, parser,
-  I18n, TurnController, fill planning and addendum layout. It is pinned to the JS reference by
-  13 goldens (17 MB) and 11 shared turn scenarios.
-- **Android `:pdf`:** M1a is GO with PdfBox-Android. Both forms fill, and the self-check passes.
-- **Android `:speech`, `:llm`, `:app`:** skeletons. The whisper.cpp JNI is 15 lines, and there
-  are no Compose screens yet. So changing the speech runtime or the UI toolkit now loses almost
-  nothing.
-- **iOS:** nothing yet.
-
-`:core` touches JVM-only APIs in about a dozen places, and each has a small replacement. Making
-it multiplatform is cheap.
+  `reviewedByNativeSpeaker: false` ([ln.strings.js:5](src/i18n/catalog/ln.strings.js#L5)). Only
+  English clips exist (552 in `audio/`). Nobody has measured how well Lingala speech is
+  transcribed, and there are no Lingala recordings. `src/app-controller.js` is the reference for
+  the controller level.
+- **`:core`:** Kotlin Multiplatform (Kotlin 2.0.21) for JVM, Android and iOS (X1a, X1b). All
+  eight Step 2 items are in `core`. 91 JVM tests, 91 device tests on `ssa35`, and 72 tests on the
+  iOS simulator pass (Run 6).
+- **Android `:pdf`:** M1a is GO with PdfBox-Android. Both forms fill in versions A and B and pass
+  the core `PdfSelfCheck` through `PdfBoxPdfReadPort` (25 instrumented tests, Run 6).
+- **Android `:speech`, `:llm`, `:app`:** skeletons. No Compose screens yet.
+- **iOS:** the `ios/CoreCrypto/` Swift package implements `Crypto` over the `SsaCore`
+  XCFramework, and `SsaPdf` (spike 3a) fills both forms through the JS writer in `JSContext` and
+  re-reads them with a CGPDF `PdfReadPort`. The provisional 3a decision is fallback, recorded in
+  `ios/SPIKES.md`. There is still no app target and no `.xcodeproj`.
+- **Next:** spikes 3c (the network audit and its canary) and 3b (ONNX Runtime and the models).
 
 ## Progress
 
@@ -368,6 +369,8 @@ the emulator could not start in any session of this run** (see *Not run*).
 - The appendix lists every translated answer, including ones not printed on that form.
 - The PIN's NFC step happens inside `Crypto.deriveKey`, because common Kotlin has no Unicode
   normalizer.
+- `SessionStore` is synchronous, so the app derives the key off the main thread.
+- Kotlin has no v1/v2 legacy path, because the apps never wrote one.
 
 ### Run 4 (2026-11-21): X1b plus what Run 3 still owes, partly verified
 
@@ -519,71 +522,268 @@ one command from the directory shown:
 - Whether a relink or clean can leave `test.kexe` without the files that
   `copyIosTestBundleResources` copies. That task only `mustRunAfter`s the link.
 
-### Next: Run 4, X1b plus what Run 3 still owes
+### Run 5 (2026-11-22, committed as 0a8db31a): Step 2 items 1, 6 and 7, and X1b closed
 
-Run 3 committed as 97937c9. **Environment now:** Xcode 27.2 (27B52), iOS 27.2 simulator runtimes
-(iPhone 18 Pro, iPhone Air and others), JDK 21, Android SDK, AVD `ssa35`.
+**Status: done.** Step 2 is now complete in `core` (items 2, 3, 4, 5 and 8 in Run 3; items 1, 6
+and 7 here). X1b is done: the goldens and turn scenarios pass on the iOS simulator, the
+XCFramework builds, and the Swift `Crypto` tests pass against it.
 
-**Why the device runs failed before.** agent-loop starts Claude stages with `claude -p` in
-`dontAsk` mode, and the owner's Claude settings turn the command sandbox on. Inside that sandbox,
-Gradle cannot lock `~/.gradle`, adb cannot bind its port, and `simctl` cannot reach
-CoreSimulatorService. A command that matches an `--allow` rule can be retried outside the
-sandbox, which is how Run 3's round-2 reviewer got Gradle to run. Anything else is refused. So:
+Run 5 took two agent-loop runs:
 
-- run every device, simulator and Gradle command as **one command**, never chained with `;` or
-  `&&`;
-- run it from the directory given here;
-- if it is refused anyway, record the exact refusal and carry on.
+- `agent-loop-runs/2026-11-22-0847-plan-and-do-run-5-of/` wrote the plan (opencode,
+  `opencode-go/deepseek-v4-pro`, for both planning and plan review). Its implementation stopped
+  partway. The default free model and `mimo-v2.6-flash-free` hit the free usage limit (HTTP 429),
+  `glm-5.3-flash-free` was not listed, and the stage fell to `nemotron-3.5-lightning-free`. That
+  stage **broke the AGENTS.md git rules**: its `run.log` shows `git checkout --` on
+  `core/src/commonMain/.../pdf/` and `mv .../ContentStreamTokenizer.kt /tm…` (out of the repo).
+  It left `ContentStreamTokenizer.kt` pasted three times over, and two test files deleted. The
+  owner committed this state as `42de1ffc`, and `:core` did not compile.
+- `agent-loop-runs/2026-11-22-1413-fix-run-5-compile/` fixed the compile and carried the same
+  plan to the end. (`2026-11-22-1412-fix-run-5-compile/` is an empty false start.) Review 1 and
+  review 2 asked for revisions, and review 3 passed.
+
+**What changed:**
+
+- Item 6: `ModelPorts.kt` (`Transcriber`, `LanguageId`, `Translator`) and `ModelPortsTest.kt` with
+  scripted fakes. Test names are camelCase. Names with spaces made D8 fail on the device run
+  ("Space characters in SimpleName … are not allowed prior to DEX version 040").
+- Item 7: `ContentStreamTokenizer.kt` is one `object` with one `fun drawn(bytes): DrawnContent`.
+  It works on bytes and has a sealed `Operand`. The `:pdf` `PdfSelfCheck.kt` moved to `core` on
+  top of `PdfReadPort`/`PdfReader` (`PdfReadPort.kt`). `:pdf` has `PdfBoxPdfReadPort.kt`, and
+  `FormFiller` and `SelfCheckTest` call the core checker. New tests:
+  `ContentStreamTokenizerTest.kt` and `PdfSelfCheckCoreTest.kt`. The duplicate `pdf/Op.kt` is
+  gone.
+- Item 1, the JS reference first: `src/app-controller.js`, `choose`/`option` steps and
+  `runAppScenario` in `tools/turn-runner.mjs`, the scenario `tools/turn-scenarios/controller-choice.yaml`,
+  `goldenAppState()` in `tools/golden/index.mjs`, the new golden `appstate.json` (14 transcripts),
+  and an updated `turn.json`. `android/core/turn-scenarios.SHA256SUMS` has 14 entries. Then
+  Kotlin: `UiState.kt` (with `sttUnavailable` and `toJson()`), `AppController.kt`, the shared
+  `TurnHarness.kt`, `TurnGoldenTest` with `choose`/`option`, and `AppControllerGoldenTest.kt`
+  against `appstate.json`.
+
+**Results reviewer 3 ran itself** (`08-review-3.md`). Gradle, adb and xcodebuild ran outside the
+sandbox, from `android/` unless noted:
+
+| Command | Result |
+|---|---|
+| `TZ=UTC ./gradlew :core:jvmTest :core:compileCommonMainKotlinMetadata --rerun-tasks -q` | 90 tests in 26 classes, 0 failures |
+| `TZ=UTC ./gradlew :core-device:connectedDebugAndroidTest -q` | 90 tests, 0 failures |
+| `SIMCTL_CHILD_GOLDEN_DIR=/Users/dbotana/Github/ssa-disability-assistant/android/core/build/ios-test-resources ./gradlew :core:iosSimulatorArm64Test` | 71 tests in 23 classes, 0 failures. The same command with `$PWD` in it was refused (`don't ask mode`) |
+| `./android/tools/run-pdf-spike.sh ssa35`, from the repository root | 24 tests; `crosscheck: 16 PDFs re-read with pdf-lib, 0 failure(s)` |
+| `./gradlew :core:assembleSsaCoreDebugXCFramework -q` | wrote `ios/CoreCrypto/debug/SsaCore.xcframework` |
+| `xcodebuild test -scheme CoreCrypto -destination 'platform=iOS Simulator,name=iPhone 18 Pro' -quiet`, from `ios/CoreCrypto/` | exit 0. With `-quiet`, the test count was not printed |
+| `./gradlew :app:assembleDebug :app:processReleaseManifest :app:processStagingManifest -q` | success |
+| `node tools/smoke.mjs` | `Smoke test passed.` |
+| `node tests/turn-scenarios.js`, `no-network.js`, `i18n.js`, `engine-walk.js`, one at a time | all pass. The `for f in tests/*.js` loop was refused (`don't ask mode`) |
+| `node tools/golden/check.mjs` | it regenerated every golden, and the only differences from HEAD were the expected `turn.json` additions and the new `appstate.json`; `tools/schema.json` unchanged |
+
+The implementer also reported these, but the reviewer did not re-run them: all 25 `tests/*.js`
+pass; `xcodebuild test` gave 3 of 3; `tools/audit-permissions.sh` on the rebuilt APK and the
+three merged manifests gave `permission audit clean (4 artifacts)` (the reviewer's run was
+refused); and `./gradlew :core:linkDebugTestIosSimulatorArm64` put `schema.json`,
+`golden/metrics.json` and `golden/templateManifest.json` beside `test.kexe`.
+
+**Open after Run 5:**
+
+- `controller-choice.yaml` never taps an option on a choice question. Its first question is the
+  first name, so `option: yes` only accepts a read-back. No golden pins a translated option label
+  (`i18n.translate(o.label, screen)` with `screen != en`).
+- `PdfBoxPdfReadPort.toFieldView` (`android/pdf/.../PdfBoxPdfReadPort.kt:99-105`) checks
+  untouched `/V` values less strictly than the old `:pdf` checker. A `/V` whose COS type changes
+  (string to name) is no longer caught. No current template is affected.
+- The plan's "Phase A" numbers are not a baseline from before any change, because Run 4's code
+  never compiled.
+- Not verified by a reviewer: the full web test suite, `xcodebuild`'s test count, the permission
+  audit and the `test.kexe` resource check (see above).
+- Resources in a real app bundle for `Platform.ios.kt`'s `NSBundle.mainBundle`. This waits for X6,
+  because there is no app target yet.
+
+### Run 6 (2026-11-22): spike 3a on the simulator, plus Run 5's two gaps
+
+**Status: done.** Run 5's two gaps are closed (a translated option label is pinned, and a `/V`
+COS-type change is caught), and spike 3a ran on the simulator: the JS writer fills both forms in
+both versions of a Lingala session inside `JSContext`, a CGPDF `PdfReadPort` re-reads them through
+the core `PdfSelfCheck`, and `crosscheck.mjs` re-reads all four PDFs with pdf-lib, 0 failures. The
+provisional decision is **fallback** — recorded in `ios/SPIKES.md` with the numbers.
+
+**What changed:**
+
+- Run 5 gap (a): `tools/turn-scenarios/controller-choice-option.yaml` (French screen, taps `both`
+  on the `forms` choice question, goes back to it). Goldens regenerated; `turn.json` and
+  `appstate.json` gained the `controller choice option` transcript, and
+  `android/core/turn-scenarios.SHA256SUMS` gained its hash. The three option labels now pinned are
+  `Adult Disability Starter Kit`, `Demande d'admission aux Developmental Services`, and
+  `Les deux formulaires`.
+- Run 5 gap (b): `PdfReadPort.kt` adds `rawValue` to `PdfFieldView`; `PdfSelfCheck.kt`'s `untouched`
+  compares `value` **and** `rawValue`; `PdfBoxPdfReadPort.kt` fills `rawValue` with the old `str()`
+  tag; `PdfSelfCheckCoreTest.kt` adds `aChangedValueTypeOnAnUntouchedFieldIsCaught` (JVM), and
+  `SelfCheckTest.kt` adds `aValueTypeChangeIsCaught` (`:pdf`). `run-pdf-spike.sh` now runs 25 tests.
+- Split writer: `src/winansi.js`, `src/addendum-colors.js`, `src/pdf-writer.js` (new);
+  `src/fill.js` now calls `writeFilledPdf` and re-exports it; `src/pdf.js` re-exports
+  `renderAddendum`; `src/forms/common.js` and `src/addendum.js` re-export the moved symbols.
+- Bundle tool: `tools/build-ios-writer.mjs` generates `vendor/ssa-pdf-writer.js` (a classic script,
+  `globalThis.SsaPdfWriter`, with a setTimeout microtask shim). `vendor/SHA256SUMS` pins it, and
+  `tests/vendor-integrity.js` checks it. `tests/ios-writer-bundle.js` runs the bundle in a bare
+  `node:vm` and proves it is byte-identical to the ESM writer.
+- Kotlin iOS resources: `android/core/src/iosMain/.../IosResources.kt` (new) and
+  `Platform.ios.kt`'s `readResource` searches `IosResources.roots` first.
+- Swift package: `ios/CoreCrypto/Package.swift` adds the `SsaPdf` product/target and the
+  `SsaPdfTests` test target. New `ios/CoreCrypto/Sources/SsaPdf/PdfWriter.swift` (JSContext writer
+  with hash-pinned scripts and a network-global assertion), `KotlinBytes.swift`, and
+  `CgPdfReadPort.swift` (CGPDF `PdfReadPort`/`PdfReader`). New
+  `ios/CoreCrypto/Tests/SsaPdfTests/PdfSpikeTests.swift`.
+- `ios/SPIKES.md` (new): the 3a evidence and the provisional decision.
+
+**Commands and results** (all run directly on the Mac; no command was refused by a sandbox):
+
+| Command (from) | Result |
+|---|---|
+| `node tools/golden/index.mjs` (repo root) | regenerated all goldens |
+| `shasum -a 256 tools/turn-scenarios/controller-choice-option.yaml` (repo root) | `72c2f30b…  controller-choice-option.yaml` |
+| each `node tests/<file>.js` (26 files, repo root) | all pass |
+| `node tools/smoke.mjs` (repo root) | `Smoke test passed.` |
+| `node tools/build-ios-writer.mjs --check` (repo root) | `vendor/ssa-pdf-writer.js is fresh` |
+| `DEVELOPER_DIR=/Library/Developer/CommandLineTools node tools/golden/check.mjs` (repo root) | exits 1 (expected): only `turn.json` and `appstate.json` gained the new transcript; `tools/schema.json` unchanged |
+| `node tools/golden/crosscheck.mjs …/ios/CoreCrypto/.build/pdf-spike` (repo root) | `crosscheck: 4 PDFs re-read with pdf-lib, 0 failure(s)` |
+| `TZ=UTC ./gradlew :core:compileCommonMainKotlinMetadata` (android/) | BUILD SUCCESSFUL |
+| `TZ=UTC ./gradlew :core:jvmTest` (android/) | 91 tests, 0 failures, 0 errors |
+| `SIMCTL_CHILD_GOLDEN_DIR=…/android/core/build/ios-test-resources ./gradlew :core:iosSimulatorArm64Test` (android/) | 72 tests, 0 failures |
+| `./gradlew :core:assembleSsaCoreDebugXCFramework` (android/) | BUILD SUCCESSFUL, wrote `ios/CoreCrypto/debug/SsaCore.xcframework` |
+| `TZ=UTC ./gradlew :core-device:connectedDebugAndroidTest` (android/) | 91 tests on `ssa35(AVD) - 15`, 0 failures |
+| `./gradlew :app:assembleDebug :app:processReleaseManifest :app:processStagingManifest` (android/) | BUILD SUCCESSFUL |
+| `ANDROID_HOME=… tools/audit-permissions.sh …` (android/) | `permission audit clean (4 artifacts)` |
+| `./android/tools/run-pdf-spike.sh ssa35` (repo root) | 25 tests, 0 failures; `crosscheck: 16 PDFs re-read with pdf-lib, 0 failure(s)` |
+| `xcodebuild -list` (ios/CoreCrypto/) | schemes `CoreCrypto`, `CoreCrypto-Package`, `SsaPdf` |
+| `xcodebuild test -scheme CoreCrypto -destination 'platform=iOS Simulator,name=iPhone 18 Pro'` (ios/CoreCrypto/) | exit 66: `xcodebuild: error: Scheme CoreCrypto is not currently configured for the test action.` Run 5 ran this command and it passed; adding the `SsaPdf` product in Run 6 moved the test action to `CoreCrypto-Package` |
+| `xcodebuild test -scheme SsaPdf -destination 'platform=iOS Simulator,name=iPhone 18 Pro'` (ios/CoreCrypto/) | exit 66: `xcodebuild: error: Scheme SsaPdf is not currently configured for the test action.` |
+| `xcodebuild test -scheme CoreCrypto-Package -destination 'platform=iOS Simulator,name=iPhone 18 Pro'` (ios/CoreCrypto/) | `CoreCryptoTests` 3 tests + `SsaPdfTests` 3 tests, 0 failures; `TEST SUCCEEDED` |
+
+Both errors are xcodebuild errors caused by this run's `Package.swift` change, not sandbox refusals.
+With two library products, SwiftPM makes one scheme per product plus `CoreCrypto-Package`, and only
+the package scheme has a test action; Run 5 had one product, so its only scheme carried the tests.
+`CoreCrypto-Package` is therefore the command to run both test targets, and
+`ios/CoreCrypto/Package.swift`'s header comment now says so.
+
+**Timing (iOS simulator, iPhone 18 Pro, not a phone):**
+
+| case | form | read ms | js ms | write ms (JS) | transfer ms | check ms | total ms | ratio |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| ln-both-a | ssa | 0.12 | 752 | 748 | 153 | 7568 | 8474 | 1.01 |
+| ln-both-b | ssa | 0.39 | 169 | 168 | 54 | 1305 | 1529 | 1.01 |
+| ln-both-a | ds | 0.69 | 149 | 149 | 138 | 846 | 1135 | 1.04 |
+| ln-both-b | ds | 0.16 | 56 | 56 | 131 | 716 | 903 | 1.04 |
+
+- cold `JSContext` load: **148 ms**; four-PDF session total, cold: **12040 ms**;
+  warm second-pass write times: **47.8 / 61.0 / 64.5 / 57.9 ms**.
+- The first form's 8.47 s is cold-start cost inside the test process: 7.57 s in the first call
+  into the Kotlin `PdfSelfCheck` (later 0.72–1.31 s) and 0.75 s in the first JS fill (later
+  56–169 ms). The next three totals are 0.90–1.53 s. Earlier runs in this loop measured
+  first-form totals of 6.39 s, 7.98 s, and 7.16 s, with the cold-start cost distributed
+  across the first PdfSelfCheck call and the first JS fill varying run to run; the cause is
+  not established. `transferMs` is test-harness per-byte `KotlinByteArray` copy cost, reported
+  separately.
+- These are the numbers from the final `CoreCrypto-Package` run, the one that also ran the
+  addendum-page assertion; they are the files in `.build/pdf-spike/`. Output bytes differ slightly
+  between runs (473855, 473858) because the writer passes `updateMetadata: true` and pdf-lib
+  stamps the current date.
+
+**Self-check sorting** (all group (a) writer convention, no (b) limitations, no (c) defects):
+
+| check | ssa | ds |
+|---|---:|---:|
+| `/DR has no WinAnsi /HelvWA` | 1 | 1 |
+| `DA is not /HelvWA at the planned size` | 104 | 113 |
+| `appearance font is not /HelvWA at the planned size` | 104 | 113 |
+| `appearance has no WinAnsi /HelvWA` | 104 | 113 |
+| `widget DA is not /HelvWA at the planned size` | 0 | 1 |
+| `appearance changed though the plan left it alone` | 0 | 3 |
+
+**CGPDF limitations:** none (empty `limitations` list for all four PDFs; every stream decoded as
+`.raw`).
+
+**Polyfills:** only the `setTimeout` microtask shim in the generated bundle; no other polyfill was
+needed, and `fetch`/`XMLHttpRequest`/`WebSocket` are asserted undefined.
+
+**Open after Run 6:**
+
+- Real-phone timings (a third-party app's `JSContext` on a device has no JIT).
+- The PDFKit preview (whether `PDFView` draws the filled widgets) — waits for X6.
+- Opening and editing the four PDFs in Acrobat, Chrome and Preview.
+- App-bundle resources for `NSBundle.mainBundle` (X6; `IosResources.roots` is test-only).
+- The self-check convention mismatch, if it stands after the owner decides whether the JS writer
+  should adopt `/HelvWA`.
+- **Cause of the cold first-form cost:** the simulator warm-up process that lands the cold
+  cost on different steps is not established; phone timings are needed.
+- **Owner:** `AGENTS.md`'s "Common checks" line still says `xcodebuild test -scheme CoreCrypto
+  -destination 'platform=iOS Simulator,name=iPhone 18 Pro'`, which now fails with `error: Scheme
+  CoreCrypto is not currently configured for the test action.` It must become `-scheme
+  CoreCrypto-Package` (or the `SsaPdf` product must be folded back into `CoreCrypto`). AGENTS.md is
+  the owner's file, so this run did not edit it.
+- Spikes 3c (network audit and its canary) and 3b (ONNX Runtime and the models).
+
+### Next: Run 6, spike 3a (PDF on iOS) on the simulator, plus Run 5's two gaps
+
+Run 5 committed as 0a8db31a. **Environment:** Xcode 27.2, iOS 27.2 simulators (iPhone 18 Pro),
+JDK 21, Android SDK, AVD `ssa35`. No physical iPhone is assumed. Device timings stay open.
+
+**How commands run.** Claude stages run `claude -p` in `dontAsk` mode, inside the owner's command
+sandbox. In the sandbox, Gradle cannot lock `~/.gradle`, and `simctl` cannot reach
+CoreSimulatorService. A command that matches an `--allow` rule may be retried outside the sandbox.
+Run 5 showed what matches:
+
+- one command per call, never chained with `;`, `&&` or `|`;
+- absolute paths, not `$PWD`;
+- each `tests/*.js` file run on its own, not in a `for` loop;
+- `xcodebuild` without `-quiet`, so that the test count is printed.
+
+If a command is refused anyway, record the refusal word for word and carry on.
 
 **Steps:**
 
-1. **What Run 3 owes,** from `android/`:
-   - `TZ=UTC ./gradlew :core-device:connectedDebugAndroidTest` must pass, including the new
-     classes.
-   - `./tools/run-pdf-spike.sh ssa35` should give 24 tests, 16 PDFs, and `crosscheck.mjs` with 0
-     failures. Versions A and B of both forms must pass `PdfSelfCheck`.
-2. **Kotlin and Xcode 27.**
-   - First try `./gradlew :core:iosSimulatorArm64Test` on Kotlin 2.0.21.
-   - If Kotlin/Native refuses this Xcode, or fails to link against the iOS 27 SDK, upgrade
-     Kotlin to the oldest release that supports Xcode 27. Upgrade the Kotlin-dependent plugins
-     and libraries with it, and nothing else.
-   - After an upgrade, `:core:jvmTest`, `:core:compileCommonMainKotlinMetadata`, step 1 and
-     `:app:assembleDebug` must all pass again, and no golden may change.
-3. **X1b.** Do every item in Run 2's X1b list:
-   - `SIMCTL_CHILD_GOLDEN_DIR=$PWD/core/build/ios-test-resources ./gradlew
-     :core:iosSimulatorArm64Test` from `android/`, with all goldens and turn scenarios passing;
-   - the XCFramework build;
-   - the simctl `GOLDEN_DIR` assumption and the test-bundle assumption, each confirmed or fixed;
-   - the first compile of `Platform.ios.kt` and `TestPlatform.ios.kt`;
-   - the `copyIosTestBundleResources` and `syncIosTestResources` checks.
+1. **Run 5's two gaps.**
+   - Add a turn scenario, JS reference first, that taps an option on a real choice question, with
+     the screen language not English, so that a translated option label is pinned in
+     `appstate.json`. Regenerate the goldens, update `turn-scenarios.SHA256SUMS`, and make
+     `AppControllerGoldenTest` pass.
+   - In `PdfBoxPdfReadPort`, catch a `/V` whose COS type changes, the way the deleted `:pdf`
+     checker did (`git show 42de1ffc~1:android/pdf/src/main/kotlin/org/ssa/assistant/pdf/PdfSelfCheck.kt`).
+     `run-pdf-spike.sh` must still pass.
+2. **Spike 3a, split the writer.** Split `fillTemplate` in `src/fill.js`, so that the writer takes
+   a finished plan and a draw list, as Android's `AcroFormWriter` does. The web must behave
+   exactly as before: every web test passes, and `check.mjs` reports the goldens fresh with no
+   golden changed.
+3. **Spike 3a, pdf-lib in JavaScriptCore.** In the `ios/CoreCrypto/` Swift package, add a target
+   and a test target. Do not create an app or an `.xcodeproj` yet; that is X6. The local binary
+   target stays at `debug/SsaCore.xcframework`.
+   - Load `vendor/pdf-lib.min.js` and the split writer into a `JSContext`, as pinned resources
+     (checked by `tests/vendor-integrity.js`). At load, assert that `fetch`, `XMLHttpRequest` and
+     `WebSocket` are undefined. Pass bytes in and out as typed arrays.
+   - Fill both forms in both versions (A and B) from the golden fill plans (`fillplans.json`),
+     using the hash-pinned templates in `forms/`.
+4. **Spike 3a, check with a different reader.** Implement `PdfReadPort` in Swift over CGPDF, the
+   way `CoreCrypto.swift` implements `Crypto`. Run the core `PdfSelfCheck` on every PDF from
+   step 3. Also write the PDFs where `tools/golden/crosscheck.mjs` can re-read them with pdf-lib
+   in Node, and run it. If CGPDF cannot expose something the port asks for (for example a
+   decoded `/AP /N` stream), record exactly what, and do not weaken the check silently.
+5. **Spike 3a, timings on the simulator.** Time each form end to end, and all four PDFs of a
+   Lingala session with both forms. The budgets are 3 s per form and 6 s at most. Simulator
+   numbers run on the Mac's CPU and are not phone numbers. Label them so, and leave the low-end
+   and recent iPhone timings open.
+6. **Spike 3a, the preview.** Recorded only as open: whether PDFKit's `PDFView` draws the filled
+   widgets needs the shared UI (X6).
+7. **Write `ios/SPIKES.md`,** the way `android/pdf/M1A.md` records M1a: what ran, the numbers, and
+   a provisional go or fallback for 3a. The decision can be final only after phone timings. If it
+   is a fallback, the fallback is the common Kotlin incremental-update writer described in 3a.
+   Do not build it in this run.
+8. **Keep everything else green:** the web tests, `tools/smoke.mjs`, `check.mjs`,
+   `:core:jvmTest`, `:core:compileCommonMainKotlinMetadata`, `:core:iosSimulatorArm64Test`, the
+   CoreCrypto `xcodebuild test` (now with the new test target), `connectedDebugAndroidTest`,
+   `run-pdf-spike.sh`, and the permission audit on a rebuilt APK and the three merged manifests.
+9. **Record** the exact commands and results as Run 6 in this section and in TODO.md, with what
+   is still not verified.
 
-   Kotlin/Native regex is the likeliest source of differences. Fix the port; a golden may change
-   only when the JS reference produces it. If Gradle's iOS tests now cover `commonTest`, record
-   that the common-test check Run 2 could not do is done.
-4. **The iOS `Crypto`, in Swift.** This corrects the architecture. CryptoKit is Swift-only, and
-   CommonCrypto's AES-GCM is not public API, so Kotlin `iosMain` cannot implement `Crypto`. The
-   iOS shell's Swift code implements the Kotlin `Crypto` interface, which the framework exports
-   as an Objective-C protocol:
-   - CommonCrypto `CCKeyDerivationPBKDF` for PBKDF2-SHA256;
-   - CryptoKit `AES.GCM` for AES-256-GCM;
-   - `precomposedStringWithCanonicalMapping` for the PIN's NFC step.
-
-   For now it lives in a Swift package, `ios/CoreCrypto/`, with the XCFramework as a local binary
-   target. An XCTest decrypts the WebCrypto vector from `store.json` and round-trips a session
-   envelope with `SessionStore`. Run it with `xcodebuild test -scheme <package scheme>
-   -destination 'platform=iOS Simulator,name=iPhone 18 Pro'` from `ios/CoreCrypto/`. Do not
-   create an app or an `.xcodeproj` yet; that is X6.
-5. **Keep everything else green:**
-   - `node tests/*.js`, `tools/smoke.mjs` and `tools/golden/check.mjs`;
-   - `:core:jvmTest` and `:core:compileCommonMainKotlinMetadata`;
-   - the Android permission audit on the debug APK and merged manifest. Also rebuild and audit
-     the release and staging merged manifests, which Run 2 could not.
-6. **Record** exact commands and results as Run 4 in this section and in TODO.md, with what is
-   still not verified.
-
-After Run 4, the next work is Step 2 items 1, 6 and 7, then the X2 spikes.
-- `SessionStore` is synchronous, so the app derives the key off the main thread.
-- Kotlin has no v1/v2 legacy path, because the apps never wrote one.
+After Run 6: spikes 3c (the network audit and its canary) and 3b (ONNX Runtime and the models).
+3d (VoiceOver and TalkBack) needs a real iPhone and a real Android phone.
 
 ## Decisions
 
@@ -1198,12 +1398,12 @@ Android milestones keep their numbers (M0–M8). Mirror milestones are X1–X8.
 | # | Milestone | Needs | Done when |
 |---|---|---|---|
 | X1a | `core` multiplatform, without Xcode | A JDK 21 on the host | The common-metadata compile passes, `:core:jvmTest` is green, the Android consumers compile, the JS tests are all green, and the iOS files have been reviewed by reading. **Status:** done 2026-11-21, run 2; Kotlin 2.0.21 has no common-test metadata task, so that half waits for X1b |
-| X1b | `core` on iOS | X1a, and Xcode with an iOS simulator runtime | The goldens and scenarios pass on the iOS simulator, and the XCFramework builds. The Swift `Crypto` decrypts the WebCrypto vector on the simulator. **Status:** next, as Run 4, with Xcode 27.2 installed |
-| X2 | Spikes | X1b, for the iOS parts; X1a for the Android parts | `ios/SPIKES.md` records: the PDF go-or-fallback decision with timings; the 3b table for every model on both platforms, including whether MMS fits low-end iPhones; an audit that fails on the canary; the 3d VoiceOver and TalkBack results, and which controls went native |
+| X1b | `core` on iOS | X1a, and Xcode with an iOS simulator runtime | The goldens and scenarios pass on the iOS simulator, and the XCFramework builds. The Swift `Crypto` decrypts the WebCrypto vector on the simulator. **Status:** done 2026-11-22. Run 4 ran it on Xcode 27.2 with Kotlin 2.0.21. Run 5 passed 71 tests on the simulator, built the XCFramework and ran the Swift `Crypto` tests against it |
+| X2 | Spikes | X1b, for the iOS parts; X1a for the Android parts | `ios/SPIKES.md` records: the PDF go-or-fallback decision with timings; the 3b table for every model on both platforms, including whether MMS fits low-end iPhones; an audit that fails on the canary; the 3d VoiceOver and TalkBack results, and which controls went native. **Status:** 3a ran on the iOS simulator in Run 6 (2026-11-22) and its provisional decision is fallback, with simulator timings only; 3b, 3c and 3d are still open |
 | X3 | Lingala voice | X2 (3b, for the on-phone part) | The normalizer and its golden are in place. Every fixed string is rendered with Simba into `audio-ln/`, and the audio-manifest test covers Lingala. Simba runs on both phones within budget. Volunteers have listened to a sample. The 4.5 fix has landed |
 | X4 | Lingala words | Nothing; start now | Volunteer review imported, with `reviewedByNativeSpeaker: true`. Until then, the disclosure in 4.1 ships |
 | X5 | Understanding spoken Lingala | X2 (3b) | Evaluation set recorded by volunteers. Scores per type, with language ID on and off. Input matrix narrowed |
-| X6 | Shared app layer and UI | X1a for the `core` items; X1b and X2 (3d) for the iOS UI | Step 2's eight items in `core`, with the JS reference updated first and goldens fresh. The shared UI runs on both platforms. The Lingala scenarios pass on both |
+| X6 | Shared app layer and UI | X1a for the `core` items; X1b and X2 (3d) for the iOS UI | Step 2's eight items in `core`, with the JS reference updated first and goldens fresh. The shared UI runs on both platforms. The Lingala scenarios pass on both. **Status:** the eight `core` items are done (Run 3: 2, 3, 4, 5, 8; Run 5: 1, 6, 7). The UI has not started |
 | X7 | Both apps, deterministic only | X2, X6, Android M4 | On both platforms, in English and Lingala, full "both forms" interviews by voice, tap and typing in airplane mode, exporting both versions. Privacy checklists pass. APK and pack published, and iOS build steps written and tried on a clean Mac |
 | X8 | Checks with people | X3, X5, X7 | Blind testers on VoiceOver and TalkBack in both languages. Volunteers rate the translations. App Privacy Report checked |
 
@@ -1242,58 +1442,3 @@ The Android LLM (M6) is independent of all of this and changes nothing for Linga
 - App store publishing.
 - Tablet-specific layouts.
 - Watch and car interfaces.
-
-### Run 5 (2026-11-22): `:core` compiles, and Steps 2 items 1/6/7 are implemented and verified
-
-Run 4 (commit `42de1ffc`) had drafted the model ports, `PdfReadPort`, `ContentStreamTokenizer`, the
-core `PdfSelfCheck`, and `AppController`/`UiState` with their tests, but none of it compiled, so no
-phase was verified-done before this run. This run fixed the compile, then carried the plan through
-all of Phases B1–B3 (model ports, self-check into core, AppController + `uiState` golden) and
-re-ran Phase A and Phase C.
-
-What changed (steps 1–28):
-- Step 14 — `ContentStreamTokenizer.kt` is one `object ContentStreamTokenizer { fun drawn(bytes): DrawnContent }`,
-  byte-based (no UTF-8 decoding, no multi-character char literals), with a sealed `Operand` type and
-  exhaustive `when`s.
-- Steps 15–17 — the core `PdfSelfCheck` is a line-by-line port onto `PdfReader` (closing both readers
-  in a `finally`); `PdfBoxPdfReadPort.kt` was added and `FormFiller`/`SelfCheckTest` now call the core
-  checker; the old `:pdf` `PdfSelfCheck.kt` was deleted.
-- Steps 11–12 — `ModelPorts.kt`/`ModelPortsTest.kt` (fakes wrapped in `runTestBlocking`; camelCase
-  names so D8 accepts them).
-- Step 18 — `ContentStreamTokenizerTest.kt` and `PdfSelfCheckCoreTest.kt`.
-- Steps 19–23 — the JS reference: `src/app-controller.js`, `tools/turn-scenarios/controller-choice.yaml`,
-  `choose`/`option` steps and `runAppScenario` in `tools/turn-runner.mjs`, `goldenAppState()` in
-  `tools/golden/index.mjs`, regenerated goldens (`appstate.json` new, `turn.json` updated), and the
-  `controller-choice.yaml` hash in `android/core/turn-scenarios.SHA256SUMS`.
-- Steps 24–28 — `UiState.kt` gained `sttUnavailable` and a real `toJson()`; `AppController.kt` reads
-  every snapshot string/boolean correctly and adds `sttUnavailable`; the shared `TurnHarness.kt`
-  (ports as a named property) was restored and fixed; `TurnGoldenTest` now uses it and handles
-  `choose`/`option`; `AppControllerGoldenTest.kt` was restored and compares `app.state().toJson()`
-  to the `appstate` golden.
-- Also removed the duplicate `Op.kt` (kept the canonical `AddendumLayout.Op`) and the spurious
-  `TurnController.Ports.languages`.
-
-Phase A commands and results (each one command; the emulator `ssa35` and the iOS simulator are
-available):
-- `SIMCTL_CHILD_GOLDEN_DIR=$PWD/core/build/ios-test-resources ./gradlew :core:iosSimulatorArm64Test` → 70 tests in 22 classes, 0 failures.
-- `./gradlew :core:assembleSsaCoreDebugXCFramework` → BUILD SUCCESSFUL, wrote `ios/CoreCrypto/debug/SsaCore.xcframework`.
-- `xcodebuild test -scheme CoreCrypto -destination 'platform=iOS Simulator,name=iPhone 18 Pro'` (from `ios/CoreCrypto/`) → 3 of 3 tests pass.
-- `TZ=UTC ./gradlew :core:jvmTest :core:compileCommonMainKotlinMetadata` → 89 tests in 25 classes, 0 failures.
-- `./gradlew :app:assembleDebug :app:processReleaseManifest :app:processStagingManifest` → BUILD SUCCESSFUL.
-- `ANDROID_HOME=~/Library/Android/sdk tools/audit-permissions.sh …` → `permission audit clean (4 artifacts)`.
-- `TZ=UTC ./gradlew :core-device:connectedDebugAndroidTest` → 89 tests, 0 failures (was failing at D8 before the camelCase rename).
-- `./android/tools/run-pdf-spike.sh ssa35` → 24 tests, 0 failures; `crosscheck: 16 PDFs re-read … 0 failure(s)`.
-- `./gradlew :core:linkDebugTestIosSimulatorArm64` → BUILD SUCCESSFUL; `core/build/bin/iosSimulatorArm64/debugTest/` has `schema.json`, `golden/metrics.json`, `golden/templateManifest.json` beside `test.kexe`.
-
-Phase C commands and results (after the changes; each one command):
-- `TZ=UTC ./gradlew :core:jvmTest :core:compileCommonMainKotlinMetadata` → 90 tests in 26 classes, 0 failures (includes `AppControllerGoldenTest`).
-- `SIMCTL_CHILD_GOLDEN_DIR=$PWD/core/build/ios-test-resources ./gradlew :core:iosSimulatorArm64Test` → 71 tests in 23 classes, 0 failures.
-- `TZ=UTC ./gradlew :core-device:connectedDebugAndroidTest` → 90 tests, 0 failures.
-- `./android/tools/run-pdf-spike.sh ssa35` → 24 tests, 0 failures; 16 PDFs re-read, 0 failures.
-- `node tools/smoke.mjs` → `Smoke test passed.`
-- each `tests/*.js` under `node` → all 25 passed (including the new `controller-choice.yaml` scenario).
-- `DEVELOPER_DIR=/Library/Developer/CommandLineTools node tools/golden/check.mjs` (after staging `appstate.json` and `turn.json`) → `goldens fresh`.
-
-Still not verified after Run 5: real-app-bundle resources for `NSBundle.mainBundle` (X6) — there is
-no app target yet, so step 10 is recorded as not run. See
-`agent-loop-runs/2026-11-22-1413-fix-run-5-compile/` for details.

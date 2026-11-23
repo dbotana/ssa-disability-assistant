@@ -28,7 +28,8 @@ data class PdfFieldView(
     val value: String? /* /V string */,
     val readOnly: Boolean,
     val da: String?,
-    val widgets: List<PdfWidgetView>
+    val widgets: List<PdfWidgetView>,
+    val rawValue: String? = null /* /V with its COS type: "s:"+string, "n:"+name, other toString(), null when absent */
 )
 
 data class PdfWidgetView(
