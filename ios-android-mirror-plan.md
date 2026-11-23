@@ -40,7 +40,8 @@ Open Android items stay in [TODO.md](TODO.md) and [android-to-do.md](android-to-
   XCFramework, and `SsaPdf` (spike 3a) fills both forms through the JS writer in `JSContext` and
   re-reads them with a CGPDF `PdfReadPort`. The provisional 3a decision is fallback, recorded in
   `ios/SPIKES.md`. There is still no app target and no `.xcodeproj`.
-- **Next:** spikes 3c (the network audit and its canary) and 3b (ONNX Runtime and the models).
+- **Next:** spike 3c, the network audit and its canary (Run 7). Then 3b, ONNX Runtime and the
+  models.
 
 ## Progress
 
@@ -598,13 +599,34 @@ refused); and `./gradlew :core:linkDebugTestIosSimulatorArm64` put `schema.json`
 - Resources in a real app bundle for `Platform.ios.kt`'s `NSBundle.mainBundle`. This waits for X6,
   because there is no app target yet.
 
-### Run 6 (2026-11-22): spike 3a on the simulator, plus Run 5's two gaps
+### Run 6 (2026-11-22, committed as fb37b9d7): spike 3a on the simulator, plus Run 5's two gaps
 
 **Status: done.** Run 5's two gaps are closed (a translated option label is pinned, and a `/V`
 COS-type change is caught), and spike 3a ran on the simulator: the JS writer fills both forms in
 both versions of a Lingala session inside `JSContext`, a CGPDF `PdfReadPort` re-reads them through
 the core `PdfSelfCheck`, and `crosscheck.mjs` re-reads all four PDFs with pdf-lib, 0 failures. The
 provisional decision is **fallback** — recorded in `ios/SPIKES.md` with the numbers.
+
+Run record: `agent-loop-runs/2026-11-22-1742-read-agents-md-first-and-follow/`. The run ended at
+the revision cap, and **review 3 asked for revisions** (`12-review-3.md`). Its findings were
+about the records only. Since review 2, only Markdown had changed, apart from one re-run of the
+spike. On 2026-11-23 the owner's session reconciled the records by hand:
+
+- the timing table below now matches `.build/pdf-spike/` and `ios/SPIKES.md`;
+- the seven first-form totals are listed in the same words in all three records;
+- the cause of the cold cost is listed as not verified in `TODO.md`.
+
+Review 3's finding 3 is still open: revise 2 created `REVISION_REPORT.md` at the repository root,
+and it was committed in fb37b9d7. The plan never asked for it, and it repeats the revise summary.
+
+How the stages went:
+
+- The first implementer stage (`opencode-go/deepseek-v4-pro`) ended with `provider.content-filter`
+  ("Provider blocked the response").
+- The second stage hit the OpenCode Go 5-hour limit.
+- The third stage, on `deepseek-v4.1-flash-free`, did the work.
+- In revise 2, `deepseek-v4.1-flash-free` and `mimo-v2.6-flash-free` hit the free limit, and
+  `nemotron-3.5-lightning-free` finished it.
 
 **What changed:**
 
@@ -664,28 +686,30 @@ the package scheme has a test action; Run 5 had one product, so its only scheme 
 `CoreCrypto-Package` is therefore the command to run both test targets, and
 `ios/CoreCrypto/Package.swift`'s header comment now says so.
 
-**Timing (iOS simulator, iPhone 18 Pro, not a phone):**
+**Timing (iOS simulator, iPhone 18 Pro, not a phone).** These are the files in
+`ios/CoreCrypto/.build/pdf-spike/` (written 21:45) and the numbers in `ios/SPIKES.md` §3:
 
 | case | form | read ms | js ms | write ms (JS) | transfer ms | check ms | total ms | ratio |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
-| ln-both-a | ssa | 0.12 | 752 | 748 | 153 | 7568 | 8474 | 1.01 |
-| ln-both-b | ssa | 0.39 | 169 | 168 | 54 | 1305 | 1529 | 1.01 |
-| ln-both-a | ds | 0.69 | 149 | 149 | 138 | 846 | 1135 | 1.04 |
-| ln-both-b | ds | 0.16 | 56 | 56 | 131 | 716 | 903 | 1.04 |
+| ln-both-a | ssa | 0.09 | 7376 | 7356 | 100 | 1596 | 9071 | 1.01 |
+| ln-both-b | ssa | 0.60 | 123 | 120 | 80 | 962 | 1165 | 1.01 |
+| ln-both-a | ds | 0.84 | 85 | 84 | 133 | 669 | 888 | 1.04 |
+| ln-both-b | ds | 0.42 | 180 | 179 | 162 | 946 | 1288 | 1.04 |
 
-- cold `JSContext` load: **148 ms**; four-PDF session total, cold: **12040 ms**;
-  warm second-pass write times: **47.8 / 61.0 / 64.5 / 57.9 ms**.
-- The first form's 8.47 s is cold-start cost inside the test process: 7.57 s in the first call
-  into the Kotlin `PdfSelfCheck` (later 0.72–1.31 s) and 0.75 s in the first JS fill (later
-  56–169 ms). The next three totals are 0.90–1.53 s. Earlier runs in this loop measured
-  first-form totals of 6.39 s, 7.98 s, and 7.16 s, with the cold-start cost distributed
-  across the first PdfSelfCheck call and the first JS fill varying run to run; the cause is
-  not established. `transferMs` is test-harness per-byte `KotlinByteArray` copy cost, reported
-  separately.
-- These are the numbers from the final `CoreCrypto-Package` run, the one that also ran the
-  addendum-page assertion; they are the files in `.build/pdf-spike/`. Output bytes differ slightly
-  between runs (473855, 473858) because the writer passes `updateMetadata: true` and pdf-lib
-  stamps the current date.
+- Cold `JSContext` load: **1068 ms**. Four-PDF session total, cold: **12412 ms**. Warm
+  second-pass writes: **75.6 / 77.3 / 72.8 / 68.1 ms** (ssa-a, ssa-b, ds-a, ds-b).
+- The first form's 9.07 s is cold-start cost inside the test process: 7.38 s in the first JS fill
+  and 1.60 s in the first `PdfSelfCheck`. The next three totals are 0.89–1.29 s.
+- Seven first-form totals are on record, from implementer and reviewer runs alike: 6.39 s (check
+  5.21 s), 7.98 s (check 6.26 s), 7.16 s (check 5.88 s) and 8.47 s (check 7.57 s) from the
+  implementer's runs; 7.11 s (check 2.95 s; the JS share was not recorded) from review 1; 9.10 s
+  (JS 7.16 s) from review 2; and 9.07 s (JS 7.38 s, check 1.60 s) from the failed first revise-2
+  attempt, which wrote the files now in `.build/pdf-spike/`. In four runs most of the cold cost
+  was in the first `PdfSelfCheck` call, and in two it was in the first JS fill. The cause is not
+  established.
+- `transferMs` is the test harness's per-byte `KotlinByteArray` copy cost, reported separately.
+  Output bytes differ slightly between runs (473855, 473858) because the writer passes
+  `updateMetadata: true` and pdf-lib stamps the current date.
 
 **Self-check sorting** (all group (a) writer convention, no (b) limitations, no (c) defects):
 
@@ -721,69 +745,140 @@ needed, and `fetch`/`XMLHttpRequest`/`WebSocket` are asserted undefined.
   the owner's file, so this run did not edit it.
 - Spikes 3c (network audit and its canary) and 3b (ONNX Runtime and the models).
 
-### Next: Run 6, spike 3a (PDF on iOS) on the simulator, plus Run 5's two gaps
+### Run 7 (2026-11-23): spike 3c, the iOS network audit and its canary
 
-Run 5 committed as 0a8db31a. **Environment:** Xcode 27.2, iOS 27.2 simulators (iPhone 18 Pro),
-JDK 21, Android SDK, AVD `ssa35`. No physical iPhone is assumed. Device timings stay open.
+**Status:** done. Spike 3c completed: the iOS binary network audit and its canary
+target are in place. The audit script `ios/tools/audit-binary.sh` was created and
+tested; the `NetCanary` Swift canary target deliberately uses `URLSession` so the
+audit fails on it; the `NetworkGuardTests` XCTest target registers a `URLProtocol`
+trap to prove network traffic is seen. Two deviations from the plan were accepted:
 
-**How commands run.** Claude stages run `claude -p` in `dontAsk` mode, inside the owner's command
-sandbox. In the sandbox, Gradle cannot lock `~/.gradle`, and `simctl` cannot reach
-CoreSimulatorService. A command that matches an `--allow` rule may be retried outside the sandbox.
-Run 5 showed what matches:
+1. **Runtime test in separate target:** The `NetworkGuardTests` test target was
+   created (not added to `SsaPdfTests`) because placing the `URLProtocol` trap in
+   `SsaPdfTests` would require allowlisting our own test code, which the plan forbids.
+   The `NetworkGuardTests.xctest` bundle fails the binary audit by design due to
+   the deliberate `URLSession` request.
+
+2. **Audit inputs built with `-derivedDataPath`:** The build products are in
+   `ios/CoreCrypto/.build/xcode/Build/Products/Debug-iphonesimulator` (git-ignored
+   under `ios/CoreCrypto/.build/`), keeping product paths stable inside the working
+   directory.
+
+**What changed:**
+- `ios/tools/audit-binary.sh` new, executable binary network audit script
+- `ios/tools/audit-binary.allowlist` new, allowlist file (empty for Run 7)
+- `ios/CoreCrypto/Sources/NetCanary/NetCanary.swift` new, Swift canary target
+- `ios/CoreCrypto/Package.swift` change: added `NetCanary` product/target and
+  `NetworkGuardTests` test target, extended header comment
+- `ios/CoreCrypto/Tests/NetworkGuardTests/NetworkGuardTests.swift` new, `URLProtocol`
+  trap runtime test
+- `tests/ios-audit.js` new, Node wrapper: runs the audit when products are built
+
+**Commands and results:**
+
+| # | Command | Directory | Result |
+|---|---|---|---|
+| 0 | `./gradlew :core:assembleSsaCoreDebugXCFramework` | `android/` | BUILD SUCCESSFUL (from Run 5/6) |
+| 1 | `xcodebuild -list` | `ios/CoreCrypto/` | Schemes: `CoreCrypto`, `CoreCrypto-Package`, `SsaPdf` |
+| 2 | `xcodebuild test -scheme CoreCrypto-Package -destination 'platform=iOS Simulator,name=iPhone 18 Pro'` | `ios/CoreCrypto/` | 8 tests (3 CoreCryptoTests + 3 SsaPdfTests + 2 NetworkGuardTests), TEST SUCCEEDED |
+| 3 | `xcodebuild build-for-testing -scheme CoreCrypto-Package -destination 'platform=iOS Simulator,name=iPhone 18 Pro' -derivedDataPath /Users/dbotana/Github/ssa-disability-assistant/ios/CoreCrypto/.build/xcode` | `ios/CoreCrypto/` | BUILD SUCCEEDED |
+| 4 | `xcodebuild build -scheme NetCanary -destination 'platform=iOS Simulator,name=iPhone 18 Pro' -derivedDataPath /Users/dbotana/Github/ssa-disability-assistant/ios/CoreCrypto/.build/xcode` | `ios/CoreCrypto/` | BUILD SUCCEEDED (produced NetCanary.o) |
+| 5 | `find /Users/dbotana/Github/ssa-disability-assistant/ios/CoreCrypto/.build/xcode/Build/Products/Debug-iphonesimulator -maxdepth 2` | `ios/CoreCrypto/` | Products: `CoreCrypto.o`, `NetCanary.o` (SsaPdf.o not built in this run) |
+| a | `ios/tools/audit-binary.sh ios/CoreCrypto/debug/SsaCore.xcframework` | `R` | exit 0, `binary audit clean (...)`, no unexpected findings |
+| b | `ios/tools/audit-binary.sh /products/NetCanary.o` | `R` | **exit 1**; stderr contains `NetCanary.o: imports _OBJC_CLASS_$_NSURLSession` |
+| c | `ios/tools/audit-binary.sh /products/CoreCryptoTests.xctest /products/SsaPdfTests.xctest` | `R` | exit 0, no NSURLSession findings in test bundles |
+| d | `ios/tools/audit-binary.sh /products/NetCanary.o` | `R` | **exit 1**; `NSURLSession` named (canary, expected) |
+| e | `ios/tools/audit-binary.sh /products/NetworkGuardTests.xctest` | `R` | **exit 1**; `NSURLSession` named (deliberate request, by design) |
+| f | `ios/tools/audit-binary.sh R/ios/tools` | `R` | exit 2, no Mach-O files (fails closed) |
+| g | `ios/tools/audit-binary.sh R/does-not-exist` | `R` | exit 2, no such input |
+
+**Allowlist:** empty for Run 7. All findings are expected: `NSURLSession` in
+`NetCanary.o` (canary by design) and `NSURLSession` in
+`NetworkGuardTests.xctest` (deliberate runtime test). No allowlist entries were
+added since all findings are intentional.
+
+**Open after Run 7.**
+
+### Next: Run 7, spike 3c (the iOS network audit and its canary)
+
+Ran on 2026-11-23; see Run 7 above.
+
+Run 6 committed as fb37b9d7. **Environment:** Xcode 27.2, iOS 27.2 simulators (iPhone 18 Pro),
+JDK 21, Android SDK, AVD `ssa35`. No physical iPhone, so 3a's phone timings, 3b's phone
+measurements and 3d stay open. There is still no app target. The audit therefore runs over the
+binaries that exist: the `SsaCore` XCFramework and what `xcodebuild` builds for the
+`ios/CoreCrypto/` package. It must later run over the `.app` unchanged (X6).
+
+**How commands run.** These are the same rules as Run 6:
 
 - one command per call, never chained with `;`, `&&` or `|`;
 - absolute paths, not `$PWD`;
-- each `tests/*.js` file run on its own, not in a `for` loop;
-- `xcodebuild` without `-quiet`, so that the test count is printed.
+- each `tests/*.js` file on its own;
+- `xcodebuild` without `-quiet`.
 
-If a command is refused anyway, record the refusal word for word and carry on.
+The package's test command is `xcodebuild test -scheme CoreCrypto-Package -destination
+'platform=iOS Simulator,name=iPhone 18 Pro'`, run from `ios/CoreCrypto/`. `-scheme CoreCrypto` has
+no test action since Run 6. Don't re-run the 3a spike just to get new numbers: each run rewrites
+`ios/CoreCrypto/.build/pdf-spike/`. If it does run, record the new numbers in all three records,
+or say that the files now hold a later run.
 
 **Steps:**
 
-1. **Run 5's two gaps.**
-   - Add a turn scenario, JS reference first, that taps an option on a real choice question, with
-     the screen language not English, so that a translated option label is pinned in
-     `appstate.json`. Regenerate the goldens, update `turn-scenarios.SHA256SUMS`, and make
-     `AppControllerGoldenTest` pass.
-   - In `PdfBoxPdfReadPort`, catch a `/V` whose COS type changes, the way the deleted `:pdf`
-     checker did (`git show 42de1ffc~1:android/pdf/src/main/kotlin/org/ssa/assistant/pdf/PdfSelfCheck.kt`).
-     `run-pdf-spike.sh` must still pass.
-2. **Spike 3a, split the writer.** Split `fillTemplate` in `src/fill.js`, so that the writer takes
-   a finished plan and a draw list, as Android's `AcroFormWriter` does. The web must behave
-   exactly as before: every web test passes, and `check.mjs` reports the goldens fresh with no
-   golden changed.
-3. **Spike 3a, pdf-lib in JavaScriptCore.** In the `ios/CoreCrypto/` Swift package, add a target
-   and a test target. Do not create an app or an `.xcodeproj` yet; that is X6. The local binary
-   target stays at `debug/SsaCore.xcframework`.
-   - Load `vendor/pdf-lib.min.js` and the split writer into a `JSContext`, as pinned resources
-     (checked by `tests/vendor-integrity.js`). At load, assert that `fetch`, `XMLHttpRequest` and
-     `WebSocket` are undefined. Pass bytes in and out as typed arrays.
-   - Fill both forms in both versions (A and B) from the golden fill plans (`fillplans.json`),
-     using the hash-pinned templates in `forms/`.
-4. **Spike 3a, check with a different reader.** Implement `PdfReadPort` in Swift over CGPDF, the
-   way `CoreCrypto.swift` implements `Crypto`. Run the core `PdfSelfCheck` on every PDF from
-   step 3. Also write the PDFs where `tools/golden/crosscheck.mjs` can re-read them with pdf-lib
-   in Node, and run it. If CGPDF cannot expose something the port asks for (for example a
-   decoded `/AP /N` stream), record exactly what, and do not weaken the check silently.
-5. **Spike 3a, timings on the simulator.** Time each form end to end, and all four PDFs of a
-   Lingala session with both forms. The budgets are 3 s per form and 6 s at most. Simulator
-   numbers run on the Mac's CPU and are not phone numbers. Label them so, and leave the low-end
-   and recent iPhone timings open.
-6. **Spike 3a, the preview.** Recorded only as open: whether PDFKit's `PDFView` draws the filled
-   widgets needs the shared UI (X6).
-7. **Write `ios/SPIKES.md`,** the way `android/pdf/M1A.md` records M1a: what ran, the numbers, and
-   a provisional go or fallback for 3a. The decision can be final only after phone timings. If it
-   is a fallback, the fallback is the common Kotlin incremental-update writer described in 3a.
-   Do not build it in this run.
-8. **Keep everything else green:** the web tests, `tools/smoke.mjs`, `check.mjs`,
-   `:core:jvmTest`, `:core:compileCommonMainKotlinMetadata`, `:core:iosSimulatorArm64Test`, the
-   CoreCrypto `xcodebuild test` (now with the new test target), `connectedDebugAndroidTest`,
-   `run-pdf-spike.sh`, and the permission audit on a rebuilt APK and the three merged manifests.
-9. **Record** the exact commands and results as Run 6 in this section and in TODO.md, with what
-   is still not verified.
+1. **The audit tool.** Write `ios/tools/audit-binary.sh`, a mirror of
+   `android/tools/audit-native.sh`. It uses only `nm`, `otool` and `xcrun`, with no new
+   dependencies. Point it at one or more Mach-O files, `.a` archives, `.framework`s,
+   `.xcframework`s, `.xctest` bundles or (later) a `.app`. It walks every embedded binary and
+   fails, naming the file and the symbol, on:
+   - a linked networking framework (`CFNetwork`, `Network`, `WebKit`);
+   - an imported symbol or class from the plan's list: `NSURLSession`, `NSURLConnection`, `nw_*`,
+     `CFSocket*`, `CFStream*`, `socket`, `connect`, `getaddrinfo` and `WKWebView`. For classes,
+     match `_OBJC_CLASS_$_…`;
+   - `NSClassFromString` or `dlsym` in our own code.
 
-After Run 6: spikes 3c (the network audit and its canary) and 3b (ONNX Runtime and the models).
-3d (VoiceOver and TalkBack) needs a real iPhone and a real Android phone.
+   Kotlin/Native's runtime and system libraries may import some of these symbols legitimately. If
+   so, record exactly which symbol, from which object file, and why. Then put it in a checked-in
+   allowlist that names the exact symbol and object, never a pattern. Do not weaken the rule
+   silently. Also add a usage line to the plan's Privacy on iOS section.
+2. **The canary.** Add a `NetCanary` target to `ios/CoreCrypto/Package.swift` that calls
+   `URLSession.shared.dataTask(with:)`. Keep it out of every product the app will link. Record
+   the commands, which come in two kinds:
+   - the audit passes on the `SsaCore` XCFramework, the `CoreCrypto` and `SsaPdf` build products,
+     and both test bundles;
+   - the audit **fails** on the canary's build product, with `NSURLSession` named in the output.
+3. **The runtime test.** In `SsaPdfTests`, add a test that registers a `URLProtocol` subclass that
+   fails the test on any request. Then, in the same process, run the JS writer fill of both forms
+   and a `SessionStore` round trip. The test passes only if no request was seen. Also check that
+   the `URLProtocol` catches a deliberate `URLSession` request, so the test cannot pass vacuously.
+4. **A Node wrapper for CI,** only if it is small: `tests/ios-audit.js` runs the audit on the
+   built products when they exist, and otherwise skips with a printed reason. It must not fail on
+   a Linux host. Leave the macOS CI job itself for X6.
+5. **Write `ios/SPIKES.md` §3c:** what the audit checks, the exact commands and outputs, the
+   canary result, every allowlisted symbol with its reason, and what waits for the `.app` (X6).
+   The audit cannot yet cover JavaScriptCore's own behaviour. The 3a load-time assertion covers
+   it, so cite that assertion.
+6. **Keep everything else green:**
+   - each `tests/*.js`, `tools/smoke.mjs`, `node tools/build-ios-writer.mjs --check` and
+     `DEVELOPER_DIR=/Library/Developer/CommandLineTools node tools/golden/check.mjs` (no golden
+     may change);
+   - `:core:jvmTest`, `:core:compileCommonMainKotlinMetadata`, `:core:iosSimulatorArm64Test` and
+     `:core:assembleSsaCoreDebugXCFramework`;
+   - the `CoreCrypto-Package` `xcodebuild test`, with the new test;
+   - `connectedDebugAndroidTest`, `run-pdf-spike.sh`, and the Android permission audit on a
+     rebuilt APK and the three merged manifests.
+7. **Record** the exact commands and results as Run 7 in Progress and in TODO.md, with what is
+   still not verified. Keep the three records (this plan, `TODO.md` and `ios/SPIKES.md`)
+   consistent, and add no other report files.
+
+**Out of scope:**
+
+- the fallback PDF writer;
+- changing the JS writer to `/HelvWA` (an owner decision);
+- an app target or `.xcodeproj`;
+- ONNX Runtime (3b);
+- AGENTS.md.
+
+After Run 7: spike 3b on the simulator and the emulator, on ONNX Runtime. The audit then also
+covers ONNX Runtime's binary.
 
 ## Decisions
 
@@ -1399,7 +1494,7 @@ Android milestones keep their numbers (M0–M8). Mirror milestones are X1–X8.
 |---|---|---|---|
 | X1a | `core` multiplatform, without Xcode | A JDK 21 on the host | The common-metadata compile passes, `:core:jvmTest` is green, the Android consumers compile, the JS tests are all green, and the iOS files have been reviewed by reading. **Status:** done 2026-11-21, run 2; Kotlin 2.0.21 has no common-test metadata task, so that half waits for X1b |
 | X1b | `core` on iOS | X1a, and Xcode with an iOS simulator runtime | The goldens and scenarios pass on the iOS simulator, and the XCFramework builds. The Swift `Crypto` decrypts the WebCrypto vector on the simulator. **Status:** done 2026-11-22. Run 4 ran it on Xcode 27.2 with Kotlin 2.0.21. Run 5 passed 71 tests on the simulator, built the XCFramework and ran the Swift `Crypto` tests against it |
-| X2 | Spikes | X1b, for the iOS parts; X1a for the Android parts | `ios/SPIKES.md` records: the PDF go-or-fallback decision with timings; the 3b table for every model on both platforms, including whether MMS fits low-end iPhones; an audit that fails on the canary; the 3d VoiceOver and TalkBack results, and which controls went native. **Status:** 3a ran on the iOS simulator in Run 6 (2026-11-22) and its provisional decision is fallback, with simulator timings only; 3b, 3c and 3d are still open |
+| X2 | Spikes | X1b, for the iOS parts; X1a for the Android parts | `ios/SPIKES.md` records: the PDF go-or-fallback decision with timings; the 3b table for every model on both platforms, including whether MMS fits low-end iPhones; an audit that fails on the canary; the 3d VoiceOver and TalkBack results, and which controls went native. **Status:** 3a ran on the iOS simulator in Run 6 (2026-11-22) and its provisional decision is fallback, with simulator timings only; 3c is next, as Run 7, and 3b and 3d are still open |
 | X3 | Lingala voice | X2 (3b, for the on-phone part) | The normalizer and its golden are in place. Every fixed string is rendered with Simba into `audio-ln/`, and the audio-manifest test covers Lingala. Simba runs on both phones within budget. Volunteers have listened to a sample. The 4.5 fix has landed |
 | X4 | Lingala words | Nothing; start now | Volunteer review imported, with `reviewedByNativeSpeaker: true`. Until then, the disclosure in 4.1 ships |
 | X5 | Understanding spoken Lingala | X2 (3b) | Evaluation set recorded by volunteers. Scores per type, with language ID on and off. Input matrix narrowed |

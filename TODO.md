@@ -980,22 +980,34 @@ and the result is a **provisional fallback** for spike 3a, recorded in `ios/SPIK
       3 tests, 0 failures; `crosscheck: 4 PDFs re-read with pdf-lib, 0 failure(s)`. This scheme is
       new in Run 6: `-scheme CoreCrypto` passed in Run 5, but adding the `SsaPdf` product gave
       SwiftPM a second product, and only the package scheme has a test action.
-- 3a timings (simulator, iPhone 18 Pro, not a phone; from the last `CoreCrypto-Package` run):
-  cold `JSContext` load 1068 ms; per-PDF totals 9071 / 1165 / 888 / 1288 ms; warm writes 68–77 ms;
-  four-PDF session total 12412 ms; size ratios 1.01–1.04. The first form's total varies run to run
-  (6.39, 7.98, 8.47, 9.10 and 9.07 s in five runs) and the cold cost does not always land on the
-  same step: in three runs most of it was in the first `PdfSelfCheck` call, in two it was in the
-  first JS fill. The cause is not established.
+- 3a timings (simulator, iPhone 18 Pro, not a phone; from the last `CoreCrypto-Package` run): cold
+  `JSContext` load 1068 ms; per-PDF totals 9071 / 1165 / 888 / 1288 ms; warm writes 68–77 ms;
+  four-PDF session total 12412 ms; size ratios 1.01–1.04. Seven first-form totals are on record,
+  from implementer and reviewer runs alike: 6.39 s (check 5.21 s), 7.98 s (check 6.26 s), 7.16 s
+  (check 5.88 s) and 8.47 s (check 7.57 s) from the implementer's runs; 7.11 s (check 2.95 s; the
+  JS share was not recorded) from review 1; 9.10 s (JS 7.16 s) from review 2; and 9.07 s (JS 7.38
+  s, check 1.60 s) from the failed first revise-2 attempt, which wrote the files now in
+  `.build/pdf-spike/`. In four runs most of the cold cost was in the first `PdfSelfCheck` call,
+  and in two it was in the first JS fill. The cause is not established.
 - Self-check: 313 (ssa) / 344 (ds) problems, all group (a) `/HelvWA` convention mismatches; no
   CGPDF limitations; `missing` empty everywhere.
 
-Still not verified: real-phone timings; the PDFKit preview; opening/editing in Acrobat, Chrome and
-Preview; app-bundle resources for `NSBundle.mainBundle` (X6); the self-check convention mismatch,
-if it stands after the owner decides whether the JS writer should adopt `/HelvWA`. The
-`xcodebuild test -scheme CoreCrypto` and `-scheme SsaPdf` commands fail with xcodebuild errors
-(`error: Scheme CoreCrypto is not currently configured for the test action.` and
-`error: Scheme SsaPdf is not currently configured for the test action.`), caused by this run's
-second `SsaPdf` product; Run 5's `-scheme CoreCrypto` command passed. The tests ran under
-`-scheme CoreCrypto-Package` instead, and `ios/CoreCrypto/Package.swift`'s header comment now says
-so. **Owner:** `AGENTS.md`'s "Common checks" line must change from `-scheme CoreCrypto` to
-`-scheme CoreCrypto-Package`; AGENTS.md was not edited in this run.
+Still not verified: real-phone timings; the cause of the cold first-form cost (simulator only;
+must be measured on a phone); the PDFKit preview; opening/editing in Acrobat, Chrome and Preview;
+app-bundle resources for `NSBundle.mainBundle` (X6); the self-check convention mismatch, if it
+stands after the owner decides whether the JS writer should adopt `/HelvWA`. The `xcodebuild test
+-scheme CoreCrypto` and `-scheme SsaPdf` commands fail with xcodebuild errors (`error: Scheme
+CoreCrypto is not currently configured for the test action.` and `error: Scheme SsaPdf is not
+currently configured for the test action.`), caused by this run's second `SsaPdf` product; Run 5's
+`-scheme CoreCrypto` command passed. The tests ran under `-scheme CoreCrypto-Package` instead, and
+`ios/CoreCrypto/Package.swift`'s header comment now says so. **Owner:** `AGENTS.md`'s "Common
+checks" line must change from `-scheme CoreCrypto` to `-scheme CoreCrypto-Package`; AGENTS.md was
+not edited in this run.
+## Mirror Run 7 (2026-11-23): spike 3c, the iOS network audit and its canary
+[x] ios/tools/audit-binary.sh created and executable
+[x] ios/CoreCrypto/Sources/NetCanary/NetCanary.swift created
+[x] ios/CoreCrypto/Package.swift updated with NetCanary and NetworkGuardTests
+[x] ios/CoreCrypto/Tests/NetworkGuardTests/NetworkGuardTests.swift created and tests pass
+[x] tests/ios-audit.js created
+[x] ios/SPIKES.md §3c appended
+[x] ios-android-mirror-plan.md Run 7 entry added

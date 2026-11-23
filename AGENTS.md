@@ -94,7 +94,7 @@ SIMCTL_CHILD_GOLDEN_DIR=$PWD/core/build/ios-test-resources ./gradlew :core:iosSi
 TZ=UTC ./gradlew :core-device:connectedDebugAndroidTest    # needs the ssa35 emulator booted
 ./tools/run-pdf-spike.sh ssa35
 # from ios/CoreCrypto/
-xcodebuild test -scheme CoreCrypto -destination 'platform=iOS Simulator,name=iPhone 18 Pro'
+xcodebuild test -scheme CoreCrypto-Package -destination 'platform=iOS Simulator,name=iPhone 18 Pro'
 ```
 
 ## Privacy

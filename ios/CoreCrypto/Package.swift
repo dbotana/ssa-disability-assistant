@@ -26,12 +26,22 @@ import PackageDescription
 // tests.
 //
 // No app and no .xcodeproj: xcodebuild builds the package in DerivedData.
+//
+// Spike 3c additions:
+// - NetCanary: a canary target that deliberately uses URLSession so the
+//   binary audit fails on it. It must stay out of every product the app links.
+// - NetworkGuardTests: a test target that registers a URLProtocol trap to
+//   verify the audit sees deliberate network requests.
+//
+// With three products SwiftPM makes one scheme per product plus
+// `CoreCrypto-Package`, and only the package scheme has a test action.
 let package = Package(
     name: "CoreCrypto",
     platforms: [.iOS(.v17)],
     products: [
         .library(name: "CoreCrypto", targets: ["CoreCrypto"]),
         .library(name: "SsaPdf", targets: ["SsaPdf"]),
+        .library(name: "NetCanary", targets: ["NetCanary"]),
     ],
     targets: [
         .binaryTarget(name: "SsaCore", path: "debug/SsaCore.xcframework"),
@@ -39,5 +49,7 @@ let package = Package(
         .testTarget(name: "CoreCryptoTests", dependencies: ["CoreCrypto"]),
         .target(name: "SsaPdf", dependencies: ["SsaCore"]),
         .testTarget(name: "SsaPdfTests", dependencies: ["SsaPdf", "SsaCore"]),
+        .target(name: "NetCanary"),
+        .testTarget(name: "NetworkGuardTests", dependencies: ["SsaPdf", "CoreCrypto", "SsaCore"]),
     ]
 )

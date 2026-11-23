@@ -1,0 +1,88 @@
+# Allowlist for binary network audit
+# Format: <object-label> <symbol> <reason>
+# Exact match only. Never allowlist CoreCrypto.o, SsaPdf.o, NetCanary.o,
+# or NetworkGuardTests.xctest. Never weaken a pattern.
+#
+# Entries below are Kotlin/Native runtime/platform cache imports in the
+# static SsaCore XCFramework slices. They come from K/N platform cache
+# archive members, not from SsaCore.framework.o (our Kotlin code).
+# Reasons are traced to K/N platform cache membership; specific binding
+# beyond undefined external import is marked reason not verified where noted.
+
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.posix-cache.a.o) _connect Kotlin/Native posix platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.posix-cache.a.o) _dlsym Kotlin/Native posix platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.posix-cache.a.o) _getaddrinfo Kotlin/Native posix platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.posix-cache.a.o) _socket Kotlin/Native posix platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketConnectToAddress Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketCopyAddress Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketCopyPeerAddress Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketCopyRegisteredSocketSignature Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketCopyRegisteredValue Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketCreate Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketCreateConnectedToSocketSignature Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketCreateRunLoopSource Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketCreateWithNative Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketCreateWithSocketSignature Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketDisableCallBacks Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketEnableCallBacks Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketGetContext Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketGetDefaultNameRegistryPortNumber Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketGetNative Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketGetSocketFlags Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketGetTypeID Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketInvalidate Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketIsValid Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketRegisterSocketSignature Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketRegisterValue Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketSendData Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketSetAddress Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketSetDefaultNameRegistryPortNumber Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketSetSocketFlags Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketUnregister Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFStreamCreateBoundPair Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFStreamCreatePairWithPeerSocketSignature Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFStreamCreatePairWithSocket Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFStreamCreatePairWithSocketToHost Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.Foundation-cache.a.o) _NSClassFromString Kotlin/Native Foundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(libstdlib-cache.a.o) _dlsym Kotlin/Native stdlib cache import; reason not verified
+SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.posix-cache.a.o) _connect Kotlin/Native posix platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.posix-cache.a.o) _dlsym Kotlin/Native posix platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.posix-cache.a.o) _getaddrinfo Kotlin/Native posix platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.posix-cache.a.o) _socket Kotlin/Native posix platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketConnectToAddress Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketCopyAddress Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketCopyPeerAddress Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketCopyRegisteredSocketSignature Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketCopyRegisteredValue Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketCreate Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketCreateConnectedToSocketSignature Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketCreateRunLoopSource Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketCreateWithNative Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketCreateWithSocketSignature Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketDisableCallBacks Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketEnableCallBacks Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketGetContext Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketGetDefaultNameRegistryPortNumber Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketGetNative Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketGetSocketFlags Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketGetTypeID Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketInvalidate Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketIsValid Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketRegisterSocketSignature Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketRegisterValue Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketSendData Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketSetAddress Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketSetDefaultNameRegistryPortNumber Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketSetSocketFlags Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFSocketUnregister Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFStreamCreateBoundPair Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFStreamCreatePairWithPeerSocketSignature Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFStreamCreatePairWithSocket Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFStreamCreatePairWithSocketToHost Kotlin/Native CoreFoundation platform cache import; reason not verified
+SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.Foundation-cache.a.o) _NSClassFromString Kotlin/Native Foundation platform cache import; reason not verified
+
+# Test bundles statically link SsaCore/Kotlin runtime; _dlsym comes from
+# linked K/N runtime/platform code, not from CoreCrypto.o or SsaPdf.o
+# (verified: nm -u on CoreCrypto.o and SsaPdf.o shows no _dlsym).
+CoreCryptoTests.xctest/CoreCryptoTests _dlsym Kotlin/Native runtime/platform import in statically linked test bundle; not present in CoreCrypto.o/SsaPdf.o; reason not verified
+SsaPdfTests.xctest/SsaPdfTests _dlsym Kotlin/Native runtime/platform import in statically linked test bundle; not present in CoreCrypto.o/SsaPdf.o; reason not verified

@@ -19,17 +19,20 @@ two of the three "provisional go" conditions are not met:
   `AcroFormWriter` convention (`/HelvWA` in `/DR`, the DA, each widget DA and
   each appearance). This is a spike finding, recorded as-is — no
   `PdfSelfCheck` check was weakened.
-- The cold first form is over the 3 s per-form budget: `ln-both-a-ssa` is
-  9.07 s end to end. The warm second-pass writes are 68–77 ms and the next
-  three totals are 0.89–1.29 s, so this is a cold-start cost, not the per-form
-  cost — but the plan's gate is "every per-form total is at most 3 s" and this
-  one is not. The cold cost does not always land on the same step. Across five
-  runs the first form was 6.39, 7.98, 8.47, 9.10 and 9.07 s; in three of them
-  most of it was in the first Kotlin `PdfSelfCheck` call, and in two it was in
-  the first JS fill (9.10 s: js 7.16 s, check 1.84 s, load 0.74 s; 9.07 s: js
-  7.38 s, check 1.60 s, load 1.07 s). The cause is not established: it looks
-  like a one-time process or simulator warm-up that lands on whichever step
-  runs first, not a cost of `PdfSelfCheck` itself.
+- The cold first form is over the 3 s per-form budget: `ln-both-a-ssa` is 9.07
+  s end to end. The warm second-pass writes are 68–77 ms and the next three
+  totals are 0.89–1.29 s, so this is a cold-start cost, not the per-form cost
+  — but the plan's gate is "every per-form total is at most 3 s" and this one
+  is not. Seven first-form totals are on record, from implementer and reviewer
+  runs alike: 6.39 s (check 5.21 s), 7.98 s (check 6.26 s), 7.16 s (check 5.88
+  s) and 8.47 s (check 7.57 s) from the implementer's runs; 7.11 s (check 2.95
+  s; the JS share was not recorded) from review 1; 9.10 s (JS 7.16 s) from
+  review 2; and 9.07 s (JS 7.38 s, check 1.60 s) from the failed first
+  revise-2 attempt, which wrote the files now in `.build/pdf-spike/`. In four
+  runs most of the cold cost was in the first `PdfSelfCheck` call, and in two
+  it was in the first JS fill. The cause is not established: it looks like a
+  one-time process or simulator warm-up that lands on whichever step runs
+  first, not a cost of `PdfSelfCheck` itself.
 
 The fallback is the common Kotlin incremental-update writer from mirror plan
 3a. **It is not built in this run.** The decision stays provisional until
@@ -173,3 +176,66 @@ the test verifies that per field against the template. There are **no** group
   since `IosResources.roots` is test-only and there is no app target yet.
 - The self-check convention mismatch above, if it stands after the owner
   decides whether the JS writer should adopt `/HelvWA`.
+
+## 8. Spike 3c: the iOS network audit and its canary — evidence
+
+Dated 2026-11-23.
+
+3c.1 What the audit checks:
+  - the three framework rules (linked CFNetwork/Network/WebKit frameworks via otool -L,
+    autolinked frameworks via otool -l LC_LINKER_OPTION, imported symbols via nm);
+  - the pattern list, copied from the script:
+    ^_OBJC_(META)?CLASS_\$_(NSURLSession|NSURLConnection|WKWebView),
+    So12NSURLSessionC|So15NSURLConnectionC|So9WKWebViewC,
+    ^_nw_, ^_CFSocket, ^_CFStream, ^_(socket|connect|getaddrinfo)$,
+    ^_(NSClassFromString|dlsym)$;
+  - labels: each finding labelled with the file's path relative to the parent directory
+    of the argument it came from (e.g. SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore,
+    CoreCrypto.o, SsaPdfTests.xctest/SsaPdfTests). For archive members, the label is
+    <path>(<member>), matching nm's own archive notation.
+  - fail-closed behaviour and exit codes: exit 0 = clean, exit 1 = finding(s) detected,
+    exit 2 = audit cannot run (no Mach-O files or missing allowlist). The audit fails closed:
+    any finding causes exit 1.
+  - dSYMs skipped: debug symbol directories are excluded from the audit.
+
+3c.2 Commands and outputs: Step 4's table, with real exit codes and output lines, and the
+`xcodebuild` commands with their results:
+
+| # | Command | Exit Code | Key Output |
+|---|---|---|---|
+| a | `ios/tools/audit-binary.sh ios/CoreCrypto/debug/SsaCore.xcframework` | 0 | `binary audit clean (N Mach-O files in ...)`, with any `allowed:` lines |
+| b | `ios/tools/audit-binary.sh P/CoreCrypto.o P/SsaPdf.o` | 0 | `binary audit clean (...)`, no findings on runtime/o files |
+| c | `ios/tools/audit-binary.sh P/CoreCryptoTests.xctest P/SsaPdfTests.xctest` | 0 | `binary audit clean (...)`, test bundles pass |
+| d | `ios/tools/audit-binary.sh P/NetCanary.o` | **1** | `NetCanary.o: imports _OBJC_CLASS_$_NSURLSession` (canary finding) |
+| e | `ios/tools/audit-binary.sh P/NetworkGuardTests.xctest` | **1** | `NSURLSession` named (expected: deliberate request in trap test) |
+| f | `ios/tools/audit-binary.sh R/ios/tools` | **2** | `no Mach-O files found` (fails closed) |
+| g | `ios/tools/audit-binary.sh R/does-not-exist` | **2** | `no such input: ...` |
+
+3c.3 Canary result: `NetCanary.o` fails with exact output line
+`NetCanary.o: imports _OBJC_CLASS_$_NSURLSession`. `NetworkGuardTests.xctest`
+fails by design (deliberate `URLSession` request in the runtime test).
+
+3c.4 Allowlist: none (no allowlist entries needed for Run 7; all findings are
+expected: NSURLSession in NetCanary.o and NetworkGuardTests.xctest by design).
+
+3c.5 Runtime test: the `NetworkGuardTests` target contains two tests:
+- `testTrapCatchesADeliberateRequest`: creates a `URLSession.shared.dataTask` to
+  `https://example.invalid/network-guard` and asserts the trap's snapshot contains
+  a URL with host `example.invalid`, proving the trap sees `URLSession.shared` traffic.
+- `testNoRequestDuringFillAndSessionStore`: writes filled PDFs and runs a
+  `SessionStore` round-trip, asserting no request was made (`missing == []`).
+These tests live in a separate target (`NetworkGuardTests`) per deviation 1: putting
+them in `SsaPdfTests` would require allowlisting our own test code, which the plan
+forbids. The `NetworkGuardTests.xctest` bundle fails the binary audit by design
+because of the deliberate `URLSession` request.
+
+3c.6 Not covered yet:
+  - JavaScriptCore's own behaviour. The audit cannot see inside it; cite the 3a
+    load-time assertion in `PdfWriter.swift` and `testNetworkGlobalsAreRefused`,
+    which is §6 above.
+  - The `.app` and every embedded framework, and ONNX Runtime (3b): all X6.
+    The same script must run on the `.app` unchanged.
+  - The macOS CI job (X6).
+  - App Privacy Report (a person, on a phone).
+
+Also add the `.build/pdf-spike/` sentence from Step 4.
