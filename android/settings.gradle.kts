@@ -23,6 +23,7 @@ dependencyResolutionManagement {
 rootProject.name = "ssa-disability-assistant"
 
 include(":core")
+include(":models")
 include(":core-device")
 include(":pdf")
 include(":speech")

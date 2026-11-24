@@ -55,7 +55,7 @@ Open Android items stay in [TODO.md](TODO.md) and [android-to-do.md](android-to-
   later runs. **Run 8 stopped at Step 1 on 2026-11-23.** ORT 1.21.0's Android JNI library is not
   16 KB-aligned, and the iOS archive could not be fetched verifiably. The owner chose ORT 1.22.0 for
   every platform on 2026-11-24, with the iOS archive from NuGet, and Step 1 is done (see *Run 8*);
-  Steps 4 to 9 are next.
+  Step 4 is done; Steps 5 to 9 are next.
 
 ## Progress
 
@@ -1249,11 +1249,143 @@ below is from that session's own commands.
   Step 4 on. The first emulator launch was killed by the tool's own 30 s command timeout and was
   relaunched with a longer one; nothing else was refused.
 
+**Update, 2026-11-24: Step 4 done.** The agent-loop implementer (opencode with Big Pickle)
+finished Step 4: the `:models` KMP module, Whisper base.en features/tokenizer/decoder/transcriber,
+the JVM and iOS ONNX Runtime actuals, and the common tests. Steps 5 to 9 remain. Work from an
+earlier stopped `03-implement` attempt was inspected first; no file was overwritten without
+inspection. Everything below is from commands actually run in this session. No command was
+refused; there were no refusal messages to quote.
+
+- **Files added (all under `android/` unless noted).** `models/build.gradle.kts`,
+  `models/speech-fixtures.SHA256SUMS`, `models/src/nativeInterop/cinterop/onnxruntime.def`,
+  `models/src/commonMain/kotlin/org/ssa/assistant/models/onnx/OnnxSession.kt`,
+  `models/src/jvmMain/kotlin/org/ssa/assistant/models/onnx/OnnxSession.jvm.kt`,
+  `models/src/iosMain/kotlin/org/ssa/assistant/models/onnx/OnnxSession.ios.kt`,
+  `models/src/commonMain/kotlin/org/ssa/assistant/models/whisper/{MixedRadixFft,WhisperFeatures,Utf8,WhisperTokenizer,WhisperConfig,WhisperDecoder,WhisperTranscriber}.kt`,
+  `models/src/commonTest/kotlin/org/ssa/assistant/models/testing/{ModelTestPlatform,TestData}.kt`,
+  `models/src/{jvmTest,iosTest}/kotlin/org/ssa/assistant/models/testing/ModelTestPlatform.*.kt`, and
+  `models/src/commonTest/kotlin/org/ssa/assistant/models/whisper/{MixedRadixFftTest,Utf8Test,WhisperTokenizerGoldenTest,WhisperFeaturesGoldenTest,WhisperDecoderTest,WhisperTranscriberTest,WhisperModelTest}.kt`.
+  `settings.gradle.kts` gained `include(":models")`; `core/model/ModelPorts.kt` is comment-only
+  (`:models` implements `Transcriber`, 16 kHz mono floats in [−1, 1], raw text cleaned by
+  `cleanTranscript()`, >30 s rejected, and tests use scripted fakes). `whisper.json` was not
+  edited.
+- **`android/gradle.properties` did change**, exactly as Step 13 allowed: one comment plus
+  `kotlin.mpp.enableCInteropCommonization=true`. Without it,
+  `./gradlew :models:compileIosMainKotlinMetadata` failed with unresolved
+  `org.ssa.assistant.models.ort` / `ssa_ort_*` references; with it, the command passes.
+- **Implementation fixes made before final verification.** The inherited `GPT2_BYTE_CHARS` was
+  rewritten as a clean 256-entry byte-indexed `CharArray`; `WhisperConfig`, `WhisperDecoder` and
+  `WhisperTranscriber` were added; the iOS cinterop call became
+  `ssa_ort_create_session(ortEnv, path, out.ptr)`; `WhisperTranscriber` uses a private
+  `decoderLoop` so the constructor parameter is not shadowed. Test-data fixes: the golden root is
+  a `Json.Obj`, the WAV `fmt ` rate is read at chunk offset `+12` (not `body + 12`, because the
+  fixtures have a `FLLR` chunk), `frameMax` is decoded as float32, `cleanTranscript` is imported
+  from `core.model`, and the test helper calls `runBlocking { block() }`. The iOS test actual uses
+  `NSFileManager.defaultManager.contentsAtPath(absolutePath)` because
+  `NSData.dataWithContentsOfFile` is not exposed by this Kotlin/Native Foundation binding.
+- **One deliberate shim deviation, needed for the simulator to exit cleanly.** The plan's exact
+  shim text created one `OrtEnv` and never released it. The first full simulator run passed all
+  16 tests but then aborted in teardown, word for word:
+  `libc++abi: terminating due to uncaught exception of type std::__1::system_error: mutex lock failed: Invalid argument`,
+  `Child process terminated with signal 6: Abort trap`, and
+  `command '/usr/bin/xcrun' exited with errors (exit code: 134)`, ending in
+  `BUILD FAILED in 7s`. Removing the explicit `close()` calls did not help. The shim now keeps
+  the single env in a static and registers an `atexit` handler that calls
+  `OrtApi::ReleaseEnv` before ORT's C++ statics are destroyed; the explicit
+  `encoder.close()` / `decoder.close()` in `WhisperModelTest` were then restored. No `dlopen`,
+  custom-op registration, extra execution provider or network call was added.
+- **Link options that worked**, on both `iosArm64` and `iosSimulatorArm64`:
+  `-F<slice> -framework onnxruntime -lc++ -framework Foundation -weak_framework CoreML`, with
+  `slice` from `onnxruntime.xcframework/ios-arm64` or
+  `onnxruntime.xcframework/ios-arm64_x86_64-simulator`.
+- **Decision 5 was confirmed by the fake-session tests and the real model.** Prompt
+  `[50257, 50362]` comes from `generation_config.json` for an English-only model
+  (models.js:3406-3457). Step 1 feeds the whole prompt, `use_cache_branch=[false]` (shape `[1]`,
+  boolTensor 525-527) and empty float32 pasts (addPastKeyValues 2012-2027); later steps feed one
+  token with `[true]`, decoder pasts from the previous step and encoder pasts from step 1
+  (932-941, 1953-1982), while `encoder_hidden_states` is fed every step (seq2seqForward 537-556).
+  Scores are the last position's logits (1878); `begin_suppress_tokens` are `-Infinity` only at
+  the first generated position (1421-1427, 3488-3493), `suppress_tokens` are not applied
+  (commented out at 1417-1419), and ids include the prompt. The strict-`>` `argmaxFirst`
+  (utils/maths.js:254-265, generation/logits_sampler.js:124-138) was checked: a 30/40 tie picks
+  30, all zeros pick 0, NaN at index 0 wins, NaN at index 3 with the max at 5 picks 5, and
+  `-Infinity` everywhere except one finite value picks that index. Stop at eos or length 448 is
+  pinned by the decoder tests (stopping_criteria.js:82-131). Decision 9's
+  `TurnController.isEmptyTranscript(heard, 0.0)` is used with
+  `CivilDate(2026, 9, 19)` read from the golden's `now`, `lang="en"`, no i18n; the comment records
+  that its punctuation-only rule changes none of the nine kept values. Decision 10's rejections
+  are in code: a pinned `mel_filters`, `is_multilingual: true`, `lang != "en"` and >480000
+  samples all throw; the last two are covered by tests, the first two by code inspection.
+- **Verification commands and results**, each run separately from `android/` except the node
+  commands, which ran from the repo root:
+  1. `TZ=UTC ./gradlew :models:jvmTest --rerun` → `BUILD SUCCESSFUL in 4s`. All seven
+     `models/build/test-results/jvmTest/*.xml` classes read `failures="0" errors="0"` (16 tests).
+     The `FEATURES[host JVM]` and `MODELS[host JVM]` lines were present, ending in
+     `MODELS[host JVM] token ids match the reference: 9/9; kept values right: 9/9`.
+  2. `TZ=UTC ./gradlew :models:compileCommonMainKotlinMetadata` → `BUILD SUCCESSFUL in 499ms`.
+  3. `./gradlew :models:compileIosMainKotlinMetadata` → `BUILD SUCCESSFUL in 4s`.
+  4. `./gradlew :models:linkDebugTestIosArm64` → `BUILD SUCCESSFUL in 3s`.
+  5. `SIMCTL_CHILD_GOLDEN_DIR=/Users/dbotana/Github/ssa-disability-assistant/android/models/build/ios-test-resources SIMCTL_CHILD_MODEL_DIR=/Users/dbotana/Github/ssa-disability-assistant/models/whisper-base.en ./gradlew :models:iosSimulatorArm64Test --rerun`
+     → `BUILD SUCCESSFUL in 8s`; 16 `PASSED` lines, ending in
+     `MODELS[iOS simulator] token ids match the reference: 9/9; kept values right: 9/9`.
+  6. The same command without `SIMCTL_CHILD_MODEL_DIR` → expected `BUILD FAILED in 2s`; the three
+     model-dependent test failures each named `MODEL_DIR`, e.g.
+     `kotlin.IllegalStateException: MODEL_DIR is not set: point it at <repo>/models/whisper-base.en (on iOS: SIMCTL_CHILD_MODEL_DIR=<abs>/models/whisper-base.en)`.
+  7. `TZ=UTC ./gradlew :core:jvmTest --rerun` → `BUILD SUCCESSFUL in 23s`; 94 tests, 0 failures,
+     0 errors.
+  8. `./gradlew verifyOnnxRuntime` → `BUILD SUCCESSFUL in 498ms`.
+  9. `./gradlew :app:assembleDebug` → `BUILD SUCCESSFUL in 25s`.
+  10. `node tools/golden/models.mjs --check` → exit 0 and
+      `whisper golden fresh (1911152 bytes)`.
+  11. `DEVELOPER_DIR=/Library/Developer/CommandLineTools node tools/golden/check.mjs` → exit 0
+      and `goldens fresh`.
+  12. `node tools/fetch-model.mjs --verify` → `All files match SHA256SUMS.`;
+      `node tools/fetch-onnxruntime.mjs --verify` →
+      `onnxruntime.xcframework.zip matches onnxruntime.SHA256SUMS.`
+  13. `for f in tests/*.js; do node "$f"; done` → exit 0, ending in
+      `turn scenarios: all passed` and `vendor-integrity: all checks passed`.
+  14. `grep -R -n -E 'dlopen|RegisterCustomOps|AppendExecutionProvider|EnableOrtCustomOps|http' android/models/src`
+      → exit 1 with no output (no match).
+  15. `git status --short` → only the files in this plan's Files list plus
+      `android/gradle.properties`; `whisper.json` is unchanged.
+- **Feature max |Δ|.** On `host JVM`: matrix `1.1920928955078125E-7`, frameSum
+  `7.152557373046875E-7`, frameMax `1.1920928955078125E-7`, window `1.1102230246251565E-16`,
+  melFilters `0.0`. On `iOS simulator`: matrix `1.1920928955078125E-7`, frameSum
+  `7.152557373046875E-7`, frameMax `1.1920928955078125E-7`, window `1.1102230246251565E-16`,
+  melFilters `7.979727989493313E-17`. Every bound was left unchanged.
+- **Timings actually printed.** Feature ms by clip on `host JVM` (date, phone, routing, silence,
+  ssn-digits, ssn-grouped, ssn-paused, text-hospital, yes): 16, 16, 6, 5, 5, 7, 9, 5, 3.
+  On `iOS simulator`: 93, 112, 109, 64, 91, 110, 154, 69, 37. Model load on `host JVM` was
+  encoder 490 ms, decoder 192 ms; on `iOS simulator` encoder 64 ms, decoder 222 ms. Per-clip
+  features/encoder/decoder ms and ids on `host JVM`: date 5/226/124 (8), phone 9/215/124 (9),
+  routing 6/200/107 (12), silence 4/194/32 (4), ssn-digits 5/199/84 (9), ssn-grouped 6/194/86
+  (10), ssn-paused 8/196/78 (9), text-hospital 4/197/76 (9), yes 4/200/38 (5). On `iOS simulator`:
+  date 92/206/108 (8), phone 112/196/82 (9), routing 111/197/111 (12), silence 64/193/34 (4),
+  ssn-digits 91/195/80 (9), ssn-grouped 112/192/89 (10), ssn-paused 156/195/82 (9),
+  text-hospital 71/194/78 (9), yes 38/199/47 (5).
+- **Token and kept agreement.** `host JVM` had 9/9 token ids equal to the golden and 9/9 kept
+  values; `iOS simulator` also had 9/9 and 9/9. `yes golden-feature matrix ids match reference:
+  true` on both. `strictTokenIds` is true on the JVM and false on iOS as planned; no strict-token
+  assertion failed, so there is no first-difference position or top-two logit gap to record.
+- **Known costs.** Every decoder step copies the encoder KV into ORT (about 36 MB per step);
+  optimising it is later work. `jvmTest` depends on `:verifyOnnxRuntime`, so the iOS ORT zip is
+  required even for the host run (seen in both JVM runs).
+- **The owner may add these to AGENTS.md's Common checks:** the five `:models` commands above
+  (`jvmTest`, `compileCommonMainKotlinMetadata`, `compileIosMainKotlinMetadata`,
+  `linkDebugTestIosArm64`, and `iosSimulatorArm64Test` with both `SIMCTL_CHILD_` variables), plus
+  `node tools/golden/models.mjs --check` already noted after Step 3.
+- **Not verified (all out of scope for this step):** Android `:speech` wiring, the ORT AAR in any
+  Android module, the emulator and `connectedDebugAndroidTest`, APK audits and size, the iOS
+  binary audits/allowlist/`otool`/peak memory, `ios/SPIKES.md`, Steps 8 and 9's full regression
+  list and `TODO.md`/X2 status, real-device iOS execution, audio over 30 s/chunking, and
+  zero-copy tensors. The JVM negative `MODEL_DIR` path was not run separately; the iOS negative
+  check above passed as expected.
+
 ### Next: Run 8, spike 3b part 1 (ONNX Runtime on both platforms, proven with Whisper base.en)
 
 **Run 8 stopped at Step 1 on 2026-11-23 (see Run 8 above).** On 2026-11-24 the owner chose ORT
 1.22.0 for all platforms (Decision 1, updated), with the iOS archive from NuGet, and Step 1 was
-done that day. **Steps 4 to 9 are still to do.**
+done that day. **Step 4 is done; Steps 5 to 9 are still to do.**
 
 Run 7 committed as 61d95215; its steps are in that commit's copy of this plan.
 

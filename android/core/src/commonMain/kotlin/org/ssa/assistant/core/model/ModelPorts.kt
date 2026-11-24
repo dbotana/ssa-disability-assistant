@@ -1,13 +1,19 @@
 package org.ssa.assistant.core.model
 
 /**
- * Model ports: interfaces that `:models` (not present yet) will implement.
- * These are deterministic-only; the exact sample representation is finalized
- * in Step 3b.
+ * Model ports. `:models` implements them, with `WhisperTranscriber` first;
+ * its tests use scripted fake sessions for the ONNX boundary. These are
+ * deterministic-only, and the exact sample representation is pinned by
+ * Run 8, Decision 6.
  */
 interface Transcriber {
+    /**
+     * Transcribes 16 kHz mono float samples in [−1, 1], read as
+     * `tools/stt-eval.mjs` reads the fixture WAVs (Run 8, Decision 6).
+     * Returns raw text; callers clean it with `cleanTranscript()`. Whisper
+     * rejects more than 30 s (480,000 samples) for now.
+     */
     suspend fun transcribe(samples: FloatArray, lang: String): String
-        // raw 16 kHz mono float samples → transcript text
 }
 
 interface LanguageId {

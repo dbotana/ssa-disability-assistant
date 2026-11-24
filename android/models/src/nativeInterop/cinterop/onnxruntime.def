@@ -1,0 +1,126 @@
+package = org.ssa.assistant.models.ort
+headers = onnxruntime_c_api.h
+---
+#include <stdlib.h>
+#include <string.h>
+
+/* The Kotlin side (OnnxSession.ios.kt) uses these numbers. */
+_Static_assert(ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT == 1, "float32 is element type 1");
+_Static_assert(ONNX_TENSOR_ELEMENT_DATA_TYPE_INT64 == 7, "int64 is element type 7");
+_Static_assert(ONNX_TENSOR_ELEMENT_DATA_TYPE_BOOL == 9, "bool is element type 9");
+
+static const OrtApi* ssa_ort_api(void) { return OrtGetApiBase()->GetApi(ORT_API_VERSION); }
+
+/* NULL on success; otherwise a malloc'd copy of the message (free with ssa_ort_free_string). Releases status. */
+static char* ssa_ort_error(OrtStatus* status) {
+    if (status == NULL) return NULL;
+    const OrtApi* api = ssa_ort_api();
+    const char* message = api->GetErrorMessage(status);
+    char* copy = strdup(message != NULL ? message : "ONNX Runtime error with no message");
+    api->ReleaseStatus(status);
+    return copy;
+}
+
+static void ssa_ort_free_string(char* s) { free(s); }
+
+static OrtEnv* ssa_env = NULL;
+
+/* Release the env before ORT's C++ statics are destroyed at process exit. */
+static void ssa_ort_shutdown(void) {
+    if (ssa_env != NULL) {
+        ssa_ort_api()->ReleaseEnv(ssa_env);
+        ssa_env = NULL;
+    }
+}
+
+static char* ssa_ort_create_env(void** out_env) {
+    const OrtApi* api = ssa_ort_api();
+    if (api == NULL) return strdup("this ONNX Runtime does not provide the C API version of its headers");
+    char* error = ssa_ort_error(api->CreateEnv(ORT_LOGGING_LEVEL_WARNING, "ssa-models", &ssa_env));
+    if (error == NULL) {
+        *out_env = ssa_env;
+        atexit(ssa_ort_shutdown);
+    }
+    return error;
+}
+
+/* Default session options: the CPU provider only, as the reference's executionProviders ['cpu']. */
+static char* ssa_ort_create_session(void* env, const char* model_path, void** out_session) {
+    const OrtApi* api = ssa_ort_api();
+    OrtSessionOptions* options = NULL;
+    char* error = ssa_ort_error(api->CreateSessionOptions(&options));
+    if (error != NULL) return error;
+    error = ssa_ort_error(api->CreateSession((const OrtEnv*)env, model_path, options, (OrtSession**)out_session));
+    api->ReleaseSessionOptions(options);
+    return error;
+}
+
+static void ssa_ort_release_session(void* session) {
+    if (session != NULL) ssa_ort_api()->ReleaseSession((OrtSession*)session);
+}
+
+/* outputs: 0 for the inputs, 1 for the outputs. */
+static char* ssa_ort_io_count(void* session, int outputs, size_t* out_count) {
+    const OrtApi* api = ssa_ort_api();
+    return ssa_ort_error(outputs ? api->SessionGetOutputCount((const OrtSession*)session, out_count)
+                                 : api->SessionGetInputCount((const OrtSession*)session, out_count));
+}
+
+/* *out_name is malloc'd: free it with ssa_ort_free_string. */
+static char* ssa_ort_io_name(void* session, int outputs, size_t index, char** out_name) {
+    const OrtApi* api = ssa_ort_api();
+    OrtAllocator* allocator = NULL;
+    char* error = ssa_ort_error(api->GetAllocatorWithDefaultOptions(&allocator));
+    if (error != NULL) return error;
+    char* name = NULL;
+    error = ssa_ort_error(outputs
+        ? api->SessionGetOutputName((const OrtSession*)session, index, allocator, &name)
+        : api->SessionGetInputName((const OrtSession*)session, index, allocator, &name));
+    if (error != NULL) return error;
+    *out_name = strdup(name);
+    error = ssa_ort_error(api->AllocatorFree(allocator, name));
+    if (error != NULL) { free(*out_name); *out_name = NULL; }
+    return error;
+}
+
+/* A tensor ORT allocates; fill it through ssa_ort_tensor_data. */
+static char* ssa_ort_create_tensor(const int64_t* shape, size_t rank, int element_type, void** out_value) {
+    const OrtApi* api = ssa_ort_api();
+    OrtAllocator* allocator = NULL;
+    char* error = ssa_ort_error(api->GetAllocatorWithDefaultOptions(&allocator));
+    if (error != NULL) return error;
+    return ssa_ort_error(api->CreateTensorAsOrtValue(allocator, shape, rank,
+        (ONNXTensorElementDataType)element_type, (OrtValue**)out_value));
+}
+
+static char* ssa_ort_tensor_data(void* value, void** out_data) {
+    return ssa_ort_error(ssa_ort_api()->GetTensorMutableData((OrtValue*)value, out_data));
+}
+
+static char* ssa_ort_tensor_info(void* value, int* out_element_type, size_t* out_rank,
+                                 int64_t* out_dims, size_t dims_capacity) {
+    const OrtApi* api = ssa_ort_api();
+    OrtTensorTypeAndShapeInfo* info = NULL;
+    char* error = ssa_ort_error(api->GetTensorTypeAndShape((const OrtValue*)value, &info));
+    if (error != NULL) return error;
+    ONNXTensorElementDataType type = ONNX_TENSOR_ELEMENT_DATA_TYPE_UNDEFINED;
+    error = ssa_ort_error(api->GetTensorElementType(info, &type));
+    if (error == NULL) error = ssa_ort_error(api->GetDimensionsCount(info, out_rank));
+    if (error == NULL && *out_rank > dims_capacity) error = strdup("tensor rank is larger than the dimension buffer");
+    if (error == NULL) error = ssa_ort_error(api->GetDimensions(info, out_dims, *out_rank));
+    api->ReleaseTensorTypeAndShapeInfo(info);
+    *out_element_type = (int)type;
+    return error;
+}
+
+static void ssa_ort_release_value(void* value) {
+    if (value != NULL) ssa_ort_api()->ReleaseValue((OrtValue*)value);
+}
+
+/* outputs[] must hold NULLs; ORT allocates each output, release it with ssa_ort_release_value. */
+static char* ssa_ort_run(void* session, const char** input_names, void** inputs, size_t input_count,
+                         const char** output_names, size_t output_count, void** outputs) {
+    return ssa_ort_error(ssa_ort_api()->Run((OrtSession*)session, NULL,
+        (const char* const*)input_names, (const OrtValue* const*)inputs, input_count,
+        (const char* const*)output_names, output_count, (OrtValue**)outputs));
+}
