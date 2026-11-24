@@ -20,21 +20,40 @@ import PackageDescription
 //   xcodebuild test -scheme CoreCrypto-Package \
 //     -destination 'platform=iOS Simulator,name=iPhone 18 Pro'
 //
-// With two library products SwiftPM makes one scheme per product plus
+// That is still the test command. SwiftPM makes one scheme per library product
+// (`CoreCrypto`, `SsaPdf` and, since Run 7, `NetCanary`) plus
 // `CoreCrypto-Package`, and only the package scheme has a test action, so
-// `-scheme CoreCrypto` (Run 5's command) and `-scheme SsaPdf` cannot run the
-// tests.
+// `-scheme CoreCrypto` (Run 5's command), `-scheme SsaPdf` and
+// `-scheme NetCanary` cannot run the tests.
 //
 // No app and no .xcodeproj: xcodebuild builds the package in DerivedData.
 //
-// Spike 3c additions:
-// - NetCanary: a canary target that deliberately uses URLSession so the
-//   binary audit fails on it. It must stay out of every product the app links.
-// - NetworkGuardTests: a test target that registers a URLProtocol trap to
-//   verify the audit sees deliberate network requests.
+// Spike 3c (Run 7), the binary network audit, ios/tools/audit-binary.sh:
+// - `NetCanary` exists only to make the audit fail: it calls
+//   URLSession.shared.dataTask(with:), so its NetCanary.o must fail, naming
+//   NSURLSession. Nothing depends on it, and it must stay out of every product
+//   the app links.
+// - `NetworkGuardTests` holds the URLProtocol runtime test: no request during
+//   the JS writer fill of both forms and a SessionStore round trip, plus one
+//   deliberate URLSession request that proves the trap sees traffic. Because
+//   of that deliberate request its bundle fails the audit by design, so it is
+//   a separate target and the CoreCryptoTests and SsaPdfTests bundles stay
+//   clean.
 //
-// With three products SwiftPM makes one scheme per product plus
-// `CoreCrypto-Package`, and only the package scheme has a test action.
+// To audit, build into the repository, then run each audit from the repository
+// root (P = ios/CoreCrypto/.build/xcode/Build/Products/Debug-iphonesimulator):
+//
+//   xcodebuild build-for-testing -scheme CoreCrypto-Package \
+//     -destination 'platform=iOS Simulator,name=iPhone 18 Pro' \
+//     -derivedDataPath <repo>/ios/CoreCrypto/.build/xcode
+//   ios/tools/audit-binary.sh ios/CoreCrypto/debug/SsaCore.xcframework       # exit 0
+//   ios/tools/audit-binary.sh P/CoreCrypto.o P/SsaPdf.o                       # exit 0
+//   ios/tools/audit-binary.sh P/CoreCryptoTests.xctest P/SsaPdfTests.xctest   # exit 0
+//   ios/tools/audit-binary.sh P/NetCanary.o                                   # exit 1
+//   ios/tools/audit-binary.sh P/NetworkGuardTests.xctest                      # exit 1
+//
+// `node tests/ios-audit.js` runs the clean set and the canary when the
+// products are built.
 let package = Package(
     name: "CoreCrypto",
     platforms: [.iOS(.v17)],

@@ -1,139 +1,72 @@
-/**
- * iOS binary network audit runner
- * Checks that the binary audit passes on clean inputs and fails on the canary.
- * 
- * This script makes no network requests. It only runs the audit-binary.sh script
- * against built products.
- * 
- * On Linux, it exits 0 skipping (not macOS).
- * Header comment says both: makes no network requests, and must not fail on Linux.
- */
+// The iOS binary network audit (mirror plan, spike 3c): when its inputs are
+// built, the clean set passes ios/tools/audit-binary.sh and the NetCanary
+// canary fails it, naming NSURLSession.
+//
+// Makes no network requests: it only runs the audit, which reads local files
+// with nm and otool. It never fails on a host that cannot run the audit. On
+// Linux, without xcrun, or before the products are built, it prints why it
+// skipped and exits 0.
 
-const { spawnSync } = require('child_process');
-const path = require('path');
-const fs = require('fs');
+import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { dirname, join, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const platform = process.platform;
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const AUDIT = join(ROOT, 'ios', 'tools', 'audit-binary.sh');
+const XCFRAMEWORK = join(ROOT, 'ios', 'CoreCrypto', 'debug', 'SsaCore.xcframework');
+const PRODUCTS = join(ROOT, 'ios', 'CoreCrypto', '.build', 'xcode', 'Build', 'Products', 'Debug-iphonesimulator');
+const product = name => join(PRODUCTS, name);
 
-// 1. If not macOS, skip
-if (platform !== 'darwin') {
-    console.log(`ios-audit: skipped (not macOS: ${platform})`);
-    process.exit(0);
+const skip = reason => {
+  console.log(`ios-audit: skipped (${reason})`);
+  process.exit(0);
+};
+
+if (process.platform !== 'darwin') skip(`not macOS: ${process.platform}`);
+if (spawnSync('xcrun', ['--find', 'nm'], { encoding: 'utf8' }).status !== 0) skip('xcrun nm not available');
+
+const BUILD_XCFRAMEWORK = 'from android/: ./gradlew :core:assembleSsaCoreDebugXCFramework';
+const BUILD_PRODUCTS = 'from ios/CoreCrypto/: xcodebuild build-for-testing -scheme CoreCrypto-Package'
+  + " -destination 'platform=iOS Simulator,name=iPhone 18 Pro'"
+  + ` -derivedDataPath ${join(ROOT, 'ios', 'CoreCrypto', '.build', 'xcode')}`;
+const CLEAN = [XCFRAMEWORK, ...['CoreCrypto.o', 'SsaPdf.o', 'CoreCryptoTests.xctest', 'SsaPdfTests.xctest'].map(product)];
+const CANARY = product('NetCanary.o');
+
+for (const path of [...CLEAN, CANARY]) {
+  if (!existsSync(path)) {
+    skip(`${relative(ROOT, path)} not built; run ${path === XCFRAMEWORK ? BUILD_XCFRAMEWORK : BUILD_PRODUCTS}`);
+  }
 }
 
-// 2. If xcrun nm not available, skip
-if (!spawnSync('xcrun', ['--find', 'nm']).status) {
-    console.log('ios-audit: skipped (xcrun nm not available)');
-    process.exit(0);
+let failures = 0;
+const check = (name, cond, detail = '') => {
+  if (cond) return;
+  failures++;
+  console.error(`FAIL ${name}${detail ? `\n     ${detail}` : ''}`);
+};
+
+// The checked-in allowlist only: an ALLOWLIST in the caller's environment must
+// not change what this test proves.
+const env = { ...process.env };
+delete env.ALLOWLIST;
+const audit = inputs => spawnSync('bash', [AUDIT, ...inputs], { encoding: 'utf8', env });
+// The audit's verdict lines, without the informational allowlist notes.
+const verdict = r => `exit ${r.status}: ${`${r.stdout}${r.stderr}`.split('\n')
+  .filter(l => l && !l.startsWith('note: ') && !l.startsWith('allowed: ')).join(' | ')}`;
+
+const clean = audit(CLEAN);
+check('the audit ran on the clean set', clean.error === undefined, String(clean.error));
+check('the clean set passes the audit', clean.status === 0, verdict(clean));
+check('the clean set reports clean', clean.stdout.includes('binary audit clean ('), verdict(clean));
+
+const canary = audit([CANARY]);
+check('the canary fails the audit with a finding (exit 1)', canary.status === 1, verdict(canary));
+check('the canary finding names NetCanary.o and NSURLSession',
+  /NetCanary\.o: imports \S*NSURLSession/.test(canary.stderr), verdict(canary));
+
+if (failures) {
+  console.error(`ios-audit: ${failures} check(s) failed`);
+  process.exit(1);
 }
-
-// 3. Check that all required products exist
-const requiredPaths = [
-    path.join('ios', 'CoreCrypto', 'debug', 'SsaCore.xcframework'),
-    path.join('ios', 'CoreCrypto', '.build', 'xcode', 'Build', 'Products', 'Debug-iphonesimulator', 'CoreCrypto.o'),
-    path.join('ios', 'CoreCrypto', '.build', 'xcode', 'Build', 'Products', 'Debug-iphonesimulator', 'SsaPdf.o'),
-    path.join('ios', 'CoreCrypto', '.build', 'xcode', 'Build', 'Products', 'Debug-iphonesimulator', 'CoreCryptoTests.xctest'),
-    path.join('ios', 'CoreCrypto', '.build', 'xcode', 'Build', 'Products', 'Debug-iphonesimulator', 'SsaPdfTests.xctest'),
-    path.join('ios', 'CoreCrypto', '.build', 'xcode', 'Build', 'Products', 'Debug-iphonesimulator', 'NetCanary.o'),
-];
-
-let allBuilt = true;
-for (const p of requiredPaths) {
-    if (!fs.existsSync(p)) {
-        console.log(`ios-audit: skipped (${p} not built; run xcodebuild)`);
-        allBuilt = false;
-        break;
-    }
-}
-
-if (!allBuilt) {
-    process.exit(0);
-}
-
-// 4. Run the audit script
-const auditScript = path.join('ios', 'tools', 'audit-binary.sh');
-const allowlist = path.join('ios', 'tools', 'audit-binary.allowlist');
-
-// Run audit on all products
-const products = [
-    path.join('ios', 'CoreCrypto', '.build', 'xcode', 'Build', 'Products', 'Debug-iphonesimulator', 'CoreCrypto.o'),
-    path.join('ios', 'CoreCrypto', '.build', 'xcode', 'Build', 'Products', 'Debug-iphonesimulator', 'SsaPdf.o'),
-    path.join('ios', 'CoreCrypto', '.build', 'xcode', 'Build', 'Products', 'Debug-iphonesimulator', 'CoreCryptoTests.xctest'),
-    path.join('ios', 'CoreCrypto', '.build', 'xcode', 'Build', 'Products', 'Debug-iphonesimulator', 'SsaPdfTests.xctest'),
-    path.join('ios', 'CoreCrypto', '.build', 'xcode', 'Build', 'Products', 'Debug-iphonesimulator', 'NetCanary.o'),
-];
-
-// Build the argument list for audit-binary.sh
-const args = ['ALLOWLIST', allowlist].concat(products);
-
-const result = spawnSync('bash', [auditScript].concat(args), {
-    stdio: 'inherit'
-});
-
-// Check results based on exit codes
-// NetCanary.o should fail with exit 1 and NSURLSession in stderr
-// All others should pass with exit 0
-
-// Check NetCanary.o specifically
-const netCanaryIdx = products.findIndex(p => p.includes('NetCanary.o'));
-const otherIdx = products.findIndex(p => !p.includes('NetCanary.o') && p.includes('CoreCrypto.o'));
-
-// We need to check the exit code and output
-// The spawnSync inherited stdout/stderr, so we just check the exit code
-
-if (result.status === 143) {
-    // Timed out / signal
-    process.exit(1);
-}
-
-// Evaluate results
-// Exit 0 = all clean (unexpected - NetCanary should fail)
-// Exit 1 = findings (expected - NetCanary and possibly NetworkGuardTests)
-// Exit 2 = cannot run
-
-// The plan expects:
-// - NetCanary.o: exit 1, stderr includes NSURLSession
-// - NetworkGuardTests.xctest: exit 1, NSURLSession named (expected: deliberate request)
-// - All others: exit 0
-
-let allPassed = true;
-
-// Re-run with captured output to evaluate
-const result2 = spawnSync('bash', [auditScript, 'ALLOWLIST', allowlist].concat(products.slice(0, 4)), {
-    encoding: 'utf8',
-    stdio: 'pipe'
-});
-
-// Check NetCanary.o exit code and output
-const netCanaryResult = spawnSync('bash', [auditScript, 'ALLOWLIST', allowlist, products[netCanaryIdx]], {
-    encoding: 'utf8',
-    stdio: 'pipe'
-});
-
-if (netCanaryResult.status !== 1) {
-    console.error(`ios-audit: FAIL - NetCanary.o expected exit 1, got ${netCanaryResult.status}`);
-    allPassed = false;
-} else if (!netCanaryResult.stderr.includes('NSURLSession') && !netCanaryResult.stderr.includes('NSURLSession')) {
-    console.error(`ios-audit: FAIL - NetCanary.o stderr should include NSURLSession`);
-    allPassed = false;
-}
-
-// Check other products exit 0
-for (let i = 0; i < 4; i++) {
-    if (i === netCanaryIdx) continue;
-    const r = spawnSync('bash', [auditScript, 'ALLOWLIST', allowlist, products[i]], {
-        encoding: 'utf8',
-        stdio: 'pipe'
-    });
-    if (r.status !== 0) {
-        console.error(`ios-audit: FAIL - ${products[i]} expected exit 0, got ${r.status}`);
-        allPassed = false;
-    }
-}
-
-if (allPassed) {
-    console.log('ios-audit: all checks passed');
-    process.exit(0);
-} else {
-    process.exit(1);
-}
+console.log('ios-audit: all checks passed');
