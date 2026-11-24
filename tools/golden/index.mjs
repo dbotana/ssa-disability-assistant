@@ -29,6 +29,7 @@
 //   store            the session store format: envelope, payload, expiry,
 //                    withheld repair, and a WebCrypto test vector
 //   exportnames      export file names, with and without the version suffix
+//   transcripts      cleanTranscript and the silence-filler rule
 
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
@@ -54,6 +55,8 @@ import { layoutAddendum } from '../../src/addendum.js';
 import { worksheetContent } from '../../src/pdf.js';
 import { parseExport } from '../../src/importer.js';
 import { canonical } from '../../src/ttshash.js';
+import { cleanTranscript } from '../../src/localstt.js';
+import { isEmptyTranscript, QUIET_PEAK } from '../../src/turn.js';
 import { collectCorpus } from '../tts-corpus.mjs';
 import * as ssaKit from '../../src/forms/ssa-starter-kit.js';
 import * as dsIntake from '../../src/forms/ds-intake.js';
@@ -1138,6 +1141,39 @@ async function goldenExportNames() {
 }
 
 // ---------------------------------------------------------------------------
+// transcripts: cleanTranscript and the silence-filler rule
+// ---------------------------------------------------------------------------
+
+async function goldenTranscripts() {
+  const inputs = [
+    // tests/local-stt.js's cases
+    '[BLANK_AUDIO]', 'Yes. [BLANK_AUDIO]', '(coughs) 987-65-4321', '  Maine   Medical Center ',
+    '(207) 555-0142', 'call (888) 555-0100 please', null,
+    // Whisper's annotations
+    ' [BLANK_AUDIO]', '[Music]', '[ Silence ]', '(silence)', '(Applause) Thank you.', 'Yes [inaudible] no',
+    '[🎵 music 🎵]', '(🎵)', '♪ Yes ♪', '[]', '()', '[\n]', '(\n)', 'a[b]c', 'a(b)c',
+    // brackets that do not close, nest, or hold digits
+    '[unclosed', '(unclosed', 'nested [a [b] c]', '((laughs))', '(a1)', '(two oh seven)', '(2)',
+    '(\u0661\u0662\u0663)', '(\uff13)', '[123]',
+    // JS \s and trim()
+    'tab\tand\nnewline', '\u00a0Yes\u00a0', '\u2003em\u2003space\u2003', '\u3000ideographic', '\ufeffBOM',
+    '\u200bzero width', '\u0085next line', 'line\u2028separator', '', '   ',
+    // what the filler rule sees
+    ' you', 'You.', 'Thank you.', 'thanks', 'Thanks for watching!', 'Thank you for watching.', 'Bye.',
+    'Okay.', 'OK', 'ok?', 'Uh', 'Um,', 'Hmm...', 'Mm.', 'Oh!', 'The.', 'you know', 'okay then',
+    'thank you very much', '...', '\u2014', '"', '. . .', '\u00bd', '\u00b2', '\u216b', '\u0663', '\ud83d\ude00',
+    '\u00c9', '\u025b\u025b', ' Yes.', 'No.'
+  ];
+  const peaks = { quiet: 0, loud: 1 };
+  if (!(peaks.quiet < QUIET_PEAK && peaks.loud >= QUIET_PEAK)) throw new Error('transcripts golden: peaks no longer straddle QUIET_PEAK');
+  const cases = inputs.map(input => {
+    const clean = cleanTranscript(input);
+    return { input, clean, empty: { quiet: isEmptyTranscript(clean, peaks.quiet), loud: isEmptyTranscript(clean, peaks.loud) } };
+  });
+  write('transcripts', { quietPeak: QUIET_PEAK, peaks, cases });
+}
+
+// ---------------------------------------------------------------------------
 
 async function main() {
   await goldenI18n();
@@ -1152,6 +1188,7 @@ async function main() {
   await goldenSpeech();
   await goldenExportNames();
   await goldenStore();
+  await goldenTranscripts();
   console.log('all goldens written to', DEST);
 }
 

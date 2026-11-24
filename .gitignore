@@ -26,3 +26,6 @@ android/core/bin/*
 ios/CoreCrypto/debug/
 ios/CoreCrypto/.build/
 ios/CoreCrypto/.swiftpm/
+
+# ONNX Runtime iOS archive, fetched by tools/fetch-onnxruntime.mjs (too large to commit).
+android/models/third_party/

@@ -413,3 +413,145 @@ into its bundle (deviation 1). In `SsaPdfTests` that request would make audit
   committed it in `7aaabc01`.
 - **The plan's Progress section** (Run 7) lists every refused or failed
   command, word for word.
+
+# Spike 3b, part 1: ONNX Runtime packages — evidence (Run 8, stopped at Step 1)
+
+Run 8 (2026-11-23) followed the plan's *Next: Run 8*. It stopped at Step 1 on two of its stop
+conditions, so no `:models` code, golden or pin file was written:
+
+- the pinned Android package, ORT 1.21.0, fails the 16 KB alignment rule;
+- the iOS package could not be fetched over verified TLS, and no publisher checksum for it was
+  found.
+
+The plan's Run 8 entry has every command, word for word.
+
+## 3b.1 The Node reference (Step 0)
+
+`node tools/stt-eval.mjs` (transformers.js 3.8.1 on `onnxruntime-node` 1.21.0, `whisper-base.en`
+q8, on the host Mac):
+
+| Clip | ms | Heard | Kept |
+|---|---|---|---|
+| date | 352 | `March 14, 1979.` | `1979-03-14` |
+| phone | 335 | `207-555-0142` | `2075550142` |
+| routing | 354 | `1 2 3 4 5 6 7 8 9` | `123456789` |
+| silence | 301 | `you` | null |
+| ssn-digits | 335 | `987-654320` | `987654320` |
+| ssn-grouped | 339 | `987-65-4321` | `987654321` |
+| ssn-paused | 332 | `987 6 5 4329` | `987654329` |
+| text-hospital | 336 | `Maine Medical Center in Portland.` | `Maine Medical Center in Portland` |
+| yes | 308 | `Yes.` | true |
+
+The model loaded in 314 ms. 9/9 values were kept, with a median of 335 ms per clip. These are
+host numbers, not phone numbers.
+
+## 3b.2 The Android package (Step 1)
+
+`com.microsoft.onnxruntime:onnxruntime-android:1.21.0` from Maven Central:
+
+- **Size and hash:** 29,216,802 bytes, SHA-256
+  `8b675e9680b8cc02dca706a5e3b4e35cc8506de5bdf206fdae68081cbd804414`, which matches Maven Central's
+  `.sha256`.
+- **Manifest:** asks for no permission (only `<uses-sdk android:minSdkVersion="24" />`).
+- **Imports:** in `llvm-nm -D --undefined-only`, `libonnxruntime.so` (arm64-v8a and x86_64)
+  imports `dlopen@LIBC` and `dlsym@LIBC`. It imports none of `socket`, `connect`, `getaddrinfo`,
+  `gethostbyname`, `getnameinfo`, `send`, `sendto`, `recv`, `recvfrom`, `bind`, `listen` or
+  `accept`. `libonnxruntime4j_jni.so` imports none of them.
+- **16 KB alignment (`llvm-readelf -lW`, `PT_LOAD` alignment): fails.**
+
+  | Library | arm64-v8a | x86_64 |
+  |---|---|---|
+  | `libonnxruntime.so` | 19,158,736 B, `0x4000` | 21,825,968 B, `0x4000` |
+  | `libonnxruntime4j_jni.so` | 105,552 B, **`0x1000`** | 93,352 B, **`0x1000`** |
+
+  `android/tools/audit-native.sh` requires `0x4000` for every library in the APK.
+
+**Every later release, checked the same way** (arm64-v8a and x86_64; nothing was linked or
+built):
+
+| Versions | All `PT_LOAD` alignments | Permissions in the AAR manifest | `ai.onnxruntime.TelemetryInitializer` provider |
+|---|---|---|---|
+| 1.21.0 | `0x1000` in the JNI library | none | no |
+| 1.21.1, 1.22.0, 1.23.0–1.23.2, 1.24.1–1.24.3, 1.25.0, 1.25.1, 1.26.0, 1.27.0, 1.28.0 | `0x4000` | none | no |
+| 1.29.0, 1.30.0, 1.31.0, 1.31.1, 1.32.0 | `0x4000` | `ACCESS_NETWORK_STATE`, `INTERNET` | yes |
+
+- **From 1.29.0 on, the AAR asks for the internet and adds a telemetry content provider.** No
+  release from 1.29.0 on is usable under this project's privacy rules.
+- **The SHA-256 values for 1.21.1 to 1.31.1** were computed but not compared with Maven Central's
+  checksum files; they are recorded in the plan's Run 8 entry.
+- **1.32.0:** Maven Central has no `.sha256` (404). Its `.sha1`,
+  `e66a7eab2d1ce3118eb0cfb75ef190c2f4a83024`, matched.
+
+## 3b.3 The desktop Java package (Step 1, Decision 3)
+
+`com.microsoft.onnxruntime:onnxruntime:1.21.0`:
+
+- **Size and hash:** 136,639,115 bytes, SHA-256
+  `5b57b8c6303303f8d8cbed7f787f31611718b746ab2fa45c888c9df153f1b3c2`, which matches Maven Central's
+  `.sha256`.
+- **Native libraries:** it holds `ai/onnxruntime/native/osx-aarch64/libonnxruntime.dylib`
+  (31,847,304 bytes), so host tests could run on this Mac. It also holds `linux-aarch64` and
+  `linux-x64` libraries.
+
+## 3b.4 The iOS package (Step 1)
+
+- **The podspec:** CocoaPods' `onnxruntime-c` 1.21.0 podspec (via `cdn.cocoapods.org`) gives:
+  - the source `https://download.onnxruntime.ai/pod-archive-onnxruntime-c-1.21.0.zip`;
+  - `"vendored_frameworks": "onnxruntime.xcframework"` and `"static_framework": true`;
+  - `"weak_frameworks": ["CoreML"]` and `"libraries": "c++"`;
+  - `ios` 15.1 and `osx` 13.3.
+
+  It has no checksum.
+- **The download** fails with `curl: (60) SSL: no alternative certificate subject name matches
+  target host name 'download.onnxruntime.ai'`, both inside and outside the command sandbox. The
+  archive was not fetched with verification turned off, because that would defeat the pin.
+- **A publisher checksum** was not found:
+  - Microsoft's `onnxruntime-swift-package-manager` `Package.swift` returned 404 at tag `1.21.0`
+    and on `main`;
+  - the GitHub API returned 404 for that repository's tags and for `microsoft/onnxruntime`
+    release `v1.21.0`, inside and outside the sandbox.
+- **Follow-up, 2026-11-24: the CocoaPods URL is dead, not just misconfigured.** The owner's own
+  `curl -k` download of it saved 266,389 bytes of HTML whose title is `Page not found`. The host
+  serves the docs site, which is why its certificate does not match. Its SHA-256
+  (`4e20d0f4…21c2f6`) is that of an error page and is not a pin. The owner can delete
+  `android/models/third_party/pod-archive-onnxruntime-c-1.21.0.zip`.
+- **A verified source:** the NuGet package `Microsoft.ML.OnnxRuntime` 1.21.0.
+  - `.nupkg`: 120,110,707 bytes, SHA-512
+    `PddxGk16sCyK0BudOE9OPo/ep9iPjq1RXPP+BSc29joQSyFo+ZzrDk3QrrcOYZw1aubdsdE/WMF7A+Kn/XoaHg==`,
+    equal to the `packageHash` in nuget.org's catalog entry
+    (`api.nuget.org/v3/catalog0/data/2025.03.07.21.04.40/microsoft.ml.onnxruntime.1.21.0.json`);
+    SHA-256 `359b4782cfa2e288e6c4bbb9da1c231b085fb8e0d149faf8c3c843f54576559b`.
+  - It holds `runtimes/ios/native/onnxruntime.xcframework.zip` (44,743,208 bytes, SHA-256
+    `4a1e86cba16cd198ab7a2c3c23671d2304d027009f9300bdff29c6ae192943fd`), with slices
+    `ios-arm64`, `ios-arm64_x86_64-simulator` and `ios-arm64_x86_64-maccatalyst`.
+  - NuGet has 1.21.0, 1.22.0 and 1.22.1 here and no 1.21.1.
+  - **1.22.0 (chosen 2026-11-24):** `.nupkg` 121,402,697 bytes, SHA-512 equal to its catalog
+    `packageHash`, SHA-256 `d571e63a2329baacb713f441e65ad75284de354db6e1ac435fe4bebbb417986a`;
+    `onnxruntime.xcframework.zip` 45,861,984 bytes. The Android 1.22.0 AAR and the desktop jar
+    (139,129,141 bytes, `41bb3b51…ebeee45`) match their Maven Central `.sha256` files.
+  - Not yet done: the iOS audit over this xcframework, and a check that it is the same build as
+    the CocoaPods archive it replaces.
+- **Not run as a result:** the iOS audit over ORT, and everything iOS in 3b.
+
+## 3b.4a Step 1 result, 2026-11-24 (ORT 1.22.0, all platforms)
+
+- **Pins and checks:** see the plan's *Run 8* update: AAR and jar match Maven Central's `.sha256`; the
+  iOS zip is extracted from the NuGet package whose SHA-512 matches nuget.org's.
+- **Android 1.22.0:** every `PT_LOAD` `0x4000` (including `libonnxruntime4j_jni.so`), no networking
+  import (only `dlopen@LIBC`/`dlsym@LIBC` in `libonnxruntime.so`), no permission. Go.
+- **iOS 1.22.0 audit:** exit 0 with three exact allowlist lines, `prelinked_objects.o` `_dlsym` in the
+  device, simulator and maccatalyst slices. The sole caller in every architecture is
+  `onnxruntime::(anonymous)::PosixEnv::GetSymbolFromLibrary`. The archive also imports `_dlopen`,
+  `_dlclose`, `_dlerror` and `_getenv` (not audited symbols).
+- **Desktop jar 1.22.0:** has `osx-aarch64/libonnxruntime.dylib` (33,481,272 bytes). Go.
+
+## 3b.5 What this leaves for the owner (superseded by 3b.4a: the version and iOS source are chosen)
+
+- **Android:** choose an ORT version for Decision 1.
+  - 1.21.1 is the nearest release that passes all three Android checks, and it is one patch away
+    from the reference's `onnxruntime-node` 1.21.0.
+  - Any release from 1.22.0 to 1.28.0 also passes.
+  - Nothing from 1.29.0 on passes.
+- **iOS:** a verified way to get the `onnxruntime-c` archive. That means a working TLS connection
+  to `download.onnxruntime.ai`, or a checksum Microsoft publishes that the bytes can be checked
+  against.

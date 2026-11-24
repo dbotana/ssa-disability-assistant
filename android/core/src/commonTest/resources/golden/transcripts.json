@@ -1,0 +1,601 @@
+{
+  "quietPeak": 0.05,
+  "peaks": {
+    "quiet": 0,
+    "loud": 1
+  },
+  "cases": [
+    {
+      "input": "[BLANK_AUDIO]",
+      "clean": "",
+      "empty": {
+        "quiet": true,
+        "loud": true
+      }
+    },
+    {
+      "input": "Yes. [BLANK_AUDIO]",
+      "clean": "Yes.",
+      "empty": {
+        "quiet": false,
+        "loud": false
+      }
+    },
+    {
+      "input": "(coughs) 987-65-4321",
+      "clean": "987-65-4321",
+      "empty": {
+        "quiet": false,
+        "loud": false
+      }
+    },
+    {
+      "input": "  Maine   Medical Center ",
+      "clean": "Maine Medical Center",
+      "empty": {
+        "quiet": false,
+        "loud": false
+      }
+    },
+    {
+      "input": "(207) 555-0142",
+      "clean": "(207) 555-0142",
+      "empty": {
+        "quiet": false,
+        "loud": false
+      }
+    },
+    {
+      "input": "call (888) 555-0100 please",
+      "clean": "call (888) 555-0100 please",
+      "empty": {
+        "quiet": false,
+        "loud": false
+      }
+    },
+    {
+      "input": null,
+      "clean": "",
+      "empty": {
+        "quiet": true,
+        "loud": true
+      }
+    },
+    {
+      "input": " [BLANK_AUDIO]",
+      "clean": "",
+      "empty": {
+        "quiet": true,
+        "loud": true
+      }
+    },
+    {
+      "input": "[Music]",
+      "clean": "",
+      "empty": {
+        "quiet": true,
+        "loud": true
+      }
+    },
+    {
+      "input": "[ Silence ]",
+      "clean": "",
+      "empty": {
+        "quiet": true,
+        "loud": true
+      }
+    },
+    {
+      "input": "(silence)",
+      "clean": "",
+      "empty": {
+        "quiet": true,
+        "loud": true
+      }
+    },
+    {
+      "input": "(Applause) Thank you.",
+      "clean": "Thank you.",
+      "empty": {
+        "quiet": true,
+        "loud": false
+      }
+    },
+    {
+      "input": "Yes [inaudible] no",
+      "clean": "Yes no",
+      "empty": {
+        "quiet": false,
+        "loud": false
+      }
+    },
+    {
+      "input": "[🎵 music 🎵]",
+      "clean": "",
+      "empty": {
+        "quiet": true,
+        "loud": true
+      }
+    },
+    {
+      "input": "(🎵)",
+      "clean": "",
+      "empty": {
+        "quiet": true,
+        "loud": true
+      }
+    },
+    {
+      "input": "♪ Yes ♪",
+      "clean": "♪ Yes ♪",
+      "empty": {
+        "quiet": false,
+        "loud": false
+      }
+    },
+    {
+      "input": "[]",
+      "clean": "",
+      "empty": {
+        "quiet": true,
+        "loud": true
+      }
+    },
+    {
+      "input": "()",
+      "clean": "",
+      "empty": {
+        "quiet": true,
+        "loud": true
+      }
+    },
+    {
+      "input": "[\n]",
+      "clean": "",
+      "empty": {
+        "quiet": true,
+        "loud": true
+      }
+    },
+    {
+      "input": "(\n)",
+      "clean": "",
+      "empty": {
+        "quiet": true,
+        "loud": true
+      }
+    },
+    {
+      "input": "a[b]c",
+      "clean": "a c",
+      "empty": {
+        "quiet": false,
+        "loud": false
+      }
+    },
+    {
+      "input": "a(b)c",
+      "clean": "a c",
+      "empty": {
+        "quiet": false,
+        "loud": false
+      }
+    },
+    {
+      "input": "[unclosed",
+      "clean": "[unclosed",
+      "empty": {
+        "quiet": false,
+        "loud": false
+      }
+    },
+    {
+      "input": "(unclosed",
+      "clean": "(unclosed",
+      "empty": {
+        "quiet": false,
+        "loud": false
+      }
+    },
+    {
+      "input": "nested [a [b] c]",
+      "clean": "nested c]",
+      "empty": {
+        "quiet": false,
+        "loud": false
+      }
+    },
+    {
+      "input": "((laughs))",
+      "clean": ")",
+      "empty": {
+        "quiet": true,
+        "loud": true
+      }
+    },
+    {
+      "input": "(a1)",
+      "clean": "(a1)",
+      "empty": {
+        "quiet": false,
+        "loud": false
+      }
+    },
+    {
+      "input": "(two oh seven)",
+      "clean": "",
+      "empty": {
+        "quiet": true,
+        "loud": true
+      }
+    },
+    {
+      "input": "(2)",
+      "clean": "(2)",
+      "empty": {
+        "quiet": false,
+        "loud": false
+      }
+    },
+    {
+      "input": "(١٢٣)",
+      "clean": "",
+      "empty": {
+        "quiet": true,
+        "loud": true
+      }
+    },
+    {
+      "input": "(３)",
+      "clean": "",
+      "empty": {
+        "quiet": true,
+        "loud": true
+      }
+    },
+    {
+      "input": "[123]",
+      "clean": "",
+      "empty": {
+        "quiet": true,
+        "loud": true
+      }
+    },
+    {
+      "input": "tab\tand\nnewline",
+      "clean": "tab and newline",
+      "empty": {
+        "quiet": false,
+        "loud": false
+      }
+    },
+    {
+      "input": " Yes ",
+      "clean": "Yes",
+      "empty": {
+        "quiet": false,
+        "loud": false
+      }
+    },
+    {
+      "input": " em space ",
+      "clean": "em space",
+      "empty": {
+        "quiet": false,
+        "loud": false
+      }
+    },
+    {
+      "input": "　ideographic",
+      "clean": "ideographic",
+      "empty": {
+        "quiet": false,
+        "loud": false
+      }
+    },
+    {
+      "input": "﻿BOM",
+      "clean": "BOM",
+      "empty": {
+        "quiet": false,
+        "loud": false
+      }
+    },
+    {
+      "input": "​zero width",
+      "clean": "​zero width",
+      "empty": {
+        "quiet": false,
+        "loud": false
+      }
+    },
+    {
+      "input": "next line",
+      "clean": "next line",
+      "empty": {
+        "quiet": false,
+        "loud": false
+      }
+    },
+    {
+      "input": "line separator",
+      "clean": "line separator",
+      "empty": {
+        "quiet": false,
+        "loud": false
+      }
+    },
+    {
+      "input": "",
+      "clean": "",
+      "empty": {
+        "quiet": true,
+        "loud": true
+      }
+    },
+    {
+      "input": "   ",
+      "clean": "",
+      "empty": {
+        "quiet": true,
+        "loud": true
+      }
+    },
+    {
+      "input": " you",
+      "clean": "you",
+      "empty": {
+        "quiet": true,
+        "loud": false
+      }
+    },
+    {
+      "input": "You.",
+      "clean": "You.",
+      "empty": {
+        "quiet": true,
+        "loud": false
+      }
+    },
+    {
+      "input": "Thank you.",
+      "clean": "Thank you.",
+      "empty": {
+        "quiet": true,
+        "loud": false
+      }
+    },
+    {
+      "input": "thanks",
+      "clean": "thanks",
+      "empty": {
+        "quiet": true,
+        "loud": false
+      }
+    },
+    {
+      "input": "Thanks for watching!",
+      "clean": "Thanks for watching!",
+      "empty": {
+        "quiet": true,
+        "loud": false
+      }
+    },
+    {
+      "input": "Thank you for watching.",
+      "clean": "Thank you for watching.",
+      "empty": {
+        "quiet": true,
+        "loud": false
+      }
+    },
+    {
+      "input": "Bye.",
+      "clean": "Bye.",
+      "empty": {
+        "quiet": true,
+        "loud": false
+      }
+    },
+    {
+      "input": "Okay.",
+      "clean": "Okay.",
+      "empty": {
+        "quiet": true,
+        "loud": false
+      }
+    },
+    {
+      "input": "OK",
+      "clean": "OK",
+      "empty": {
+        "quiet": true,
+        "loud": false
+      }
+    },
+    {
+      "input": "ok?",
+      "clean": "ok?",
+      "empty": {
+        "quiet": true,
+        "loud": false
+      }
+    },
+    {
+      "input": "Uh",
+      "clean": "Uh",
+      "empty": {
+        "quiet": true,
+        "loud": false
+      }
+    },
+    {
+      "input": "Um,",
+      "clean": "Um,",
+      "empty": {
+        "quiet": true,
+        "loud": false
+      }
+    },
+    {
+      "input": "Hmm...",
+      "clean": "Hmm...",
+      "empty": {
+        "quiet": true,
+        "loud": false
+      }
+    },
+    {
+      "input": "Mm.",
+      "clean": "Mm.",
+      "empty": {
+        "quiet": true,
+        "loud": false
+      }
+    },
+    {
+      "input": "Oh!",
+      "clean": "Oh!",
+      "empty": {
+        "quiet": true,
+        "loud": false
+      }
+    },
+    {
+      "input": "The.",
+      "clean": "The.",
+      "empty": {
+        "quiet": true,
+        "loud": false
+      }
+    },
+    {
+      "input": "you know",
+      "clean": "you know",
+      "empty": {
+        "quiet": false,
+        "loud": false
+      }
+    },
+    {
+      "input": "okay then",
+      "clean": "okay then",
+      "empty": {
+        "quiet": false,
+        "loud": false
+      }
+    },
+    {
+      "input": "thank you very much",
+      "clean": "thank you very much",
+      "empty": {
+        "quiet": false,
+        "loud": false
+      }
+    },
+    {
+      "input": "...",
+      "clean": "...",
+      "empty": {
+        "quiet": true,
+        "loud": true
+      }
+    },
+    {
+      "input": "—",
+      "clean": "—",
+      "empty": {
+        "quiet": true,
+        "loud": true
+      }
+    },
+    {
+      "input": "\"",
+      "clean": "\"",
+      "empty": {
+        "quiet": true,
+        "loud": true
+      }
+    },
+    {
+      "input": ". . .",
+      "clean": ". . .",
+      "empty": {
+        "quiet": true,
+        "loud": true
+      }
+    },
+    {
+      "input": "½",
+      "clean": "½",
+      "empty": {
+        "quiet": false,
+        "loud": false
+      }
+    },
+    {
+      "input": "²",
+      "clean": "²",
+      "empty": {
+        "quiet": false,
+        "loud": false
+      }
+    },
+    {
+      "input": "Ⅻ",
+      "clean": "Ⅻ",
+      "empty": {
+        "quiet": false,
+        "loud": false
+      }
+    },
+    {
+      "input": "٣",
+      "clean": "٣",
+      "empty": {
+        "quiet": false,
+        "loud": false
+      }
+    },
+    {
+      "input": "😀",
+      "clean": "😀",
+      "empty": {
+        "quiet": true,
+        "loud": true
+      }
+    },
+    {
+      "input": "É",
+      "clean": "É",
+      "empty": {
+        "quiet": false,
+        "loud": false
+      }
+    },
+    {
+      "input": "ɛɛ",
+      "clean": "ɛɛ",
+      "empty": {
+        "quiet": false,
+        "loud": false
+      }
+    },
+    {
+      "input": " Yes.",
+      "clean": "Yes.",
+      "empty": {
+        "quiet": false,
+        "loud": false
+      }
+    },
+    {
+      "input": "No.",
+      "clean": "No.",
+      "empty": {
+        "quiet": false,
+        "loud": false
+      }
+    }
+  ]
+}

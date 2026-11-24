@@ -1,0 +1,6 @@
+# ONNX Runtime 1.22.0. Each file is checked against the checksum its publisher gives
+# (Maven Central .sha256 for the first two; the third is extracted from the NuGet package
+# Microsoft.ML.OnnxRuntime 1.22.0, whose own SHA-512 is pinned in tools/fetch-onnxruntime.mjs).
+04a4617a9c797cf49225595e45b5546081cb34c86ac817581141577d3b7dbfe2  onnxruntime-android-1.22.0.aar
+41bb3b51b6a2e489cd39f538d5a1c74e4333845ab1ccad63e752b6f19ebeee45  onnxruntime-1.22.0.jar
+8a64917aecbb87ad49ca78f8a1e442f713ea633d8475e576369802fb2af6e767  onnxruntime.xcframework.zip

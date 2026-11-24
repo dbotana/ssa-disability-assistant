@@ -281,7 +281,9 @@ output. In short:
       in for the largest random `fillplans.json` set. Still owed: real-phone
       timing, manual open/edit in Acrobat/Chrome/Drive/Preview, and the
       API 29/33 viewer runs.
-- [ ] **M1b:** whisper.cpp and llama.cpp as pinned submodules, linked
+- [ ] **M1b:** (the whisper.cpp half is replaced by the mirror plan's D6: speech
+      recognition runs on ONNX Runtime, spike 3b; the llama.cpp half stands)
+      whisper.cpp and llama.cpp as pinned submodules, linked
       statically into the JNI libraries; the version script and export audit
       already apply to them. Load the models mmapped from
       `(fd, offset, length)`, transcribe the 9 WAVs, and make a latency and
@@ -1112,3 +1114,51 @@ Still not verified:
 - the `tests/ios-audit.js` skip paths;
 - the Run 6 items (phone timings, the cold first-form cost, the PDFKit preview, other viewers,
   app-bundle resources, `/HelvWA`).
+
+## Mirror Run 8 (2026-11-23): spike 3b part 1, stopped at Step 1
+
+The plan's *Run 8* section has the exact commands and output, and `ios/SPIKES.md` §3b has the
+evidence. Run 8 stopped at Step 1 on two of its stop conditions, so no code, golden or pin was
+written.
+
+- [x] **Step 0, the Node reference:** `node tools/stt-eval.mjs` gives 9/9 (`loaded in 314 ms`,
+      median 335 ms per clip) after `npm install` in `tools/` added the lockfile's macOS `sharp`
+      build. `tools/node_modules` had only the Linux build, so transformers.js would not import.
+      The lockfile is unchanged. `app-debug.apk` is 71,327,072 bytes before ORT.
+- [x] **Owner: choose the ORT version (Decision 1).** Chosen 2026-11-24: **1.22.0** on every
+      platform (Android AAR and desktop jar from Maven Central, iOS from the NuGet package, all
+      hash-checked). The plan is updated.
+      - **1.21.0** (the plan's pin): `libonnxruntime4j_jni.so` is aligned `0x1000`, which fails
+        the 16 KB rule.
+      - **1.21.1 to 1.28.0:** every library is aligned `0x4000`, and the manifest asks for no
+        permission.
+      - **1.29.0 and later:** the AAR asks for `INTERNET` and `ACCESS_NETWORK_STATE` and adds an
+        `ai.onnxruntime.TelemetryInitializer` provider, so those releases are unusable.
+      - 1.21.1 is the nearest to the reference's `onnxruntime-node` 1.21.0.
+- [x] **iOS archive source: found 2026-11-24, the NuGet package `Microsoft.ML.OnnxRuntime` 1.21.0**
+      (hash-verified against nuget.org; `ios/SPIKES.md` §3b.4). The CocoaPods URL below returns an
+      HTML 404 page. The owner may delete `android/models/third_party/`'s HTML file.
+- [x] (superseded) **a verified source for the iOS `onnxruntime-c` archive.**
+      `https://download.onnxruntime.ai/pod-archive-onnxruntime-c-1.21.0.zip` fails with `SSL: no
+      alternative certificate subject name matches target host name`, and no Microsoft checksum
+      was found: the SwiftPM manifest and the GitHub API both returned 404.
+- [x] **Run 8 Step 1 done 2026-11-24** with ORT 1.22.0: pins, `tools/fetch-onnxruntime.mjs`,
+      `verifyOnnxRuntime`, Android and iOS checks all go (plan, *Run 8* update).
+- [x] **Run 8 Steps 2 and 3 done 2026-11-24**: `tools/golden/models.mjs` writes
+      `whisper.json` (1,911,152 bytes: 9 clips, 2 sessions, 20 decode cases) and `--check`
+      compares it; `tools/stt-common.mjs` holds the steps `stt-eval.mjs` and the golden share;
+      `cleanTranscript` is ported to `core` and pinned by a 74-case `transcripts.json`. The filler
+      rule needed D-f: `LETTER_OR_DIGIT` became `[\p{L}\p{Nd}\p{Nl}\p{No}]` (`\p{N}` is rejected by
+      Kotlin/Native's Regex). `½`, `²` and `Ⅻ` are no longer called empty.
+- [ ] **Run 8 Steps 4 to 9.** The `:models` module, the ORT ports, the emulator and simulator
+      Whisper runs.
+- [x] **M1b's whisper.cpp half** is marked as replaced by D6 and 3b in the M1b item above. The
+      llama.cpp half stands.
+
+**Still not verified:**
+
+- everything from Step 1's pin file onwards;
+- the iOS audit over ORT;
+- Whisper on the host JVM, the emulator and the simulator.
+
+Step 8's checks were not re-run: the run changed only these three records.

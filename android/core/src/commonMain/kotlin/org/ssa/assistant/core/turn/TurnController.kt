@@ -125,10 +125,11 @@ class TurnController(private val ports: Ports, schema: Schema) {
 
         private val ACCURATE_DIGIT_TYPES = setOf("ssn", "routing", "account", "phone")
 
-        // Character.isLetterOrDigit over code points: a letter, or a decimal
-        // digit. A plain Regex (not JsRegex), so supplementary characters
-        // count as the one code point they are.
-        private val LETTER_OR_DIGIT = Regex("[\\p{L}\\p{Nd}]")
+        // JS /[\p{L}\p{N}]/u: a letter or any number (Nd, Nl, No), over code
+        // points. A plain Regex (not JsRegex), so supplementary characters count
+        // as the one code point they are. Written as the three number
+        // categories because Kotlin/Native's Regex rejects `\p{N}`.
+        private val LETTER_OR_DIGIT = Regex("[\\p{L}\\p{Nd}\\p{Nl}\\p{No}]")
 
         /** Is this transcript empty, punctuation, or silence-filler from a quiet mic? */
         fun isEmptyTranscript(text: String?, peak: Double): Boolean {

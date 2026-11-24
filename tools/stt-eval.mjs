@@ -27,10 +27,8 @@ import { readFile, readdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { cleanTranscript } from '../src/localstt.js';
-import { parseLocal } from '../src/parse.js';
-import { normalize } from '../src/validate.js';
 import { LANGUAGES } from '../src/i18n/languages.js';
+import { PIPELINE_OPTIONS, asrOptions, readWav, loadIsFiller, keptValue } from './stt-common.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const FIXTURES = join(ROOT, 'tests', 'fixtures', 'speech');
@@ -42,9 +40,7 @@ if (!MULTILINGUAL && LANG !== 'en') {
   console.error(`${MODEL} is English-only and cannot transcribe ${LANG}.`);
   process.exit(2);
 }
-const ASR_OPTS = MULTILINGUAL
-  ? { language: LANG, task: 'transcribe', chunk_length_s: 30 }
-  : { chunk_length_s: 30 };
+const ASR_OPTS = asrOptions(MODEL, LANG);
 
 const expected = JSON.parse(await readFile(join(FIXTURES, 'expected.json'), 'utf8'));
 // English fixtures have no prefix, and none starts with fr-/ln-.
@@ -61,11 +57,8 @@ if (!files.length) {
 // What the app refuses as silence-filler, read from turn.js so the two cannot
 // drift. There it only applies when the microphone also stayed quiet; every
 // fixture that expects null is a silent one, so here it always applies.
-const mainSrc = await readFile(join(ROOT, 'src', 'turn.js'), 'utf8');
-const fillerSrc = mainSrc.match(/const FILLER_TRANSCRIPTS = new Set\((\[[\s\S]*?\])\);/);
-if (!fillerSrc) { console.error('Could not find FILLER_TRANSCRIPTS in src/turn.js'); process.exit(2); }
-const FILLER = new Set(JSON.parse(fillerSrc[1].replace(/'/g, '"')));
-const isFiller = s => FILLER.has(s.toLowerCase().replace(/[.!?,\s]+$/, '').trim());
+const isFiller = await loadIsFiller(ROOT);
+if (!isFiller) { console.error('Could not find FILLER_TRANSCRIPTS in src/turn.js'); process.exit(2); }
 
 // Resolved from tools/node_modules, because this file lives in tools/.
 let transformers;
@@ -79,27 +72,8 @@ const { pipeline, env } = transformers;
 env.allowRemoteModels = false;
 env.localModelPath = join(ROOT, 'models') + '/';
 
-/** 16-bit PCM WAV -> Float32Array. The fixtures are mono 16 kHz already. */
-function readWav(buf) {
-  if (buf.toString('ascii', 0, 4) !== 'RIFF') throw new Error('not a WAV file');
-  let off = 12;
-  let rate = 0;
-  while (off + 8 <= buf.length) {
-    const id = buf.toString('ascii', off, off + 4);
-    const size = buf.readUInt32LE(off + 4);
-    if (id === 'fmt ') rate = buf.readUInt32LE(off + 12);
-    if (id === 'data') {
-      if (rate !== 16000) throw new Error(`expected 16 kHz, got ${rate}`);
-      const pcm = new Int16Array(buf.buffer.slice(buf.byteOffset + off + 8, buf.byteOffset + off + 8 + size));
-      return Float32Array.from(pcm, v => v / 32768);
-    }
-    off += 8 + size + (size & 1);
-  }
-  throw new Error('no data chunk');
-}
-
 let t0 = performance.now();
-const asr = await pipeline('automatic-speech-recognition', MODEL, { dtype: 'q8' });
+const asr = await pipeline('automatic-speech-recognition', MODEL, { ...PIPELINE_OPTIONS });
 console.log(`${MODEL} (${LANG}): loaded in ${Math.round(performance.now() - t0)} ms\n`);
 
 let pass = 0;
@@ -115,11 +89,7 @@ for (const file of files) {
   const ms = performance.now() - t0;
   times.push(ms);
 
-  const heard = cleanTranscript(text);
-  const question = { id: name, type: want.type, confirm: true };
-  const local = heard && !isFiller(heard) ? parseLocal(question, heard, { lang: LANG }) : null;
-  const result = local ? normalize(local, question) : null;
-  const got = result && !result.needsClarification ? result.value : null;
+  const { heard, value: got } = keptValue({ name, type: want.type, text, lang: LANG, isFiller });
   const ok = got === want.value;
   if (ok) pass++;
   console.log(`${ok ? 'PASS' : 'FAIL'} ${name.padEnd(14)} ${String(Math.round(ms)).padStart(5)} ms  `

@@ -228,6 +228,7 @@ while [ $idx -lt ${#FILES[@]} ]; do
   #   object file:     <path>: <symbol>
   #   archive member:  <archive>:<member>: <symbol>
   #   fat file:        <path> (for architecture arm64): <symbol>
+  #   fat archive:     (for architecture arm64):<archive>:<member>: <symbol>
   # Member names can hold a colon (liborg.jetbrains.kotlinx:atomicfu-cache.a.o)
   # and so can symbols (_objc_msgSend$dataTaskWithURL:completionHandler:), so
   # the object is the line minus ": <symbol>", read against the file's own path,
@@ -239,6 +240,7 @@ while [ $idx -lt ${#FILES[@]} ]; do
     sym="${line##* }"
     obj="${line%": $sym"}"
     obj="${obj%" (for architecture "*")"}"
+    case "$obj" in "(for architecture "*"):"*) obj="${obj#"(for architecture "*"):"}" ;; esac
     case "$obj" in
       "$f") obj_label="$label" ;;
       "$f:"*) obj_label="$label(${obj#"$f:"})" ;;

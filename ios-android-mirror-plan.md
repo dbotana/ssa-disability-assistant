@@ -50,7 +50,12 @@ Open Android items stay in [TODO.md](TODO.md) and [android-to-do.md](android-to-
 
   The package runs 8 simulator tests. There is still no app target and no `.xcodeproj`, so the
   audit has not run on a `.app`.
-- **Next:** spike 3b, ONNX Runtime and the models.
+- **Next:** Run 8, the first part of spike 3b: ONNX Runtime on Android, on iOS and on the host
+  JVM, proven with Whisper base.en end to end (see *Next: Run 8*). MMS, NLLB and Simba follow in
+  later runs. **Run 8 stopped at Step 1 on 2026-11-23.** ORT 1.21.0's Android JNI library is not
+  16 KB-aligned, and the iOS archive could not be fetched verifiably. The owner chose ORT 1.22.0 for
+  every platform on 2026-11-24, with the iOS archive from NuGet, and Step 1 is done (see *Run 8*);
+  Steps 4 to 9 are next.
 
 ## Progress
 
@@ -754,7 +759,7 @@ needed, and `fetch`/`XMLHttpRequest`/`WebSocket` are asserted undefined.
   the owner's file, so this run did not edit it.
 - Spikes 3c (network audit and its canary) and 3b (ONNX Runtime and the models).
 
-### Run 7 (2026-11-23): spike 3c, the iOS network audit and its canary
+### Run 7 (2026-11-23, committed as 61d95215): spike 3c, the iOS network audit and its canary
 
 **Status: done, on the simulator and the host.** `ios/tools/audit-binary.sh` audits Mach-O
 files, archives and bundles, and fails closed. On this run's products, audits (a) to (g) exited
@@ -993,86 +998,559 @@ allowlists, logs) live only in the session scratchpad.
   `7aaabc01`.
 - Spike 3b (ONNX Runtime and the models) is next.
 
-### Next: Run 7, spike 3c (the iOS network audit and its canary)
+### Run 8 (2026-11-23): spike 3b part 1, stopped at Step 1
 
-Ran on 2026-11-23; see Run 7 above.
+**Status: stopped at Step 1, on two of the plan's stop conditions.** No code, golden, pin file or
+build change was written. Steps 1 (beyond the checks), 2 to 8, and the iOS half of Step 1 are not
+done.
 
-Run 6 committed as fb37b9d7. **Environment:** Xcode 27.2, iOS 27.2 simulators (iPhone 18 Pro),
-JDK 21, Android SDK, AVD `ssa35`. No physical iPhone, so 3a's phone timings, 3b's phone
-measurements and 3d stay open. There is still no app target. The audit therefore runs over the
-binaries that exist: the `SsaCore` XCFramework and what `xcodebuild` builds for the
-`ios/CoreCrypto/` package. It must later run over the `.app` unchanged (X6).
+1. **Android:** the pinned ORT 1.21.0 AAR fails the 16 KB rule. Its `libonnxruntime4j_jni.so` has
+   `PT_LOAD` alignment `0x1000`, on arm64-v8a and on x86_64.
+2. **iOS:** the `onnxruntime-c` 1.21.0 archive could not be fetched over verified TLS, and no
+   publisher checksum for it was found.
 
-**How commands run.** These are the same rules as Run 6:
+Choosing another version is the owner's decision (Decision 1). `ios/SPIKES.md` §3b.1–3b.5 has the
+evidence, including a check of every ORT Android release from 1.21.0 to 1.32.0. In short:
+
+- 1.21.1 to 1.28.0 pass the Android checks;
+- from 1.29.0 on, the AAR adds `INTERNET`, `ACCESS_NETWORK_STATE` and an
+  `ai.onnxruntime.TelemetryInitializer` provider.
+
+**Who ran it:** one Claude Code session (claude-opus-5-5), the same one that wrote the plan, with a
+limited usage budget. Every result below is from that session's own commands.
+
+**Commands and results** (one command per call unless marked):
+
+| Command (from) | Result |
+|---|---|
+| `git status --short`, `git log --oneline -1` (repo root) | ` M ios-android-mirror-plan.md` (the uncommitted Run 8 plan); HEAD `61d95215` |
+| `node tools/fetch-model.mjs --verify` (repo root) | `All files match SHA256SUMS.` |
+| `node tools/stt-eval.mjs` (repo root), first try | exit 2, `transformers.js is not installed for Node. Run: cd tools && npm install`. The import error behind it: `Error: Could not load the "sharp" module using the darwin-arm64 runtime`; `tools/node_modules` held only the Linux builds of `sharp` |
+| `npm install --no-audit --no-fund` (tools/) | `added 2 packages, and removed 4 packages in 282ms` (the lockfile's `@img/sharp-darwin-arm64` 0.34.5 and `@img/sharp-libvips-darwin-arm64` 1.2.4 in; the four Linux `@img` packages out). `git status` shows `tools/package-lock.json` unchanged |
+| `node tools/stt-eval.mjs` (repo root) | `whisper-base.en (en): loaded in 314 ms`; `9/9 kept the right value. Median 335 ms per clip.` (each clip is in `ios/SPIKES.md` §3b.1) |
+| `./gradlew :app:assembleDebug` (android/), outside the sandbox as in Run 7 | `BUILD SUCCESSFUL in 833ms`, `108 actionable tasks: 4 executed, 104 up-to-date`; `app-debug.apk` is 71,327,072 bytes (Nov 22 20:05:39), the size before ORT |
+| `curl` of `onnxruntime-android-1.21.0.aar` and `onnxruntime-1.21.0.jar` and their `.sha256` from `repo1.maven.org` (one shell call) | both SHA-256 match Maven Central's: AAR `8b675e96…04414` (29,216,802 B), jar `5b57b8c6…b3c2` (136,639,115 B) |
+| `unzip` the AAR, `llvm-readelf -lW` and `llvm-nm -D --undefined-only` on `jni/{arm64-v8a,x86_64}/*.so` (one shell call) | `libonnxruntime.so` aligned `0x4000`, imports `dlopen@LIBC dlsym@LIBC` and no networking name; **`libonnxruntime4j_jni.so` aligned `0x1000`**; manifest has no `<uses-permission>`. The jar holds `osx-aarch64/libonnxruntime.dylib` |
+| `curl` of the CocoaPods CDN podspec for `onnxruntime-c` 1.21.0 | first try exit 22, `curl: (22) The requested URL returned error: 403` with the sandbox note `deny network-outbound cdn.jsdelivr.net:443`; retried with that host allowed, the podspec was read (§3b.4) |
+| `curl` of `onnxruntime-android` `maven-metadata.xml`, then each release 1.21.1–1.32.0 checked the same way (one shell loop each) | the table in `ios/SPIKES.md` §3b.2. 1.32.0 has no `.sha256` (404); its `.sha1` `e66a7eab2d1ce3118eb0cfb75ef190c2f4a83024` matched |
+
+**Refused or failed commands, word for word:**
+
+- `curl -sSfL https://raw.githubusercontent.com/microsoft/onnxruntime-swift-package-manager/1.21.0/Package.swift`:
+  exit 56, `curl: (56) The requested URL returned error: 404`. The same at `/main/Package.swift`.
+- `curl -sSfL "https://api.github.com/repos/microsoft/onnxruntime-swift-package-manager/tags?per_page=30"`:
+  exit 56, `curl: (56) The requested URL returned error: 404`.
+- `curl -sSfLO https://download.onnxruntime.ai/pod-archive-onnxruntime-c-1.21.0.zip`: exit 60,
+  `curl: (60) SSL: no alternative certificate subject name matches target host name
+  'download.onnxruntime.ai'`, in the sandbox and outside it.
+  - The first try outside the sandbox failed before `curl` ran:
+    `(eval):cd:1: no such file or directory: /var/folders/s3/nd8jt57s55g80yl6kxf5g0kw0000gn/T//ort`.
+    `$TMPDIR` differs outside the sandbox. It was re-run in the scratchpad.
+  - It was not retried with verification turned off.
+- `curl -sSfL "https://api.github.com/repos/microsoft/onnxruntime/releases/tags/v1.21.0"`: exit 56,
+  `curl: (56) The requested URL returned error: 404`, in the sandbox and outside it.
+- The first release loop: `curl: (3) URL rejected: Malformed input to a URL function`. zsh did not
+  split the version list into words. It was re-run with the versions written out.
+
+**SHA-256 of each AAR checked** (computed only; only 1.21.0's was compared with Maven Central's):
+
+- 1.21.1 `30e594a4b9246fe3ca25768570e90f71e6d33ceb7b7dd72f92dcd7c267611d3f`
+- 1.22.0 `04a4617a9c797cf49225595e45b5546081cb34c86ac817581141577d3b7dbfe2`
+- 1.23.0 `2b7e4ed3c3028a1b2afac8dc324442c70b8983fc1a7cb6adda4133030d53f20a`
+- 1.23.1 `61938573eb9dcf9a22e0b838e4d5cb546ba4880735b3fbd7c881e95b12ec1a27`
+- 1.23.2 `82048d1f462218adae4ba76477089ab0ba76093d84f733540066db1a8ba6b827`
+- 1.24.1 `133134e2b01ffb91f8f66d46a3149f7fe402ac2e3e2d1df4f8fc679e999689f6`
+- 1.24.2 `bc461499a735653dff285a6a3477d28b9cfd119a09c7753eaf003426b577f223`
+- 1.24.3 `67397e4a970e75617f765d2015ceaf911917e1d822276cfb5792744e8085cbce`
+- 1.25.0 `22b8f3741ecb2566abfe9486b8dd040057536c3d020dc5de7e38e692275ea282`
+- 1.25.1 `08ccb60c93bd027843e8227743ddcb0275a00ee706cb0df4bae91cc1a21a55f5`
+- 1.26.0 `09c0780ae8d734ef2774bdf498b624729a855e6f9a8e488a0e7398a4e7396032`
+- 1.27.0 `077dec5e2d821234c7dc0aba584bec8f999854b546c754cab93a90741c56fbeb`
+- 1.28.0 `f351a0638696f54b35184290dbc001d66daae17281ad0b548d2c70347d53b8a9`
+- 1.29.0 `e97540ca78fe36f6fe2013f82843414fb843b6c7681fb04644cba5e1406662dd`
+- 1.30.0 `e7fb945e402205f6db858d65bb78d2bdb0812317b383976c9e3bceb4862c73f1`
+- 1.31.0 `72683787a80d0608a3121b967d8e1239aef48286826661c953211626690540a7`
+- 1.31.1 `d4d50660300ed2c4f38ffdfd5ab5bfa3a22f995f282dda24f42ea3ea55467b49`
+- 1.32.0 `8e8dbb412ed4939675a157702f0c1e3621b436a645af7f7244536ac20bfad628`
+
+**Side effects:**
+
+- **`tools/node_modules`:** now holds the macOS `sharp` build instead of the Linux one. The
+  lockfile is unchanged. `tools/stt-eval.mjs` runs again on this Mac; on a Linux host, run `npm
+  install` in `tools/` again.
+- **Downloads:** they live only in the session's temporary directory and are not in the
+  repository. Each AAR from the release loop was deleted after it was checked.
+- **Gradle:** wrote nothing new; `:app:assembleDebug` was up to date.
+
+**Not run:** none of Step 8's checks. No tracked file other than the three records changed, so
+they would test the same tree as Run 7's.
+
+**Open after Run 8 (for the owner):**
+
+- **Decision 1:** which ORT version.
+  - 1.21.1 is the nearest that passes the Android checks.
+  - Any of 1.22.0 to 1.28.0 also passes.
+  - Never 1.29.0 or later, which ask for the internet and add telemetry. Stripping those
+    manifest entries would still ship the telemetry code.
+  - Either way, the reference stays on `onnxruntime-node` 1.21.0 unless `tools/` is bumped too.
+- **iOS:** a verified source for the `onnxruntime-c` archive, as described in §3b.5. The iOS
+  audit over ORT waits for it.
+- **Then:** re-run Run 8 from Step 1 with the chosen version. Steps 2 and 3 need no ORT and can
+  run first.
+
+**Update, 2026-11-24: Step 1 done, with ORT 1.22.0.** After the owner chose 1.22.0 for every
+platform and the NuGet iOS source (Decision 1), a second session (claude-sonnet-5-5) ran Step 1.
+Steps 2 to 9 are still to do. Results, each from that session's own commands:
+
+- **Pins** (`android/models/onnxruntime.SHA256SUMS`, 3 lines):
+  - `onnxruntime-android-1.22.0.aar` `04a4617a…dfe2`, equal to Maven Central's `.sha256`;
+  - `onnxruntime-1.22.0.jar` `41bb3b51…ebeee45`, equal to Maven Central's `.sha256`;
+  - `onnxruntime.xcframework.zip` `8a64917a…af6e767` (45,861,984 bytes), extracted from the NuGet
+    package `Microsoft.ML.OnnxRuntime` 1.22.0 (121,402,697 bytes), whose SHA-512 equals nuget.org's
+    catalog `packageHash`. **A publisher checksum exists for all three**; the iOS one is the
+    package's, not the zip's.
+- **`tools/fetch-onnxruntime.mjs`** (new, with `--verify`): fetches the package, checks its
+  SHA-512, extracts the zip into `android/models/third_party/` (git-ignored, added to
+  `.gitignore`) and checks its SHA-256. `node tools/fetch-onnxruntime.mjs` → `Microsoft.ML.OnnxRuntime
+  1.22.0 … 121.4 MB, SHA-512 verified` / `Wrote …/onnxruntime.xcframework.zip (45861984 bytes,
+  SHA-256 verified)`. `--verify` → `onnxruntime.xcframework.zip matches onnxruntime.SHA256SUMS.`
+  It ran outside the command sandbox: Node's `fetch` ignores the sandbox proxy, and the sandbox run
+  failed with `getaddrinfo ENOTFOUND api.nuget.org`.
+- **Gradle:** `android/gradle/libs.versions.toml` gains `onnxruntime = "1.22.0"`, `onnxruntime-android`
+  and `onnxruntime-desktop`. `android/buildSrc/.../VerifyPinnedFiles.kt` (new) hashes files by name
+  and fails on a mismatch, a missing pinned file or an unpinned file. `android/build.gradle.kts`
+  registers `verifyOnnxRuntime` (the AAR and jar resolved from Maven Central, plus the zip) and
+  `unpackOnnxRuntimeIos` (depends on it; unpacks under `android/models/build/onnxruntime-ios/`).
+  - `./gradlew verifyOnnxRuntime` (android/) → `BUILD SUCCESSFUL`.
+  - With the AAR's pin changed to `14a4617a…`: `Task :verifyOnnxRuntime FAILED`,
+    `onnxruntime-android-1.22.0.aar: got 04a4617a…, pinned 14a4617a…`. **A restore step of that test
+    failed** (the backup went to a different temp directory than the restore read from), leaving the
+    pin corrupted; it was put back by hand with the reverse `sed`, and the file now reads as above.
+  - `./gradlew verifyOnnxRuntime unpackOnnxRuntimeIos` → `BUILD SUCCESSFUL`.
+- **Android checks on the 1.22.0 AAR** (`llvm-readelf -lW`, `llvm-nm -D --undefined-only`):
+  every `PT_LOAD` of `jni/{arm64-v8a,x86_64}/libonnxruntime.so` (18,214,224 and 21,880,016 bytes) and
+  `libonnxruntime4j_jni.so` (100,600 and 90,728 bytes) is `0x4000`; no networking name is imported
+  (`socket`, `connect`, `getaddrinfo`, `gethostbyname`, `getnameinfo`, `send*`, `recv*`, `bind`,
+  `listen`, `accept`, `getsockname`, `getpeername`, `setsockopt`, `inet_pton`, `res_*`);
+  `libonnxruntime.so` imports `dlopen@LIBC` and `dlsym@LIBC`; the manifest asks for no permission and
+  has no provider. **Go.**
+- **iOS audit over the unpacked `onnxruntime.xcframework`:** slices `ios-arm64`,
+  `ios-arm64_x86_64-simulator` and `ios-arm64_x86_64-maccatalyst`, each one `prelinked_objects.o` in a
+  static archive. `nm` shows no networking framework, class or symbol; the only finding is `_dlsym`.
+  - **Trace:** `objdump -d -r` on each thinned architecture (device arm64; simulator arm64 and
+    x86_64; maccatalyst arm64 and x86_64) shows one caller each:
+    `onnxruntime::(anonymous)::PosixEnv::GetSymbolFromLibrary`. The archive also imports `_dlopen`,
+    `_dlclose`, `_dlerror` and `_getenv`, which the audit does not flag.
+  - **Three exact allowlist lines** (one per slice, `prelinked_objects.o` `_dlsym`) were added to
+    `ios/tools/audit-binary.allowlist`; the allowlist now has 76 entries.
+  - **Script fix:** for a fat archive, `nm -A` prints `(for architecture x86_64):<path>:<member>:
+    <symbol>`; the script labelled those `[unparsed nm object: …]`. It now strips that prefix.
+  - `ios/tools/audit-binary.sh <abs>/android/models/build/onnxruntime-ios/onnxruntime.xcframework`
+    → `binary audit clean (3 Mach-O files in 1 inputs)`, exit 0 (3 `allowed:` lines).
+  - After the script change: `node tests/ios-audit.js` → `ios-audit: all checks
+    passed`; the `SsaCore` XCFramework → `binary audit clean (2 Mach-O files in 1 inputs)`;
+    `NetCanary.o` → `BINARY AUDIT FAILED:` / `NetCanary.o: imports _OBJC_CLASS_$_NSURLSession`; a
+    missing path → `BINARY AUDIT ERROR: no such input`.
+- **The desktop jar** holds `ai/onnxruntime/native/osx-aarch64/libonnxruntime.dylib` (33,481,272
+  bytes). **Go.**
+- **Not yet verified:** that this NuGet iOS build is the same as the dead CocoaPods one; that
+  `:models` never calls `dlopen` or `OrtApi` library-loading functions (re-check at Step 6); the
+  `ios/tools/audit-binary.sh` change against the full Run 7 list (only four of its audits were
+  re-run); `:app:assembleDebug` after the `build.gradle.kts` change (the `verifyOnnxRuntime` run
+  configured every project without error).
+
+**Update, 2026-11-24: Steps 2 and 3 done.** The agent-loop implementer (opencode with
+deepseek-v4.1-flash-free) ran Run 8's Steps 2 and 3. Steps 4 to 9 are still to do. Everything
+below is from that session's own commands.
+
+- **Baseline (Step 0).** HEAD `61d95215`. `node tools/fetch-model.mjs --verify` →
+  `All files match SHA256SUMS.` `node tools/stt-eval.mjs` → 9 PASS lines and
+  `9/9 kept the right value. Median 340 ms per clip.` Each of the 27 `tests/*.js` files, run on its
+  own, exited 0. `tools/node_modules` already held transformers.js 3.8.1 and onnxruntime-node
+  1.21.0, so no `npm install` ran and `tools/package-lock.json` is untouched.
+- **`tools/stt-common.mjs` (new, D-b).** `PIPELINE_OPTIONS`, `asrOptions`, `readWav`,
+  `loadIsFiller` and `keptValue` moved out of `tools/stt-eval.mjs` with their bodies unchanged;
+  `stt-eval.mjs` imports them. Its output is the same as the baseline, line for line apart from
+  timings (9 PASS, `9/9 kept the right value`, median 340 ms).
+- **`tools/golden/models.mjs` (new).** `node tools/golden/models.mjs` → exit 0 and
+  `golden whisper.json (1911152 bytes)`, after these nine clip lines:
+  ```
+  date           8 ids, eos, text " March 14, 1979." -> kept "1979-03-14"
+  phone          9 ids, eos, text " 207-555-0142" -> kept "2075550142"
+  routing        12 ids, eos, text " 1 2 3 4 5 6 7 8 9" -> kept "123456789"
+  silence        4 ids, eos, text " you" -> kept null
+  ssn-digits     9 ids, eos, text " 987-654320" -> kept "987654320"
+  ssn-grouped    10 ids, eos, text " 987-65-4321" -> kept "987654321"
+  ssn-paused     9 ids, eos, text " 987 6 5 4329" -> kept "987654329"
+  text-hospital  9 ids, eos, text " Maine Medical Center in Portland." -> kept "Maine Medical Center in Portland"
+  yes            5 ids, eos, text " Yes." -> kept true
+  9/9 kept the expected.json value
+  ```
+  Every clip stopped at `eos`; none reached `max_length`. `--check` twice →
+  `whisper golden fresh (1911152 bytes)`, exit 0. `--check tests/fixtures/speech/expected.json` →
+  exit 1, `whisper golden is stale:` and ten `differs at …` paths.
+  `--check /nonexistent/whisper.json` → exit 1, `whisper golden missing:`. `--bogus` → exit 3 and
+  the usage text. The exit-2 path (missing or wrong `tools/node_modules`) was read in the code
+  only, as the plan said.
+- **Session facts.** Two sessions, both opened with options `{"executionProviders":["cpu"]}` and
+  `config` `{"dtype":"q8","device":"cpu"}`: `decoder_model_merged` from
+  `onnx/decoder_model_merged_quantized.onnx` (27 input names, 25 output names) and `model` from
+  `onnx/encoder_model_quantized.onnx` (1 and 1). `sessions` is an object keyed by session name.
+- **Feature facts (D-g).** `sampling_rate` 16000, `n_fft` 400, `hop_length` 160, `chunk_length`
+  30, `n_samples` 480000, `nb_max_frames` 3000, `feature_size` 80. The Hann window is 400 float64
+  values and `mel_filters` is 80 × 201 float64, about 176 KB of the file together.
+- **Decoding facts.** Prompt `[50257, 50362]`; decoder start 50257, no-timestamps 50362, eos
+  50256, `max_length` 448; `begin_suppress_tokens` `[220, 50256]`; 90 `suppress_tokens` recorded
+  but not applied; 107 special ids, and the same 107 skipped; `clean_up_tokenization_spaces` true.
+- **Decode cases:** 20, in the plan's order. The ones that pin real behaviour: `timestamp tokens
+  are not special` → `"<|0.00|> Hello<|0.02|>"`; `clean-up spaces` →
+  `" Yes, I don't know. It's 5! Really?"`; the four split cases decode to `" café"`, `" kopɛtɛ"`,
+  `" mbɔkɔ"`, `" Bɔkɔ\u0301"`; `truncated é` ends with U+FFFD; `emoji` → `" 👍"`.
+- **`transcripts` golden and the port (Step 3).**
+  `android/core/src/commonMain/kotlin/org/ssa/assistant/core/model/Transcripts.kt` is
+  `cleanTranscript` over `JsRegex`. `tools/golden/index.mjs` gains `goldenTranscripts()`: 74 cases
+  (clean value, and `isEmptyTranscript` at peak 0 and 1). `node tools/golden/index.mjs` →
+  `golden transcripts.json (10003 bytes)`, and `git diff --stat` over both golden directories was
+  empty: **no existing golden changed**.
+- **D-f was needed, twice.** `TZ=UTC ./gradlew :core:jvmTest --rerun` failed with, word for word:
+  `java.lang.AssertionError: 6 filler decision(s) differ from JS expected:<[]> but was:<[quiet "½"
+  -> true, loud "½" -> true, quiet "²" -> true, loud "²" -> true, quiet "Ⅻ" -> true, loud "Ⅻ" ->
+  true]>`. `everyTranscriptCleansAsInJs` passed, so only the filler rule differed.
+  `LETTER_OR_DIGIT` became `Regex("[\\p{L}\\p{N}]")` and the JVM tests passed. Then
+  `:core:iosSimulatorArm64Test --rerun` failed three tests — `TranscriptsGoldenTest
+  .theFillerRuleMatchesJs`, `TurnGoldenTest.turn`, `AppControllerGoldenTest.appState` — each with
+  `kotlin.native.internal.FileFailedToInitializeException: There was an error during file or class
+  initialization`, raised at `TurnController#<get-$companion>#static(TurnController.kt:113)`: on
+  Kotlin/Native, `Regex` rejects `\p{N}` while initialising the companion. As the plan allowed, the
+  pattern became `Regex("[\\p{L}\\p{Nd}\\p{Nl}\\p{No}]")` (the three number categories `\p{N}`
+  stands for) with the reason in its comment; JVM and iOS tests then passed.
+- **D-e held:** `TurnController.isEmptyTranscript` was already public in the companion object, so
+  the test calls it as it is and `FILLER_TRANSCRIPTS` stays private. No other `TurnController`
+  change.
+- **Verification.** `node tools/stt-eval.mjs whisper-base fr` → exit 2, `No recordings in fr…`.
+  `node tools/smoke.mjs` → `Smoke test passed.` All 27 `tests/*.js` still exit 0.
+  `node tools/fetch-model.mjs --verify` → `All files match SHA256SUMS.`
+  `DEVELOPER_DIR=/Library/Developer/CommandLineTools node tools/golden/check.mjs` → exit 1 with
+  only `not committed:` / `?? android/core/src/commonTest/resources/golden/transcripts.json` and
+  `goldens are stale: regenerate with …` — no diff, no other file; it is fresh once committed.
+  `TZ=UTC ./gradlew :core:jvmTest --rerun` and `:core:compileCommonMainKotlinMetadata` →
+  `BUILD SUCCESSFUL`; the `TranscriptsGoldenTest` XML reads `tests="3" skipped="0" failures="0"
+  errors="0"`. `SIMCTL_CHILD_GOLDEN_DIR=…/android/core/build/ios-test-resources ./gradlew
+  :core:iosSimulatorArm64Test --rerun` → `BUILD SUCCESSFUL`. With `ssa35` booted,
+  `TZ=UTC ./gradlew :core-device:connectedDebugAndroidTest` → `Finished 94 tests on ssa35(AVD) -
+  15`, `BUILD SUCCESSFUL`, 0 failed; the emulator was shut down with `adb emu kill`.
+- **D-a as it turned out:** base64 little-endian floats throughout; the `yes` matrix alone is
+  1,280,000 of the file's 1,911,152 bytes. **D-c:** the golden's `now` is `2026-09-19T12:00:00.000Z`
+  and `parseLocal` was given that instant, never today.
+- **The owner should add this to AGENTS.md's Common checks** (the plan keeps AGENTS.md out of this
+  run): `node tools/golden/models.mjs --check`.
+- **Not verified:** the exit-2 path (code only); a golden regenerated on another CPU or platform
+  (`reference.platform` is `darwin-arm64`, and `--check` warns when it differs); everything from
+  Step 4 on. The first emulator launch was killed by the tool's own 30 s command timeout and was
+  relaunched with a longer one; nothing else was refused.
+
+### Next: Run 8, spike 3b part 1 (ONNX Runtime on both platforms, proven with Whisper base.en)
+
+**Run 8 stopped at Step 1 on 2026-11-23 (see Run 8 above).** On 2026-11-24 the owner chose ORT
+1.22.0 for all platforms (Decision 1, updated), with the iOS archive from NuGet, and Step 1 was
+done that day. **Steps 4 to 9 are still to do.**
+
+Run 7 committed as 61d95215; its steps are in that commit's copy of this plan.
+
+**Why only part of 3b.** 3b covers five models. Three of them (MMS ASR, MMS language ID and
+Simba) still need ONNX exports, NLLB needs a SentencePiece tokenizer, and the measurements need
+phones, which this project does not have yet (M0). All of it needs one thing first: ONNX Runtime
+linked and running on Android, on iOS through the C API, and on the host. Run 8 does that, adds
+the `:models` module, and proves both with Whisper base.en end to end. Whisper base.en is the
+right first model because its ONNX pack is already pinned in `models/whisper-base.en/` and its
+reference already runs in Node (`tools/stt-eval.mjs`). The iOS audit then covers ONNX Runtime's
+binary, which Run 7 left open.
+
+**Environment:** as in Run 7: Xcode 27.2, iOS 27.2 simulators (iPhone 18 Pro), JDK 21, the
+Android SDK and AVD `ssa35`. There is no physical phone. Every time and memory figure in Run 8
+comes from the host, the emulator or the simulator, so it decides nothing about phones. Only
+Step 1 needs the network, to fetch the pinned ONNX Runtime packages. No test and no app code may
+touch it.
+
+**How commands run.** These are the Run 7 rules:
 
 - one command per call, never chained with `;`, `&&` or `|`;
 - absolute paths, not `$PWD`;
 - each `tests/*.js` file on its own;
-- `xcodebuild` without `-quiet`.
+- `xcodebuild` without `-quiet`;
+- `TZ=UTC` for Gradle tests, and `--rerun` when Gradle reports a test task `UP-TO-DATE`, so that
+  the tests really run.
 
-The package's test command is `xcodebuild test -scheme CoreCrypto-Package -destination
-'platform=iOS Simulator,name=iPhone 18 Pro'`, run from `ios/CoreCrypto/`. `-scheme CoreCrypto` has
-no test action since Run 6. Don't re-run the 3a spike just to get new numbers: each run rewrites
-`ios/CoreCrypto/.build/pdf-spike/`. If it does run, record the new numbers in all three records,
-or say that the files now hold a later run.
+In Run 7 the command sandbox blocked Gradle, xcodebuild and adb. Record any refusal word for word.
+Shut down any emulator you boot, and don't stop processes you did not start.
+
+**Decisions this plan makes** (the owner can strike any of them before the run):
+
+1. **ONNX Runtime (ORT) 1.22.0 everywhere** (owner decision, 2026-11-24). Run 8's first attempt
+   found that the 1.21.0 Android AAR's JNI library is not 16 KB-aligned (`ios/SPIKES.md` §3b.2).
+   1.22.0 passes the Android checks (every library `0x4000`, no permission, no telemetry
+   provider) and exists for all three platforms. Its pins, each checked against its publisher:
+   - Android AAR, Maven Central: SHA-256
+     `04a4617a9c797cf49225595e45b5546081cb34c86ac817581141577d3b7dbfe2`, which matches the
+     published `.sha256`;
+   - desktop jar, Maven Central: 139,129,141 bytes, SHA-256
+     `41bb3b51b6a2e489cd39f538d5a1c74e4333845ab1ccad63e752b6f19ebeee45`, which matches the
+     published `.sha256`. It holds `osx-aarch64/libonnxruntime.dylib`;
+   - iOS: the CocoaPods URL is dead (an HTML 404 page; `ios/SPIKES.md` §3b.4), so the source is
+     the NuGet package `Microsoft.ML.OnnxRuntime` 1.22.0, 121,402,697 bytes, SHA-512
+     `zb3eqkL6hHPGzZgArsuTH9VWdUs4ooKTJHBXF6ZZfQsPvzModaAEv3u69zwtqKuwUJ/DPc8i+uKoyXMzdwqrPg==`,
+     which equals nuget.org's catalog `packageHash`. Inside it,
+     `runtimes/ios/native/onnxruntime.xcframework.zip` is 45,861,984 bytes. Step 1's
+     `tools/fetch-onnxruntime.mjs` fetches the package from
+     `https://api.nuget.org/v3-flatcontainer/microsoft.ml.onnxruntime/1.22.0/microsoft.ml.onnxruntime.1.22.0.nupkg`,
+     checks the SHA-512, and extracts the zip.
+   - **The Node reference stays on `onnxruntime-node` 1.21.0** (transformers.js 3.8.1's version),
+     so it is one minor release behind. Step 4's token-id test on the host JVM may therefore
+     differ from the reference. If it does, record the first differing position and the gap
+     between the top two logits there, and don't loosen the test.
+   - If a 1.22.0 package is missing, or fails a check in Step 1, stop.
+2. **ORT's full prebuilt packages:**
+   - Android: `com.microsoft.onnxruntime:onnxruntime-android`, the AAR;
+   - iOS: Microsoft's iOS C/C++ package, the `onnxruntime-c` CocoaPod archive, which holds
+     `onnxruntime.xcframework`.
+
+   A reduced build with only our operators could be smaller, but it means building ORT from
+   source, so it is not part of this run.
+3. **Host tests use ORT's desktop Java package,** `com.microsoft.onnxruntime:onnxruntime:1.22.0`,
+   in tests only. It has the same `ai.onnxruntime` API as the AAR. So `:models`' JVM code
+   compiles once against it (`compileOnly`), and the AAR supplies it on Android at run time. The
+   emulator test proves the two agree. The desktop package must never reach the APK.
+4. **Model goldens get their own generator,** `tools/golden/models.mjs`, with a `--check` mode.
+   They need transformers.js and `onnxruntime-node` from `tools/node_modules`, a native
+   dependency that `check.mjs` and `tests/` must not need (`tools/stt-eval.mjs` keeps itself out
+   of `tests/` for the same reason). `check.mjs` is unchanged.
+5. **Whisper decoding follows transformers.js 3.8.1, not Python transformers.** For base.en:
+   - the prompt is `50257, 50362` (`<|startoftranscript|><|notimestamps|>`);
+   - `begin_suppress_tokens` (220 and 50256) are suppressed at the first generated position;
+   - **`suppress_tokens` is not applied**, because transformers.js comments it out
+     (`src/models.js:1417` in its npm package);
+   - decoding is greedy, and stops at 50256 or at `max_length` 448.
+
+   The run confirms each rule against the package source and records it in `ios/SPIKES.md`.
+6. **Audio for the `Transcriber` port is 16 kHz mono float samples in [-1, 1],** the way
+   `tools/stt-eval.mjs` reads the WAVs. That settles what `ModelPorts.kt` left open; update its
+   comment. For now, a clip over 30 s is rejected with a clear error. The web chunks longer audio
+   so that a 60-second digit capture gets through; chunking comes in a later run.
 
 **Steps:**
 
-1. **The audit tool.** Write `ios/tools/audit-binary.sh`, a mirror of
-   `android/tools/audit-native.sh`. It uses only `nm`, `otool` and `xcrun`, with no new
-   dependencies. Point it at one or more Mach-O files, `.a` archives, `.framework`s,
-   `.xcframework`s, `.xctest` bundles or (later) a `.app`. It walks every embedded binary and
-   fails, naming the file and the symbol, on:
-   - a linked networking framework (`CFNetwork`, `Network`, `WebKit`);
-   - an imported symbol or class from the plan's list: `NSURLSession`, `NSURLConnection`, `nw_*`,
-     `CFSocket*`, `CFStream*`, `socket`, `connect`, `getaddrinfo` and `WKWebView`. For classes,
-     match `_OBJC_CLASS_$_…`;
-   - `NSClassFromString` or `dlsym` in our own code.
+0. **Starting state.**
+   - Record `git status`, and check that HEAD is `61d95215` or later.
+   - From the repository root, run `node tools/stt-eval.mjs` and `node tools/fetch-model.mjs
+     --verify`, and record what they print. TODO.md says 9/9; this output is the Node baseline for
+     Step 7.
+   - Build `:app:assembleDebug` and record the size of `app-debug.apk` before ORT is added.
+1. **Pin ORT, and check it before writing any code.**
+   - Add the AAR and the desktop jar, at 1.22.0, to `android/gradle/libs.versions.toml`.
+   - Write `tools/fetch-onnxruntime.mjs`, a maintainer-only tool modelled on `fetch-model.mjs`,
+     with `--verify`. It downloads the iOS archive into `android/models/third_party/`. Add that
+     folder to `.gitignore`: the archive is too large to commit without Git LFS. Record its size.
+   - Write `android/models/onnxruntime.SHA256SUMS` with the SHA-256 of the AAR, the jar and the
+     iOS archive. Compare each with the checksum its publisher gives:
+     - for the AAR and the jar, the checksum files beside them on Maven Central;
+     - for the iOS archive, the checksum Microsoft publishes, for example the `checksum:` in
+       `onnxruntime-swift-package-manager`'s `Package.swift`.
 
-   Kotlin/Native's runtime and system libraries may import some of these symbols legitimately. If
-   so, record exactly which symbol, from which object file, and why. Then put it in a checked-in
-   allowlist that names the exact symbol and object, never a pattern. Do not weaken the rule
-   silently. Also add a usage line to the plan's Privacy on iOS section.
-2. **The canary.** Add a `NetCanary` target to `ios/CoreCrypto/Package.swift` that calls
-   `URLSession.shared.dataTask(with:)`. Keep it out of every product the app will link. Record
-   the commands, which come in two kinds:
-   - the audit passes on the `SsaCore` XCFramework, the `CoreCrypto` and `SsaPdf` build products,
-     and both test bundles;
-   - the audit **fails** on the canary's build product, with `NSURLSession` named in the output.
-3. **The runtime test.** In `SsaPdfTests`, add a test that registers a `URLProtocol` subclass that
-   fails the test on any request. Then, in the same process, run the JS writer fill of both forms
-   and a `SessionStore` round trip. The test passes only if no request was seen. Also check that
-   the `URLProtocol` catches a deliberate `URLSession` request, so the test cannot pass vacuously.
-4. **A Node wrapper for CI,** only if it is small: `tests/ios-audit.js` runs the audit on the
-   built products when they exist, and otherwise skips with a printed reason. It must not fail on
-   a Linux host. Leave the macOS CI job itself for X6.
-5. **Write `ios/SPIKES.md` §3c:** what the audit checks, the exact commands and outputs, the
-   canary result, every allowlisted symbol with its reason, and what waits for the `.app` (X6).
-   The audit cannot yet cover JavaScriptCore's own behaviour. The 3a load-time assertion covers
-   it, so cite that assertion.
-6. **Keep everything else green:**
-   - each `tests/*.js`, `tools/smoke.mjs`, `node tools/build-ios-writer.mjs --check` and
-     `DEVELOPER_DIR=/Library/Developer/CommandLineTools node tools/golden/check.mjs` (no golden
-     may change);
-   - `:core:jvmTest`, `:core:compileCommonMainKotlinMetadata`, `:core:iosSimulatorArm64Test` and
-     `:core:assembleSsaCoreDebugXCFramework`;
-   - the `CoreCrypto-Package` `xcodebuild test`, with the new test;
-   - `connectedDebugAndroidTest`, `run-pdf-spike.sh`, and the Android permission audit on a
-     rebuilt APK and the three merged manifests.
-7. **Record** the exact commands and results as Run 7 in Progress and in TODO.md, with what is
-   still not verified. Keep the three records (this plan, `TODO.md` and `ios/SPIKES.md`)
-   consistent, and add no other report files.
+     If no publisher checksum exists, say so: the pin then rests on the first download only.
+   - Add a `VerifyPinnedFiles` task to `buildSrc`, beside `CopyPinnedAssets`. It hashes the
+     resolved files and fails on any mismatch, and every task that uses them depends on it.
+     Gradle unpacks the verified iOS archive under `android/models/build/`, never under `src/`.
+   - Then run the checks that decide go or no-go for ORT:
+     - **Android:** unzip the AAR.
+       - In every `jni/arm64-v8a/*.so` and `jni/x86_64/*.so`, each `PT_LOAD` must be aligned to at
+         least `0x4000`. Check with the NDK's `llvm-readelf -lW`, the rule `audit-native.sh`
+         applies.
+       - `llvm-nm -D --undefined-only` on each `.so` must show none of the networking names in
+         the iOS list (`socket`, `connect`, `getaddrinfo` and the rest). Record what it shows.
+       - The AAR's `AndroidManifest.xml` must ask for no permission.
+     - **iOS:** run `ios/tools/audit-binary.sh` on the unpacked `onnxruntime.xcframework`. Trace
+       each finding to its archive member and function, as Run 7 did.
+       - A `_dlsym` or `_NSClassFromString` gets exact `object symbol reason` lines in the
+         allowlist, never a pattern.
+       - A networking framework or symbol is a stop.
+     - **The desktop jar** must contain a macOS arm64 native library; without one, the host tests
+       cannot run.
+2. **The reference golden.**
+   - Write `tools/golden/models.mjs`. It runs transformers.js on `models/whisper-base.en` exactly
+     as `stt-eval.mjs` does (`allowRemoteModels = false`, `dtype: 'q8'`), and writes
+     `android/models/src/commonTest/resources/golden/whisper.json`.
+   - **For each of the 9 WAVs** in `tests/fixtures/speech/`, the golden holds:
+     - the WAV's SHA-256;
+     - the log-mel features from transformers.js's `WhisperFeatureExtractor`: the full matrix for
+       `yes.wav`, and a per-frame sum and maximum for all nine, which keeps the file small (record
+       its size);
+     - the greedy token ids from `generate`, with the pipeline's options;
+     - the pipeline's `text`;
+     - `cleanTranscript(text)`;
+     - the value `stt-eval.mjs` would keep.
+
+     The generator asserts that decoding the ids gives the pipeline's `text`.
+   - **Decode cases:** fixed id lists that cover special tokens, the leading space, UTF-8
+     characters split across tokens (`é`, `ɛ`, `ɔ`, a combining tone mark) and digits. They are
+     decoded with `skip_special_tokens`, as the pipeline decodes.
+   - **Model facts:** the session options the reference uses (read them from transformers.js's ONNX
+     backend), and the input and output names of both ONNX files.
+   - **`--check`** regenerates the golden in memory and compares it byte for byte. It exits 1 when
+     the golden is stale and 2 when `tools/node_modules` is missing. Never edit the golden by hand.
+3. **`cleanTranscript` in `core`.**
+   - Port `cleanTranscript` and its `NON_SPEECH` pattern (`src/localstt.js:155`) to `core`'s
+     commonMain, through `JsRegex` like the other ports.
+   - Its cases go in a new `transcripts` golden, written by `tools/golden/index.mjs` under the
+     paths `check.mjs` already covers. The JS behaviour does not change.
+   - The tests need `TurnController`'s filler rule. Make it `internal` if it is private, with no
+     change in behaviour.
+4. **`:models`, the shared model code.** A new Kotlin Multiplatform module, `android/models`, as in
+   *Architecture*, with `jvm()`, `iosArm64()` and `iosSimulatorArm64()`. It depends on `:core` for
+   the ports, and `settings.gradle.kts` includes it.
+   - **commonMain:**
+     - **`OnnxSession`:** a port that is opened from a file path and runs named float32, int64 and
+       bool tensors. Nothing else in `:models` knows about ORT.
+     - **`WhisperFeatures`:** turns samples into the 80 × 3000 log-mel matrix. Port it from
+       transformers.js's `WhisperFeatureExtractor` and `spectrogram`: a 400-point Hann window,
+       hop 160, padding to 30 s, its mel filters, then `max(x, max − 8)` and `(x + 4) / 4`. 400 is
+       not a power of two, so port the FFT that transformers.js uses or use a mixed-radix one.
+       Time the features on their own.
+     - **`WhisperTokenizer`:** byte-level BPE decoding from `tokenizer.json`: the vocabulary, the
+       added tokens and the GPT-2 byte map. Speech recognition never encodes text, so there is no
+       encoder.
+     - **`WhisperDecoder`:** Decision 5's greedy loop over `encoder_model_quantized.onnx` and
+       `decoder_model_merged_quantized.onnx`, with its KV cache (`use_cache_branch`,
+       `past_key_values.*`). Break ties the way transformers.js's argmax does; check it and record
+       the rule.
+     - **`WhisperTranscriber`:** implements `core`'s `Transcriber` for `lang = "en"` and returns the
+       decoded text. Cleaning stays in `core`.
+   - **jvmMain:** `OnnxSession` over `ai.onnxruntime` (Decision 3).
+   - **iosMain:** `OnnxSession` over the C API, through cinterop.
+     - The `.def` file is `android/models/src/nativeInterop/cinterop/onnxruntime.def`. After `---`
+       it holds a small C shim that turns the `OrtApi` function table into plain functions.
+     - The headers and the static library come from the verified, unpacked archive.
+     - Record the link options it needs (`-lc++`, for example).
+   - **commonTest:**
+     - **Decoding:** the decode cases, matched exactly.
+     - **Features:** compared with the golden within an absolute tolerance of `1e-4`, recording
+       the largest difference on each runtime. If the bound fails, record the numbers; don't raise
+       it without them in the record.
+     - **The greedy loop:** exact, against a scripted fake `OnnxSession`. Cover the prompt, the
+       begin suppression, the stop at 50256, the stop at 448, and ties.
+     - **The real model:** `MODEL_DIR` names the model folder; if it is not set, the test fails
+       and names the variable, as with `GOLDEN_DIR`. Each file is hashed against
+       `models/whisper-base.en/SHA256SUMS` before it is loaded. Then the 9 WAVs go through the
+       transcriber, `cleanTranscript`, `parseLocal` and `normalize`, the same steps as
+       `stt-eval.mjs`, and every kept value must equal `expected.json`.
+     - **Token ids,** compared with the golden:
+       - on the host JVM they must be equal, since the ORT version and the CPU are the same as the
+         reference's. If they differ, don't loosen the test: record the first position that
+         differs and the gap between the top two logits there;
+       - on the emulator and the simulator, count the matches and record them. The *Parity
+         contract* allows model outputs to differ there.
+   - The WAVs, `expected.json` and the goldens reach the tests pinned by SHA-256, through
+     `CopyPinnedAssets` and a new `android/models/speech-fixtures.SHA256SUMS`. On iOS the tests read
+     them from the host's disk through `GOLDEN_DIR`, as `:core`'s do.
+5. **Android: Whisper on the emulator.**
+   - `:speech` gets `implementation(project(":models"))` and the AAR.
+   - `:speech:connectedDebugAndroidTest` (the Android plan's own test for this) compiles `:models`'
+     commonTest sources, the way `:core-device` compiles `:core`'s, and runs them on `ssa35`.
+   - The test APK carries the pinned base.en files as androidTest assets, with `.onnx` stored
+     uncompressed. Record the time for each clip and the peak RSS (`VmHWM` in `/proc/self/status`).
+   - Then run these on a rebuilt `app-debug.apk`:
+     - the permission audit, on the APK and the three merged manifests;
+     - `android/tools/audit-native.sh`. ORT's libraries stay out of `OWN_LIBS`, because their
+       exports are not ours to restrict; record that;
+     - its size, against Step 0's;
+     - a listing of its files, which must show no desktop ORT native library.
+   - Leave the whisper.cpp probe (`speech/src/main/cpp/`, `WhisperNative.kt`) and `stt_pack` as
+     they are. D6 replaces them, and removing them is the owner's decision.
+6. **iOS: Whisper on the simulator.**
+   - From `android/`, run `SIMCTL_CHILD_GOLDEN_DIR=<abs>/android/models/build/ios-test-resources
+     SIMCTL_CHILD_MODEL_DIR=<abs>/models/whisper-base.en ./gradlew :models:iosSimulatorArm64Test`.
+     Record the time for each clip and the peak resident size (`resident_size_peak` from
+     `task_vm_info`).
+   - Run the audit twice:
+     - on the ORT XCFramework with the new allowlist lines: it must exit 0;
+     - on the linked test executable. It is the first linked image with ORT inside, and the
+       `.app` (X6) will import the same symbols. `otool -L` must show no networking framework.
+       Trace each imported finding to ORT or Kotlin/Native and allowlist it with its reason; a
+       finding that can't be traced that way is a stop.
+   - `SsaCore` does not include `:models` yet, so the XCFramework and the `CoreCrypto-Package`
+     tests must be unchanged.
+7. **`ios/SPIKES.md` §3b, part 1: Whisper base.en.**
+   - **One table,** with a row for each runtime: Node (Step 0), the host JVM, `ssa35` and the
+     simulator. Its columns:
+     - the model load time;
+     - the first clip, then the median of the rest, each split into features, encoder and
+       decoder;
+     - peak memory, where it was measured;
+     - token agreement with the reference (n of 9);
+     - kept values (n of 9).
+   - **Disk:** the two model files, ORT for each ABI and each slice, and how much the APK grew.
+   - **The rest:**
+     - every pin, with its publisher's checksum;
+     - the Step 1 checks;
+     - the new allowlist lines, with their reasons;
+     - Decision 5, as confirmed;
+     - the tolerance used, and the largest differences seen.
+   - Say plainly that none of these are phone numbers.
+8. **Keep everything else green.**
+   - **Run 7's list:**
+     - each `tests/*.js`, `tools/smoke.mjs`, `node tools/build-ios-writer.mjs --check` and
+       `check.mjs`. The only golden that may change is the new `transcripts`, as generated;
+     - `:core:jvmTest`, `:core:compileCommonMainKotlinMetadata`, `:core:iosSimulatorArm64Test` and
+       `:core:assembleSsaCoreDebugXCFramework`;
+     - the `CoreCrypto-Package` tests, audits (a) to (g) (still 0, 0, 0, 1, 1, 2, 2) and
+       `tests/ios-audit.js`;
+     - `:core-device:connectedDebugAndroidTest` and `run-pdf-spike.sh ssa35`.
+   - **New checks:**
+     - `node tools/golden/models.mjs --check`;
+     - `node tools/fetch-onnxruntime.mjs --verify` and `node tools/fetch-model.mjs --verify`;
+     - `:models:jvmTest`, `:models:iosSimulatorArm64Test` and `:speech:connectedDebugAndroidTest`.
+9. **Record** Run 8 in Progress, `TODO.md` and `ios/SPIKES.md`, from output actually seen, and keep
+   the three consistent.
+   - Update the X2 status.
+   - In `TODO.md`, mark M1b's whisper.cpp half as replaced by D6 and 3b. The llama.cpp half
+     stands.
+   - List the new commands the owner may want in AGENTS.md's "Common checks". This run does not
+     edit AGENTS.md.
+   - Record every refused or failed command word for word, and what is still not verified.
+
+**Stop conditions.** On any of these, stop on that step, record what happened, and do Step 9. The
+owner then decides between another ORT version, a build from source, or another runtime.
+
+- An ORT 1.22.0 package is missing, or its hash differs from its publisher's checksum.
+- An ORT `.so` is not 16 KB aligned.
+- A networking framework or symbol turns up in ORT on either platform.
+- The AAR adds a permission.
+
+Treat any other failure this plan does not cover the same way: stop on it, and never fake a
+result. Steps 2 and 3 do not need ORT, and only Step 6 needs the iOS package. If Step 6 fails,
+record the Android and host results anyway; they still stand.
 
 **Out of scope:**
 
-- the fallback PDF writer;
-- changing the JS writer to `/HelvWA` (an owner decision);
-- an app target or `.xcodeproj`;
-- ONNX Runtime (3b);
-- AGENTS.md.
+- MMS ASR, MMS language ID, NLLB and Simba, and their exports;
+- `whisper-base` (French is not a release target, D3);
+- chunking audio longer than 30 s;
+- a reduced-operator ORT build;
+- wiring `Transcriber` into `AppController`, and audio capture in an app;
+- adding `:models` to `SsaCore` (X6 gives the app one Kotlin framework);
+- removing the whisper.cpp probe or `stt_pack`;
+- an app target or `.xcodeproj`, and the CI job;
+- AGENTS.md;
+- phone measurements.
 
-After Run 7: spike 3b on the simulator and the emulator, on ONNX Runtime. The audit then also
-covers ONNX Runtime's binary.
+**After Run 8:**
+
+- **Run 9:** MMS language ID and MMS ASR (`mms-1b-all`, with the `lin`, `fra` and `eng` adapters):
+  a pinned export, CTC decoding in common Kotlin, and size and memory on the emulator and the
+  simulator.
+- **Run 10:** NLLB, with a SentencePiece tokenizer and Run 8's encoder-decoder loop.
+- **Run 11:** Simba's ONNX export and its `VitsTokenizer` golden.
+
+Phone measurements wait for the M0 phones. 3d waits for Compose Multiplatform.
 
 ## Decisions
 
@@ -1690,7 +2168,7 @@ Android milestones keep their numbers (M0–M8). Mirror milestones are X1–X8.
 |---|---|---|---|
 | X1a | `core` multiplatform, without Xcode | A JDK 21 on the host | The common-metadata compile passes, `:core:jvmTest` is green, the Android consumers compile, the JS tests are all green, and the iOS files have been reviewed by reading. **Status:** done 2026-11-21, run 2; Kotlin 2.0.21 has no common-test metadata task, so that half waits for X1b |
 | X1b | `core` on iOS | X1a, and Xcode with an iOS simulator runtime | The goldens and scenarios pass on the iOS simulator, and the XCFramework builds. The Swift `Crypto` decrypts the WebCrypto vector on the simulator. **Status:** done 2026-11-22. Run 4 ran it on Xcode 27.2 with Kotlin 2.0.21. Run 5 passed 71 tests on the simulator, built the XCFramework and ran the Swift `Crypto` tests against it |
-| X2 | Spikes | X1b, for the iOS parts; X1a for the Android parts | `ios/SPIKES.md` records: the PDF go-or-fallback decision with timings; the 3b table for every model on both platforms, including whether MMS fits low-end iPhones; an audit that fails on the canary; the 3d VoiceOver and TalkBack results, and which controls went native. **Status:** 3a ran on the iOS simulator in Run 6 (2026-11-22) and its provisional decision is fallback, with simulator timings only; 3c ran in Run 7 (2026-11-23): the audit fails on the canary and passes on the XCFramework, the package's products and the clean test bundles (simulator and host only; the `.app` audit waits for X6); 3b and 3d are still open |
+| X2 | Spikes | X1b, for the iOS parts; X1a for the Android parts | `ios/SPIKES.md` records: the PDF go-or-fallback decision with timings; the 3b table for every model on both platforms, including whether MMS fits low-end iPhones; an audit that fails on the canary; the 3d VoiceOver and TalkBack results, and which controls went native. **Status:** 3a ran on the iOS simulator in Run 6 (2026-11-22) and its provisional decision is fallback, with simulator timings only; 3c ran in Run 7 (2026-11-23): the audit fails on the canary and passes on the XCFramework, the package's products and the clean test bundles (simulator and host only; the `.app` audit waits for X6); 3b part 1 (Run 8, 2026-11-23) stopped at Step 1: ORT 1.21.0's Android JNI library is 4 KB-aligned and the iOS archive could not be fetched verifiably, so the version is the owner's to choose again; 3b and 3d are still open |
 | X3 | Lingala voice | X2 (3b, for the on-phone part) | The normalizer and its golden are in place. Every fixed string is rendered with Simba into `audio-ln/`, and the audio-manifest test covers Lingala. Simba runs on both phones within budget. Volunteers have listened to a sample. The 4.5 fix has landed |
 | X4 | Lingala words | Nothing; start now | Volunteer review imported, with `reviewedByNativeSpeaker: true`. Until then, the disclosure in 4.1 ships |
 | X5 | Understanding spoken Lingala | X2 (3b) | Evaluation set recorded by volunteers. Scores per type, with language ID on and off. Input matrix narrowed |

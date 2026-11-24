@@ -8,3 +8,24 @@ plugins {
     alias(libs.plugins.kotlin.multiplatform) apply false
     alias(libs.plugins.kotlin.compose) apply false
 }
+
+// ONNX Runtime 1.22.0 (spike 3b). The Android AAR and the desktop jar come from Maven Central
+// and the iOS xcframework zip from tools/fetch-onnxruntime.mjs; every one is checked against
+// models/onnxruntime.SHA256SUMS before anything uses it. The verified iOS zip is unpacked under
+// models/build/, never under src/.
+val onnxRuntimeFiles = configurations.detachedConfiguration(
+    dependencies.create("com.microsoft.onnxruntime:onnxruntime-android:${libs.versions.onnxruntime.get()}@aar"),
+    dependencies.create("com.microsoft.onnxruntime:onnxruntime:${libs.versions.onnxruntime.get()}@jar"),
+)
+val onnxRuntimeIosZip = layout.projectDirectory.file("models/third_party/onnxruntime.xcframework.zip")
+
+val verifyOnnxRuntime = tasks.register<VerifyPinnedFiles>("verifyOnnxRuntime") {
+    files.from(onnxRuntimeFiles, onnxRuntimeIosZip)
+    pins = layout.projectDirectory.file("models/onnxruntime.SHA256SUMS")
+}
+
+tasks.register<Sync>("unpackOnnxRuntimeIos") {
+    dependsOn(verifyOnnxRuntime)
+    from(zipTree(onnxRuntimeIosZip))
+    into(layout.projectDirectory.dir("models/build/onnxruntime-ios"))
+}
