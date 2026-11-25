@@ -1115,16 +1115,17 @@ Still not verified:
 - the Run 6 items (phone timings, the cold first-form cost, the PDFKit preview, other viewers,
   app-bundle resources, `/HelvWA`).
 
-## Mirror Run 8 (2026-11-23): spike 3b part 1, stopped at Step 1
+## Mirror Run 8 (2026-11-23 to 2026-11-25): spike 3b part 1, Whisper base.en on ORT 1.22.0
 
 The plan's *Run 8* section has the exact commands and output, and `ios/SPIKES.md` §3b has the
 evidence. Run 8 stopped at Step 1 on two of its stop conditions, so no code, golden or pin was
-written.
+written that day. It resumed on 2026-11-24 with ORT 1.22.0 and finished on 2026-11-25.
 
 - [x] **Step 0, the Node reference:** `node tools/stt-eval.mjs` gives 9/9 (`loaded in 314 ms`,
       median 335 ms per clip) after `npm install` in `tools/` added the lockfile's macOS `sharp`
       build. `tools/node_modules` had only the Linux build, so transformers.js would not import.
-      The lockfile is unchanged. `app-debug.apk` is 71,327,072 bytes before ORT.
+      The lockfile is unchanged. `app-debug.apk` is 71,327,072 bytes before ORT. The Step 8 rerun
+      loaded in 293 ms and had an other-eight median of 333 ms.
 - [x] **Owner: choose the ORT version (Decision 1).** Chosen 2026-11-24: **1.22.0** on every
       platform (Android AAR and desktop jar from Maven Central, iOS from the NuGet package, all
       hash-checked). The plan is updated.
@@ -1150,15 +1151,61 @@ written.
       `cleanTranscript` is ported to `core` and pinned by a 74-case `transcripts.json`. The filler
       rule needed D-f: `LETTER_OR_DIGIT` became `[\p{L}\p{Nd}\p{Nl}\p{No}]` (`\p{N}` is rejected by
       Kotlin/Native's Regex). `½`, `²` and `Ⅻ` are no longer called empty.
-- [ ] **Run 8 Steps 4 to 9.** The `:models` module, the ORT ports, the emulator and simulator
-      Whisper runs.
+- [x] **Run 8 Step 4 (2026-11-24).** The `:models` module landed with Whisper base.en features,
+      tokenizer, decoder and transcriber, the JVM and iOS ORT actuals, the common tests and
+      `speech-fixtures.SHA256SUMS`; 16 tests on the host JVM and the iOS simulator each had 9/9
+      token ids equal to the reference and 9/9 kept values (plan, *Run 8* update).
+- [x] **Run 8 Steps 5 and 6 (2026-11-24).** Whisper base.en ran on `ssa35` and the iOS simulator:
+      16 tests on each, 9/9 token ids equal to the reference and 9/9 kept values, with all peaks
+      from host, emulator or simulator only (`ios/SPIKES.md` §3b.6). These steps also fixed the five
+      Step 4 review nits, wired the ORT AAR into `:speech`, split out `:verifyOnnxRuntimeJava`, ran
+      the permission and native audits, and passed the iOS binary audit with the exact `test.kexe`
+      `_dlsym` allowlist line.
+- [x] **Run 8 Steps 7 to 9 (2026-11-25).** `ios/SPIKES.md` §3b.6 holds the timing/memory tables with
+      every figure labelled by source, including both Step 8 reruns (first stage and Big Pickle).
+      The full regression list passed twice, once in each implement stage: `:core-device:connectedDebugAndroidTest`
+      reported 94 tests each time, with `run-pdf-spike.sh ssa35` (25 tests) and
+      `:speech:connectedDebugAndroidTest` (16 tests) also passing in both. Progress, this file and X2
+      were updated.
 - [x] **M1b's whisper.cpp half** is marked as replaced by D6 and 3b in the M1b item above. The
-      llama.cpp half stands.
+      llama.cpp half stands. Checked again in Steps 7 to 9; no change was needed.
+- [ ] **Owner: confirm or remove the `test.kexe _dlsym` allowlist entry.** Its third caller is
+      clang compiler-rt's `__initializeAvailabilityCheck`, which the run plan did not expect; the
+      Step 6c.4 stop rule applied. The entry is one of the 77 entries in
+      `ios/tools/audit-binary.allowlist`.
+- [ ] **Owner: add these commands to AGENTS.md's "Common checks".** AGENTS.md was not edited:
+
+  ```
+  node tools/golden/models.mjs --check
+  node tools/fetch-onnxruntime.mjs --verify
+  node tools/fetch-model.mjs --verify
+  # from android/
+  ./gradlew verifyOnnxRuntimeJava
+  TZ=UTC ./gradlew :models:jvmTest
+  TZ=UTC ./gradlew :models:compileCommonMainKotlinMetadata
+  ./gradlew :models:compileIosMainKotlinMetadata
+  ./gradlew :models:linkDebugTestIosArm64
+  SIMCTL_CHILD_GOLDEN_DIR=$PWD/models/build/ios-test-resources SIMCTL_CHILD_MODEL_DIR=$PWD/../models/whisper-base.en ./gradlew :models:iosSimulatorArm64Test
+  TZ=UTC ./gradlew :speech:connectedDebugAndroidTest    # needs the ssa35 emulator booted
+  # from the repository root
+  ios/tools/audit-binary.sh android/models/build/onnxruntime-ios/onnxruntime.xcframework
+  ```
+
+- [ ] **Owner: delete the scratch files in `android/build/`.** The Steps 5–6 files are
+      `audit-binary.before.allowlist`, `audit-kexe-after.txt`, `audit-kexe-before.txt`,
+      `audit-ort-after.txt`, `compile-debug-log.txt`, `compile-debug-log2.txt`,
+      `models-test-kexe.nm-m.txt` and `models-test-kexe.otool.txt`. Steps 7 to 9 added
+      `android/build/run8-saved-results/` with seven copies of the saved Step 5–6 results; no
+      `run8-*.log` was created.
+- [ ] **Owner: decide on removing the whisper.cpp probe and `stt_pack` (D6).**
 
 **Still not verified:**
 
-- everything from Step 1's pin file onwards;
-- the iOS audit over ORT;
-- Whisper on the host JVM, the emulator and the simulator.
-
-Step 8's checks were not re-run: the run changed only these three records.
+- phones;
+- the device `iosArm64` `test.kexe` audit and the `.app` audit (X6);
+- that the NuGet build equals the dead CocoaPods one;
+- `:models` in `SsaCore`;
+- audio over 30 s;
+- `AppController` wiring;
+- JVM peak memory;
+- CI.

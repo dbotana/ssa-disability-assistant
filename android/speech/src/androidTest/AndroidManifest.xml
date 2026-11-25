@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The model test reads each pinned model file whole to hash it, and every decoder step
      copies the encoder KV cache (about 36 MB) in and out of ORT; the test process needs
-     the largeHeap, as :core-device's does. -->
+     the large heap, as :core-device's does. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application android:largeHeap="true" />
 </manifest>

@@ -88,8 +88,13 @@ android {
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
     if (name.endsWith("AndroidTestKotlin")) {
         exclude("**/models/testing/ModelTestPlatform.kt")
-        // The tests exercise :models' internal helpers too, so its compiled classes are a
-        // friend: the helpers stay internal in the library but resolve from another module.
+        // The tests exercise :models' internal helpers too, so :models' JVM jar is a friend
+        // path: the helpers stay internal in the library but resolve from these tests. The
+        // friend path must be build/libs/models-jvm.jar, the same file the compiler already has
+        // on its classpath through implementation(project(":models")); pointing it at :models'
+        // compiled-classes directory instead still fails with "it is internal in file" (Run 8
+        // Step 5). That classpath entry already makes Gradle build the jar first, so the
+        // dependsOn below is not what makes this work; it is kept as Run 8 left it.
         dependsOn(":models:compileKotlinJvm")
         friendPaths.from(project(":models").layout.buildDirectory.file("libs/models-jvm.jar"))
     }

@@ -22,7 +22,7 @@ The web app stays the reference implementation. The Android plan,
 stays in force except where this plan replaces it: the UI, speech recognition, and distribution.
 Open Android items stay in [TODO.md](TODO.md) and [android-to-do.md](android-to-do.md).
 
-## Where things stand (2026-11-23, after Run 7)
+## Where things stand (2026-11-25, after Run 8)
 
 - **Web:** complete. English, French and Lingala are data, each chosen separately for input,
   output, screen and fill. The Lingala text is machine-authored and records
@@ -31,8 +31,11 @@ Open Android items stay in [TODO.md](TODO.md) and [android-to-do.md](android-to-
   transcribed, and there are no Lingala recordings. `src/app-controller.js` is the reference for
   the controller level.
 - **`:core`:** Kotlin Multiplatform (Kotlin 2.0.21) for JVM, Android and iOS (X1a, X1b). All
-  eight Step 2 items are in `core`. 91 JVM tests, 91 device tests on `ssa35`, and 72 tests on the
-  iOS simulator pass (Run 6, and again in Run 7).
+  eight Step 2 items are in `core`. 94 JVM tests, 94 device tests on `ssa35`, and 75 tests on the
+  iOS simulator pass (Run 8, `2026-11-25`).
+- **`:models`:** Whisper base.en runs through ORT 1.22.0 on the host JVM, `ssa35` and the iOS
+  simulator: 16 tests on each runtime, 9/9 token ids equal to the reference and 9/9 kept values on
+  each (Run 8, `2026-11-25`; host, emulator and simulator only). See `ios/SPIKES.md` §3b.6.
 - **Android `:pdf`:** M1a is GO with PdfBox-Android. Both forms fill in versions A and B and pass
   the core `PdfSelfCheck` through `PdfBoxPdfReadPort` (25 instrumented tests, Run 6, and again in
   Run 7).
@@ -42,20 +45,17 @@ Open Android items stay in [TODO.md](TODO.md) and [android-to-do.md](android-to-
   re-reads them with a CGPDF `PdfReadPort`. The provisional 3a decision is fallback, recorded in
   `ios/SPIKES.md`. Spike 3c (Run 7):
   - `ios/tools/audit-binary.sh` passes the `SsaCore` XCFramework, `CoreCrypto.o`, `SsaPdf.o` and
-    the `CoreCryptoTests` and `SsaPdfTests` bundles, with 73 exact Kotlin/Native allowlist
-    entries;
+    the `CoreCryptoTests` and `SsaPdfTests` bundles, with 77 exact allowlist entries (73 from Run 7
+    and 4 from Run 8);
   - it fails the `NetCanary` canary and the `NetworkGuardTests` bundle, both by design;
   - the `NetworkGuardTests` `URLProtocol` test sees no request during the fill and a
     `SessionStore` round trip.
 
   The package runs 8 simulator tests. There is still no app target and no `.xcodeproj`, so the
   audit has not run on a `.app`.
-- **Next:** Run 8, the first part of spike 3b: ONNX Runtime on Android, on iOS and on the host
-  JVM, proven with Whisper base.en end to end (see *Next: Run 8*). MMS, NLLB and Simba follow in
-  later runs. **Run 8 stopped at Step 1 on 2026-11-23.** ORT 1.21.0's Android JNI library is not
-  16 KB-aligned, and the iOS archive could not be fetched verifiably. The owner chose ORT 1.22.0 for
-  every platform on 2026-11-24, with the iOS archive from NuGet, and Step 1 is done (see *Run 8*);
-  Step 4 is done; Steps 5 to 9 are next.
+- **Next:** Run 9, MMS language ID and MMS ASR (`mms-1b-all`, with the `lin`, `fra` and `eng`
+  adapters): a pinned export, CTC decoding in common Kotlin, and size and memory on the emulator
+  and simulator. NLLB and Simba follow later.
 
 ## Progress
 
@@ -1381,7 +1381,7 @@ refused; there were no refusal messages to quote.
   zero-copy tensors. The JVM negative `MODEL_DIR` path was not run separately; the iOS negative
   check above passed as expected.
 
-**Update, 2026-11-24: Steps 5 and 6 done.** The agent-loop implementer (opencode with Big Pickle)
+**Update, 2026-11-24: Steps 5 and 6 done.** The agent-loop implementer (opencode with Big Pickle; its revise 1 ran on opencode with deepseek-v4.1-flash-free)
 fixed the five Step 4 review nits, then finished Run 8 Steps 5 and 6: Whisper base.en on `ssa35`
 through `:speech` and on the iOS simulator, with the native/binary audits and the pinned-file
 split. Steps 7 to 9 remain. No command was refused by the tool sandbox; one build failed during
@@ -1457,7 +1457,7 @@ output actually seen in this session.
   Gradle dumps, about 10 MB each), `models-test-kexe.nm-m.txt` (16 MB) and
   `models-test-kexe.otool.txt` (188 MB). The plan allowed `$TMPDIR` for these instead.
 
-  **Revision 1** (this agent-loop pass) also chained some read-only reads while checking the
+  **Revision 1** (this agent-loop pass, run by opencode with deepseek-v4.1-flash-free, per `agent-loop-runs/2026-11-24-1731-implement-steps-5-and-6-of/run.log:347`) also chained some read-only reads while checking the
   corrections: `ls -l <the eight files> 2>&1; git status --short`, `grep -c '_dlsym' …; grep -n
   '_dlsym' … | head -5`, `xcrun nm -m … | grep -n …`, `xcrun objdump … | grep -c …`,
   `awk …` (run alone), `sed -n '1566,1568p' ios-android-mirror-plan.md | cat -A | head -20`
@@ -1671,11 +1671,371 @@ output actually seen in this session.
 - **The owner may add** `TZ=UTC ./gradlew :speech:connectedDebugAndroidTest` (with `ssa35`
   booted) to AGENTS.md's Common checks; AGENTS.md was not changed here.
 
+**Update, 2026-11-25: Steps 7 to 9 done.** Both implement stages ran the full regression list and
+all checks passed; no code, golden, allowlist, script or Kotlin source was changed. Every number
+below is labelled with its source: the saved Step 5–6 results, the first stage's Step 8 rerun, or
+Big Pickle's Step 8 rerun. `ios/SPIKES.md` §3b.6 holds the same numbers.
+
+- **Who ran it:** two stages are named in
+  `agent-loop-runs/2026-11-25-1048-implement-steps-7-8-and-9/run.log`. `run.log:55` reads
+  `[10:59] implement: opencode (opencode/deepseek-v4.1-flash-free) ...`; that stage did Steps 1–2
+  (`run.log:57–77`: date, git, status, the Step 2 folder, all seven copies and their checks; file
+  times 11:00:18–11:01:14) and made the three nit edits (`run.log:78–87`). It then ran the whole
+  Step 8 list once (`run.log:88–177`), including the 27 web tests, every host and simulator Gradle
+  task with `--rerun`, the app build and both APK audits, an emulator boot with
+  `:core-device:connectedDebugAndroidTest`, `run-pdf-spike.sh ssa35` and
+  `:speech:connectedDebugAndroidTest`, the iOS tests and audits, and the disk facts. Its results
+  are in `02-implement.events.jsonl` and are quoted below. It started the 27 web tests a second
+  time (`run.log:213–238`) and stopped on the provider free limit (`run.log:239–240`) before writing
+  any record. `run.log:243` reads `[11:40] implement: opencode (opencode/big-pickle) ...`; that
+  stage listed and read the copies (`run.log:251–259`), re-ran the whole list (`run.log:260–350`)
+  and wrote the records.
+- **The three nits:** the first stage made all three edits (`run.log:80–86`); this pass checked
+  them against the plan and the diff. `android/speech/build.gradle.kts` now says the friend path
+  is `:models'` JVM jar, not its compiled classes; `android/speech/src/androidTest/AndroidManifest.xml`
+  says "the large heap"; and the Steps 5–6 block above now names
+  `opencode/deepseek-v4.1-flash-free` as the model that ran revise 1. The
+  `dependsOn(":models:compileKotlinJvm")` line and `friendPaths.from(...)` line were deliberately
+  left unchanged, and so was `android:largeHeap="true"`.
+- **Saved-results copies:** the first stage copied seven files into the git-ignored
+  `android/build/run8-saved-results/` before any rerun:
+  `speech-review1-WhisperModelTest.logcat.txt`,
+  `speech-review1-WhisperFeaturesGoldenTest.logcat.txt`, `speech-review1-TEST.xml`,
+  `jvmTest-review2-WhisperModelTest.xml`, `jvmTest-review2-WhisperFeaturesGoldenTest.xml`,
+  `iosSimulatorArm64Test-review2-WhisperModelTest.xml` and
+  `iosSimulatorArm64Test-review2-WhisperFeaturesGoldenTest.xml`. Their sources were
+  `android/speech/build/outputs/androidTest-results/connected/debug/ssa35(AVD) - 15/`'s two
+  logcats and `TEST-ssa35(AVD) - 15-_speech-.xml`, and the four XMLs under
+  `android/models/build/test-results/jvmTest/` and `iosSimulatorArm64Test/`. The Big Pickle stage
+  listed the directory and read the copies (`run.log:251–259`); it did not make them. All seven
+  matched the run plan's Appendix A exactly.
+- **Commands from Steps 1, 2 and 4, in run order**, with key output. Rows 1–4 are Big Pickle's
+  setup; rows 5–12 are the first stage's copies and saved-file checks; rows 13–98 are Big Pickle's
+  reruns. The first stage's separate full run is at `run.log:88–177` and its results are quoted
+  below. Gradle and the two audit scripts ran from `android/`, `xcodebuild` from `ios/CoreCrypto/`,
+  and everything else from the repository root:
+
+  | # | Command | Key output |
+  |---|---|---|
+  | 1 | `git status --short` | Three files already modified by the previous implementer: `android/speech/build.gradle.kts`, `android/speech/src/androidTest/AndroidManifest.xml`, `ios-android-mirror-plan.md`. |
+  | 2 | `git log --oneline -1` | `531b7b07 ios android mirror run 8 steps 4 to 6` |
+  | 3 | `date '+%Y-%m-%d %H:%M %Z'` | `2026-11-25 11:40 CST` |
+  | 4 | read `agent-loop-runs/2026-11-25-1048-implement-steps-7-8-and-9/run.log` | Line 243: `[11:40] implement: opencode (opencode/big-pickle) ...` |
+  | 5 | `mkdir -p /Users/dbotana/Github/ssa-disability-assistant/android/build/run8-saved-results` | No output. |
+  | 6 | `cp "/Users/dbotana/Github/ssa-disability-assistant/android/speech/build/outputs/androidTest-results/connected/debug/ssa35(AVD) - 15/logcat-org.ssa.assistant.models.whisper.WhisperModelTest-runsThePinnedModelOnAllNineClips.txt" .../speech-review1-WhisperModelTest.logcat.txt` | No output. |
+  | 7 | `cp "/Users/dbotana/Github/ssa-disability-assistant/android/speech/build/outputs/androidTest-results/connected/debug/ssa35(AVD) - 15/logcat-org.ssa.assistant.models.whisper.WhisperFeaturesGoldenTest-matchesTheGoldenFrontEnd.txt" .../speech-review1-WhisperFeaturesGoldenTest.logcat.txt` | No output. |
+  | 8 | `cp "/Users/dbotana/Github/ssa-disability-assistant/android/speech/build/outputs/androidTest-results/connected/debug/TEST-ssa35(AVD) - 15-_speech-.xml" .../speech-review1-TEST.xml` | No output. |
+  | 9 | `cp /Users/dbotana/Github/ssa-disability-assistant/android/models/build/test-results/jvmTest/TEST-org.ssa.assistant.models.whisper.WhisperModelTest.xml .../jvmTest-review2-WhisperModelTest.xml` | No output. |
+  | 10 | `cp /Users/dbotana/Github/ssa-disability-assistant/android/models/build/test-results/jvmTest/TEST-org.ssa.assistant.models.whisper.WhisperFeaturesGoldenTest.xml .../jvmTest-review2-WhisperFeaturesGoldenTest.xml` | No output. |
+  | 11 | `cp /Users/dbotana/Github/ssa-disability-assistant/android/models/build/test-results/iosSimulatorArm64Test/TEST-org.ssa.assistant.models.whisper.WhisperModelTest.xml .../iosSimulatorArm64Test-review2-WhisperModelTest.xml` | No output. |
+  | 12 | `cp /Users/dbotana/Github/ssa-disability-assistant/android/models/build/test-results/iosSimulatorArm64Test/TEST-org.ssa.assistant.models.whisper.WhisperFeaturesGoldenTest.xml .../iosSimulatorArm64Test-review2-WhisperFeaturesGoldenTest.xml` | No output. |
+  | 13 | Read each of the seven copies | Every value matched Appendix A, including load 534 / 187 (JVM review 2), 66 / 1549 (`ssa35` review 1) and 67 / 215 (simulator review 2); all reported 9/9 tokens and 9/9 kept values. |
+  | 14 | `node /Users/dbotana/Github/ssa-disability-assistant/tests/add-item.js` | `All addition checks passed.` |
+  | 15 | `node /Users/dbotana/Github/ssa-disability-assistant/tests/audio-manifest.js` | `audio-manifest: all checks passed` |
+  | 16 | `node /Users/dbotana/Github/ssa-disability-assistant/tests/clock-injection.js` | `clock-injection: all checks passed` |
+  | 17 | `node /Users/dbotana/Github/ssa-disability-assistant/tests/correct-match.js` | `All correction checks passed.` |
+  | 18 | `node /Users/dbotana/Github/ssa-disability-assistant/tests/delete-item.js` | `All deletion checks passed.` |
+  | 19 | `node /Users/dbotana/Github/ssa-disability-assistant/tests/digit-gate.js` | `digit-gate: all checks passed` |
+  | 20 | `node /Users/dbotana/Github/ssa-disability-assistant/tests/empty-transcript.js` | `empty-transcript: all checks passed` |
+  | 21 | `node /Users/dbotana/Github/ssa-disability-assistant/tests/engine-walk.js` | `All engine checks passed.` |
+  | 22 | `node /Users/dbotana/Github/ssa-disability-assistant/tests/form-fill.js` | `form-fill: all checks passed` |
+  | 23 | `node /Users/dbotana/Github/ssa-disability-assistant/tests/form-routing.js` | `form-routing: all checks passed` |
+  | 24 | `node /Users/dbotana/Github/ssa-disability-assistant/tests/form-versions.js` | `form-versions: all checks passed` |
+  | 25 | `node /Users/dbotana/Github/ssa-disability-assistant/tests/i18n.js` | `i18n: all checks passed` |
+  | 26 | `node /Users/dbotana/Github/ssa-disability-assistant/tests/import-json.js` | `import-json: all checks passed` |
+  | 27 | `node /Users/dbotana/Github/ssa-disability-assistant/tests/ios-audit.js` | `ios-audit: all checks passed` |
+  | 28 | `node /Users/dbotana/Github/ssa-disability-assistant/tests/ios-writer-bundle.js` | `ios-writer-bundle: all checks passed` |
+  | 29 | `node /Users/dbotana/Github/ssa-disability-assistant/tests/launcher.js` | `launcher: all checks passed` |
+  | 30 | `node /Users/dbotana/Github/ssa-disability-assistant/tests/local-command.js` | `local-command: all checks passed` |
+  | 31 | `node /Users/dbotana/Github/ssa-disability-assistant/tests/local-stt.js` | `local-stt: all checks passed` |
+  | 32 | `node /Users/dbotana/Github/ssa-disability-assistant/tests/no-network.js` | `no-network: all checks passed` |
+  | 33 | `node /Users/dbotana/Github/ssa-disability-assistant/tests/parse-local.js` | `parse-local: all checks passed` |
+  | 34 | `node /Users/dbotana/Github/ssa-disability-assistant/tests/progress-estimate.js` | `All progress and estimate checks passed.` |
+  | 35 | `node /Users/dbotana/Github/ssa-disability-assistant/tests/schema-data.js` | `schema-data: all checks passed` |
+  | 36 | `node /Users/dbotana/Github/ssa-disability-assistant/tests/speech-normalize.js` | `speech-normalize: all checks passed` |
+  | 37 | `node /Users/dbotana/Github/ssa-disability-assistant/tests/store-format.js` | `store-format: all checks passed` |
+  | 38 | `node /Users/dbotana/Github/ssa-disability-assistant/tests/store-redact.js` | `store-redact: all checks passed` |
+  | 39 | `node /Users/dbotana/Github/ssa-disability-assistant/tests/turn-scenarios.js` | `turn scenarios: all passed` |
+  | 40 | `node /Users/dbotana/Github/ssa-disability-assistant/tests/vendor-integrity.js` | `vendor-integrity: all checks passed` |
+  | 41 | `node tools/smoke.mjs` | `Smoke test passed.` |
+  | 42 | `node tools/build-ios-writer.mjs --check` | `vendor/ssa-pdf-writer.js is fresh` |
+  | 43 | `DEVELOPER_DIR=/Library/Developer/CommandLineTools node tools/golden/check.mjs` | `goldens fresh` |
+  | 44 | `git status --short` after the golden check | Only the three pre-existing modified files; no golden and no `tools/schema.json` change. |
+  | 45 | `node tools/golden/models.mjs --check` | `whisper golden fresh (1911152 bytes)` |
+  | 46 | `node tools/fetch-onnxruntime.mjs --verify` | `onnxruntime.xcframework.zip matches onnxruntime.SHA256SUMS.` |
+  | 47 | `node tools/fetch-model.mjs --verify` | `All files match SHA256SUMS.` |
+  | 48 | `node tools/stt-eval.mjs` | `loaded in 293 ms`; clips 358, 336, 353, 300, 334, 332, 339, 331, 307; `9/9 kept the right value. Median 334 ms per clip.` The other-eight median is 333 ms. |
+  | 49 | `TZ=UTC ./gradlew verifyOnnxRuntimeJava` | `BUILD SUCCESSFUL` |
+  | 50 | `TZ=UTC ./gradlew verifyOnnxRuntime unpackOnnxRuntimeIos` | `BUILD SUCCESSFUL` |
+  | 51 | `TZ=UTC ./gradlew :core:jvmTest --rerun` | `BUILD SUCCESSFUL`; 94 tests, 0 failures, 0 ignored. |
+  | 52 | `TZ=UTC ./gradlew :core:compileCommonMainKotlinMetadata` | `BUILD SUCCESSFUL` |
+  | 53 | `SIMCTL_CHILD_GOLDEN_DIR=/Users/dbotana/Github/ssa-disability-assistant/android/core/build/ios-test-resources ./gradlew :core:iosSimulatorArm64Test --rerun` | `BUILD SUCCESSFUL`; 75 tests, 0 failures, 0 ignored. |
+  | 54 | `TZ=UTC ./gradlew :core:assembleSsaCoreDebugXCFramework` | `BUILD SUCCESSFUL` |
+  | 55 | `TZ=UTC ./gradlew :models:jvmTest --rerun` | `BUILD SUCCESSFUL`; seven XMLs, 16 tests, `failures="0" errors="0"`; `MODELS[host JVM] token ids match the reference: 9/9; kept values right: 9/9`; peak not measured. |
+  | 56 | `TZ=UTC ./gradlew :models:compileCommonMainKotlinMetadata` | `BUILD SUCCESSFUL` |
+  | 57 | `TZ=UTC ./gradlew :models:compileIosMainKotlinMetadata` | `BUILD SUCCESSFUL` |
+  | 58 | `TZ=UTC ./gradlew :models:linkDebugTestIosArm64` | `BUILD SUCCESSFUL` |
+  | 59 | `SIMCTL_CHILD_GOLDEN_DIR=.../android/models/build/ios-test-resources SIMCTL_CHILD_MODEL_DIR=/Users/dbotana/Github/ssa-disability-assistant/models/whisper-base.en ./gradlew :models:iosSimulatorArm64Test --rerun` | `BUILD SUCCESSFUL`; seven XMLs, 16 tests, `failures="0" errors="0"`; no teardown abort; 9/9 and 9/9. |
+  | 60 | `./gradlew :app:assembleDebug :app:processReleaseManifest :app:processStagingManifest` | `BUILD SUCCESSFUL` |
+  | 61 | Permission audit with `tools/audit-permissions.sh` instead of `android/tools/audit-permissions.sh` | Failed; quoted verbatim below. |
+  | 62 | `ANDROID_HOME=/Users/dbotana/Library/Android/sdk /Users/dbotana/Github/ssa-disability-assistant/android/tools/audit-permissions.sh /Users/dbotana/Github/ssa-disability-assistant/android/app/build/outputs/apk/debug/app-debug.apk /Users/dbotana/Github/ssa-disability-assistant/android/app/build/intermediates/merged_manifests/debug/processDebugManifest/AndroidManifest.xml /Users/dbotana/Github/ssa-disability-assistant/android/app/build/intermediates/merged_manifests/release/processReleaseManifest/AndroidManifest.xml /Users/dbotana/Github/ssa-disability-assistant/android/app/build/intermediates/merged_manifests/staging/processStagingManifest/AndroidManifest.xml` from `android/` | `permission audit clean (4 artifacts)` |
+  | 63 | `ANDROID_HOME=/Users/dbotana/Library/Android/sdk /Users/dbotana/Github/ssa-disability-assistant/android/tools/audit-native.sh /Users/dbotana/Github/ssa-disability-assistant/android/app/build/outputs/apk/debug/app-debug.apk` from `android/` | `native audit clean (8 libraries in 1 APKs)` |
+  | 64 | `stat -f '%z %Sm' /Users/dbotana/Github/ssa-disability-assistant/android/app/build/outputs/apk/debug/app-debug.apk` | `111160286 Nov 24 18:09:35 2026` |
+  | 65 | `unzip -l .../app-debug.apk 'lib/*'` | 8 libraries, including `libonnxruntime.so` and `libonnxruntime4j_jni.so` under arm64-v8a and x86_64. |
+  | 66 | `unzip -l .../app-debug.apk 'ai/*' '*.dylib' '*.onnx'` | 0 files listed, exit 11, no `caution:` line; no desktop ORT library or model in the app. |
+  | 67 | `TZ=UTC ./gradlew :speech:compileDebugAndroidTestKotlin --rerun` | `BUILD SUCCESSFUL`; the comment-only friend-path edit still compiles. |
+  | 68 | `/Users/dbotana/Library/Android/sdk/platform-tools/adb devices` | `List of devices attached` with no device. |
+  | 69 | `/Users/dbotana/Library/Android/sdk/emulator/emulator -avd ssa35 -no-snapshot-save -no-boot-anim > /dev/null 2>&1 &` | Emulator started in the background. |
+  | 70 | `adb wait-for-device` | No output. |
+  | 71 | `adb shell getprop sys.boot_completed` | `1` |
+  | 72 | `TZ=UTC ./gradlew :core-device:connectedDebugAndroidTest` | `Finished 94 tests on ssa35(AVD) - 15`, 0 failed, `BUILD SUCCESSFUL in 12m 1s`. |
+  | 73 | `/Users/dbotana/Github/ssa-disability-assistant/android/tools/run-pdf-spike.sh ssa35` | `Finished 25 tests`, 0 failed, `crosscheck: 16 PDFs re-read with pdf-lib, 0 failure(s)`; report ended `time budget: over target`. |
+  | 74 | `TZ=UTC ./gradlew :speech:connectedDebugAndroidTest` | XML `tests="16" ... failures="0" errors="0"`; 9/9 token ids and 9/9 kept values. |
+  | 75 | `grep -o 'MODELS\[.*' ".../speech/.../logcat-...WhisperModelTest-...txt"` | Condensed under "Rerun per-clip lines" below. |
+  | 76 | `grep -o 'FEATURES\[.*' ".../speech/.../logcat-...WhisperFeaturesGoldenTest-...txt"` | Condensed under "Rerun per-clip lines" below. |
+  | 77 | `adb emu kill` | `OK: killing emulator, bye bye` and `OK`. |
+  | 78 | `ios/tools/audit-binary.sh /Users/dbotana/Github/ssa-disability-assistant/android/models/build/onnxruntime-ios/onnxruntime.xcframework` | `binary audit clean (3 Mach-O files in 1 inputs)`; unused-allowlist notes informational. |
+  | 79 | `ios/tools/audit-binary.sh /Users/dbotana/Github/ssa-disability-assistant/android/models/build/bin/iosSimulatorArm64/debugTest/test.kexe` | `binary audit clean (1 Mach-O files in 1 inputs)`. |
+  | 80 | `xcrun otool -L /Users/dbotana/Github/ssa-disability-assistant/android/models/build/bin/iosSimulatorArm64/debugTest/test.kexe` | System libraries and weak CoreML only; no CFNetwork, Network or WebKit. |
+  | 81 | `ls -l /Users/dbotana/Github/ssa-disability-assistant/android/models/build/bin/iosSimulatorArm64/debugTest/test.kexe` | `-rwxr-xr-x@ 1 dbotana staff 35558440 Nov 24 18:11 ... test.kexe` |
+  | 82 | `xcodebuild test -scheme CoreCrypto-Package -destination 'platform=iOS Simulator,name=iPhone 18 Pro'` | `** TEST SUCCEEDED **`; 8 tests: `SsaPdfTests` 3, `NetworkGuardTests` 2, `CoreCryptoTests` 3, 0 failures. |
+  | 83 | `xcodebuild build-for-testing -scheme CoreCrypto-Package -destination 'platform=iOS Simulator,name=iPhone 18 Pro' -derivedDataPath /Users/dbotana/Github/ssa-disability-assistant/ios/CoreCrypto/.build/xcode` | `** TEST BUILD SUCCEEDED **` |
+  | 84 | Audit (a): `ios/tools/audit-binary.sh .../ios/CoreCrypto/debug/SsaCore.xcframework` | Exit 0, binary audit clean. |
+  | 85 | Audit (b): `ios/tools/audit-binary.sh P/CoreCrypto.o P/SsaPdf.o` | Exit 0, binary audit clean. |
+  | 86 | Audit (c): `ios/tools/audit-binary.sh P/CoreCryptoTests.xctest P/SsaPdfTests.xctest` | Exit 0, binary audit clean. |
+  | 87 | Audit (d): `ios/tools/audit-binary.sh P/NetCanary.o` | Exit 1, named `_OBJC_CLASS_$_NSURLSession`, by design. |
+  | 88 | Audit (e): `ios/tools/audit-binary.sh P/NetworkGuardTests.xctest` | Exit 1, by design. |
+  | 89 | Audit (f): `ios/tools/audit-binary.sh /Users/dbotana/Github/ssa-disability-assistant/ios/tools` | `BINARY AUDIT ERROR: no Mach-O files found in: /Users/dbotana/Github/ssa-disability-assistant/ios/tools`, exit 2. |
+  | 90 | Audit (g): `ios/tools/audit-binary.sh /Users/dbotana/Github/ssa-disability-assistant/does-not-exist` | `BINARY AUDIT ERROR: no such input: /Users/dbotana/Github/ssa-disability-assistant/does-not-exist`, exit 2. |
+  | 91 | `node tests/ios-audit.js` after the rebuild | `ios-audit: all checks passed` |
+  | 92 | `ls -l .../models/whisper-base.en/onnx/encoder_model_quantized.onnx .../decoder_model_merged_quantized.onnx` | 23,201,320 B and 53,692,803 B. |
+  | 93 | `ls -lL .../onnxruntime.xcframework/ios-arm64/onnxruntime.framework/onnxruntime` | 36,880,608 B. |
+  | 94 | `xcrun lipo -info` on the same arm64 slice | `are: arm64` |
+  | 95 | `ls -lL .../ios-arm64_x86_64-simulator/onnxruntime.framework/onnxruntime` | 79,865,552 B. |
+  | 96 | `xcrun lipo -info` on the same simulator slice | `are: x86_64 arm64` |
+  | 97 | `ls -lL .../ios-arm64_x86_64-maccatalyst/onnxruntime.framework/Versions/A/onnxruntime` | 77,609,544 B. |
+  | 98 | `xcrun lipo -info` on the same maccatalyst slice | `are: x86_64 arm64` |
+
+- **Rerun per-clip `MODELS` lines, condensed** (all cells features/encoder/decoder in ms except
+  Node totals; every clip reported `ids match reference: true`; each runtime ended with `token ids
+  match the reference: 9/9; kept values right: 9/9`):
+  - Node Step 8 rerun, first stage (deepseek), 2026-11-25, from `02-implement.events.jsonl`:
+    loaded in 298 ms; clips 351, 340, 342, 301, 335, 343, 335, 332, 303; printed `Median 335 ms per clip`; other-eight median 335 ms.
+  - Node Step 8 rerun, Big Pickle stage, 2026-11-25: loaded in 293 ms; clips 358, 336, 353, 300,
+    334, 332, 339, 331, 307; printed `Median 334 ms per clip`; other-eight median 333 ms.
+  - Host JVM Step 8 rerun, first stage (deepseek), 2026-11-25, from `02-implement.events.jsonl`:
+    load 544 / 223; date 5 / 220 / 113, phone 6 / 196 / 98, routing 6 / 197 / 183, silence
+    5 / 200 / 41, ssn-digits 5 / 197 / 72, ssn-grouped 6 / 193 / 78, ssn-paused 8 / 193 / 78,
+    text-hospital 4 / 196 / 79, yes 2 / 196 / 39; peak not measured. FEATURES alone: 20, 9, 12,
+    6, 6, 7, 9, 4, 3 ms.
+  - Host JVM Step 8 rerun, Big Pickle stage, 2026-11-25: load 530 / 213; date 6 / 224 / 146,
+    phone 6 / 198 / 109, routing 7 / 197 / 153, silence 4 / 198 / 37, ssn-digits 5 / 194 / 69,
+    ssn-grouped 6 / 195 / 78, ssn-paused 8 / 197 / 80, text-hospital 4 / 195 / 76, yes
+    2 / 196 / 43; peak not measured. FEATURES alone: 16, 19, 13, 5, 5, 6, 8, 4, 2 ms.
+  - `ssa35` Step 8 rerun, first stage (deepseek), 2026-11-25, from `02-implement.events.jsonl`:
+    load 537 / 2402; date 92 / 1940 / 1656, phone 103 / 2037 / 1226, routing 104 / 1883 / 899,
+    silence 81 / 1825 / 350, ssn-digits 92 / 1711 / 691, ssn-grouped 99 / 2176 / 1349,
+    ssn-paused 117 / 1809 / 722, text-hospital 84 / 1822 / 659, yes 72 / 1789 / 356; peak
+    857,026,560 B (817 MiB), `VmHWM`. FEATURES alone: 251, 43, 48, 40, 40, 58, 86, 76, 83 ms.
+  - `ssa35` Step 8 rerun, Big Pickle stage, 2026-11-25: load 482 / 2346; date 85 / 1803 / 946,
+    phone 82 / 1857 / 644, routing 88 / 1799 / 842, silence 84 / 1900 / 429, ssn-digits
+    92 / 2044 / 923, ssn-grouped 100 / 1806 / 739, ssn-paused 114 / 1864 / 647, text-hospital
+    82 / 1788 / 631, yes 72 / 1756 / 347; peak 780,230,656 B (744 MiB), `VmHWM`. FEATURES alone:
+    215, 94, 71, 39, 36, 38, 42, 72, 79 ms. There were four emulator runs. Three of the four
+    emulator runs were slow: Steps 5–6 review 1, the first-stage rerun and this Big Pickle rerun.
+    Only the Step 5 implementer's run was fast (encoder median 273.5 ms). The first-stage rerun came
+    after its own fresh boot (`:core-device` 13m 41s and the PDF spike) and had encoder median
+    1823.5 ms; this rerun came after `:core-device` (12m 1s) and the PDF spike on the same boot and
+    had encoder median 1831.5 ms. The cause is not known.
+  - iOS simulator Step 8 rerun, first stage (deepseek), 2026-11-25, from `02-implement.events.jsonl`:
+    load 75 / 253; date 93 / 207 / 127, phone 111 / 201 / 82, routing 111 / 193 / 108, silence
+    65 / 195 / 37, ssn-digits 93 / 197 / 82, ssn-grouped 111 / 194 / 88, ssn-paused 156 / 198 / 79,
+    text-hospital 72 / 194 / 81, yes 38 / 198 / 44; peak 799,539,200 B (762 MiB),
+    `resident_size_peak`. FEATURES alone: 92, 112, 110, 65, 91, 111, 156, 70, 37 ms.
+  - iOS simulator Step 8 rerun, Big Pickle stage, 2026-11-25: load 65 / 209; date 92 / 204 / 93,
+    phone 112 / 197 / 85, routing 112 / 197 / 107, silence 65 / 195 / 39, ssn-digits 92 / 191 / 81,
+    ssn-grouped 111 / 194 / 86, ssn-paused 156 / 196 / 78, text-hospital 72 / 199 / 81, yes
+    38 / 196 / 42; peak 836,550,656 B (797 MiB), `resident_size_peak`. FEATURES alone: 92, 111,
+    109, 64, 90, 109, 153, 69, 37 ms.
+- **Refused or failed commands.** No command was refused by the tool sandbox. One command failed
+  because the wrong path was used; word for word from the tool result:
+  `zsh:1: no such file or directory: /Users/dbotana/Github/ssa-disability-assistant/tools/audit-permissions.sh`
+  and `Exit code: 127`. It was the permission audit with `tools/audit-permissions.sh` instead of
+  `android/tools/audit-permissions.sh`; the corrected command passed. The expected non-zero exits
+  were audits (d)–(g), and the `unzip -l ... 'ai/*' '*.dylib' '*.onnx'` pattern-match exit 11 with
+  0 files. No check was left failing.
+- **Commands run chained:** two, both read-only, both against the one-command rule:
+  - `grep -n '\.\.\.' ios-android-mirror-plan.md | tail -40`, in the Big Pickle implement stage
+    (`run.log:422`);
+  - `git diff --stat | sed -n '1,5p' | awk -F'|' '{gsub(/^ +| +$/, "", $2); printf "%s\n", $2}'`,
+    in revise 2 (`run.log:723`).
+  Both only read; no state changed. Apart from grep's `\|` alternation and the `;` inside
+  `node -e` strings, these two are the only chained commands in the run's four implementer event
+  logs (`02-`, `03-`, `06-` and `09-*.events.jsonl`).
+- **Side effects:** `android/build/run8-saved-results/` was created with the seven copies above;
+  no `run8-*.log` was created. The `ssa35` emulator was booted and killed twice, once in the first
+  stage (`run.log:147/156`) and once in the Big Pickle stage (`run.log:320/329`): each boot ran
+  `:core-device:connectedDebugAndroidTest`, `run-pdf-spike.sh ssa35` and
+  `:speech:connectedDebugAndroidTest` before `adb emu kill`. `xcodebuild test` also ran twice and
+  rewrote `ios/CoreCrypto/.build/pdf-spike/summary.json` twice; `ls -l` read
+  `1347 Nov 25 12:05:28 2026` for the last write. The Steps 5–6 scratch files still in
+  `android/build/` for the owner to delete are `audit-binary.before.allowlist`,
+  `audit-kexe-after.txt`, `audit-kexe-before.txt`, `audit-ort-after.txt`,
+  `compile-debug-log.txt`, `compile-debug-log2.txt`, `models-test-kexe.nm-m.txt` and
+  `models-test-kexe.otool.txt`, in addition to the new saved-results directory. No tracked build
+  output was changed.
+- **Revise 1's own reruns** (`run.log:555–565`), after the records were written and before review 2:
+  the `node -e` median calculation, `TZ=UTC ./gradlew :speech:compileDebugAndroidTestKotlin --rerun`
+  (`BUILD SUCCESSFUL in 1s`), `TZ=UTC ./gradlew :models:jvmTest --rerun` (`BUILD SUCCESSFUL in 4s`,
+  16 tests, `token ids match the reference: 9/9; kept values right: 9/9`), `node tests/ios-audit.js`,
+  `node tests/no-network.js`, `node tests/vendor-integrity.js` (all `all checks passed`),
+  `DEVELOPER_DIR=/Library/Developer/CommandLineTools node tools/golden/check.mjs` (`goldens fresh`),
+  `node tools/golden/models.mjs --check` (`whisper golden fresh (1911152 bytes)`),
+  `ios/tools/audit-binary.sh android/models/build/bin/iosSimulatorArm64/debugTest/test.kexe`
+  (`binary audit clean (1 Mach-O files in 1 inputs)`), `git status --short` and `git diff --stat`.
+  The jvmTest XMLs were rewritten by this `:models:jvmTest --rerun`, by review 1 (`run.log:464`),
+  by review 2 (`run.log:610`) and by revise 2 (`run.log:745`), so the Big Pickle "Step 8 rerun"
+  JVM values quoted above are kept only in `03-implement.events.jsonl`, not in those XMLs.
+- **Revise 2's own reruns** (`run.log:743–751`), after it applied review 2's revision plan: the
+  `node -e` median recomputation, `TZ=UTC ./gradlew :speech:compileDebugAndroidTestKotlin --rerun`
+  (`BUILD SUCCESSFUL in 1s`), `TZ=UTC ./gradlew :models:jvmTest --rerun` (16 tests, `token ids
+  match the reference: 9/9; kept values right: 9/9`; the XML it left, the last before review 3's own
+  rerun, read load 597 / 234 ms), `node tests/ios-audit.js`, `node tests/no-network.js`, `node
+  tests/vendor-integrity.js` (`all checks passed` each), `DEVELOPER_DIR=/Library/Developer/
+  CommandLineTools node tools/golden/check.mjs` (`goldens fresh`), `node tools/golden/models.mjs
+  --check` (`whisper golden fresh (1911152 bytes)`), and `ios/tools/audit-binary.sh
+  android/models/build/bin/iosSimulatorArm64/debugTest/test.kexe` (`binary audit clean (1 Mach-O
+  files in 1 inputs)`).
+- **M1b checked:** `TODO.md` lines 284–285 and 1155 already mark the whisper.cpp half as replaced
+  by D6 and 3b, and the llama.cpp half stands. No M1b change was needed.
+- **Commands for the owner to add to AGENTS.md's "Common checks"** (AGENTS.md was not edited):
+
+  ```
+  node tools/golden/models.mjs --check
+  node tools/fetch-onnxruntime.mjs --verify
+  node tools/fetch-model.mjs --verify
+  # from android/
+  ./gradlew verifyOnnxRuntimeJava
+  TZ=UTC ./gradlew :models:jvmTest
+  TZ=UTC ./gradlew :models:compileCommonMainKotlinMetadata
+  ./gradlew :models:compileIosMainKotlinMetadata
+  ./gradlew :models:linkDebugTestIosArm64
+  SIMCTL_CHILD_GOLDEN_DIR=$PWD/models/build/ios-test-resources SIMCTL_CHILD_MODEL_DIR=$PWD/../models/whisper-base.en ./gradlew :models:iosSimulatorArm64Test
+  TZ=UTC ./gradlew :speech:connectedDebugAndroidTest    # needs the ssa35 emulator booted
+  # from the repository root
+  ios/tools/audit-binary.sh android/models/build/onnxruntime-ios/onnxruntime.xcframework
+  ```
+
+- **Not verified:** phones; the device `iosArm64` `test.kexe` audit and the `.app` audit (X6);
+  that the NuGet build equals the dead CocoaPods one; `:models` in `SsaCore`; audio over 30 s;
+  `AppController` wiring; JVM peak memory; CI.
+- **Final checks (Step 8 of the run plan), run after these records were written:**
+  - `git status --short` → exactly five modified files: `TODO.md`,
+    `android/speech/build.gradle.kts`, `android/speech/src/androidTest/AndroidManifest.xml`,
+    `ios-android-mirror-plan.md`, `ios/SPIKES.md`. No golden, no `tools/schema.json`, no Kotlin
+    source, no allowlist, no script, no AGENTS.md.
+  - `git diff --stat` → `TODO.md | 69 ++++-`, `android/speech/build.gradle.kts | 9 +-`,
+    `android/speech/src/androidTest/AndroidManifest.xml | 2 +-`,
+    `ios-android-mirror-plan.md | 291 +++++++++++++++++++--`,
+    `ios/SPIKES.md | 264 ++++++++++++++++++-`; 604 insertions and 31 deletions in 5 files.
+  - `git diff -- android/speech/build.gradle.kts` → only the two old comment lines are replaced
+    by the seven new comment lines; `dependsOn(":models:compileKotlinJvm")` and
+    `friendPaths.from(...)` are unchanged.
+  - `grep -n 'largeHeap' android/speech/src/androidTest/AndroidManifest.xml` → only
+    `6:    <application android:largeHeap="true" />`.
+  - `grep -n 'deepseek-v4.1-flash-free' ios-android-mirror-plan.md` → lines 641, 642, 1163, 1384,
+    1460, 1681, 1697 and 1931, including the Steps 5–6 block's header (1384), its "Revision 1"
+    paragraph (1460), this run's nit note (1697), and this final-check line itself (1931).
+- **Second pass, 2026-11-25 (review 3's record fixes).** The pass above ended at the loop's
+  revision cap with review 3 (`agent-loop-runs/2026-11-25-1048-implement-steps-7-8-and-9/
+  10-review-3.md`) still asking for three record fixes. A second agent-loop run of the same task
+  (implementer opencode/deepseek-v4.1-flash-free, per the `roles:` line of
+  `agent-loop-runs/2026-11-25-1314-implement-steps-7-8-and-9-2/run.log`: that model hit a 429 free
+  limit at `run.log:43–45`, so the fallback implementer `opencode/big-pickle` made the edits,
+  `run.log:47`) applied them, changing no code, golden, allowlist, script or TODO.md: (1) the
+  "Commands run chained" bullet now records both chained commands (`run.log:422`, `run.log:723`);
+  (2) SPIKES §3b.6.6 now records Step 8's Android audits, which the X2 row cites it for; (3) a
+  "Revise 2's own reruns" bullet (`run.log:743–751`) and the completed jvmTest-XML overwrite note
+  (review 1 `run.log:464`, review 2 `run.log:610`, revise 2 `run.log:745`), with the matching
+  source note in SPIKES §3b.6.3.
+  Commands this pass ran, one per call: `date '+%Y-%m-%d %H:%M %Z'` → 2026-11-25 13:37 CST;
+  `git status --short` → the five staged `M ` files; `git log --oneline -1` → `531b7b07`;
+  `git diff HEAD -- android/speech/build.gradle.kts android/speech/src/androidTest/AndroidManifest.xml`
+  → comment lines only, with `dependsOn(":models:compileKotlinJvm")`, `friendPaths.from(...)` and
+  `android:largeHeap="true"` unchanged; `grep -n 'largeHeap' android/speech/src/androidTest/
+  AndroidManifest.xml` → only `6:    <application android:largeHeap="true" />`;
+  `grep -n 'deepseek-v4.1-flash-free' ios-android-mirror-plan.md` → baseline lines 641, 642,
+  1163, 1384, 1460, 1681, 1697, 1931; `ls -la android/build/run8-saved-results/` → the seven
+  copies from 11:00–11:01; `ls "android/speech/build/outputs/androidTest-results/connected/debug/
+  ssa35(AVD) - 15/"` and `grep -o 'MODELS\[.*'` on its WhisperModelTest logcat → load 482 / 2346,
+  `date` 85 / 1803 / 946, peak 780,230,656 B (744 MiB), 9/9 and 9/9; the same grep on
+  `android/models/build/test-results/iosSimulatorArm64Test/TEST-org.ssa.assistant.models.whisper.
+  WhisperModelTest.xml` → load 65 / 209, `date` 92 / 204 / 93, peak 836,550,656 B (797 MiB);
+  `ls` plus the XML headers for `:core-device` (94), `:pdf` (25) and `:speech` (16), all
+  `failures="0"`; the header grep first tried on the `:core-device` XML,
+  `grep -o 'tests="[0-9]*" skipped="[0-9]*" failures="[0-9]*" errors="[0-9]*"'`,
+  gave `(no output)` / `Exit code: 1` (that XML's attribute order is
+  `tests="…" failures="…" errors="…" skipped="…"`), so the headers were read from the XML files
+  instead. Reads: review 3, the revise-2 summary, `run.log:415–430`, `555–565`, `715–752`,
+  `464`, `610` and `723`, and `09-revise-2.events.jsonl` (load 597 / 234).
+  Fix greps: `grep -n 'run.log:723' ios-android-mirror-plan.md` → one hit (1871) before this bullet
+  was added; afterwards it also hits this bullet's two quotations of the same string;
+  `grep -n 'native audit clean (8 libraries in 1 APKs)' ios/SPIKES.md` first gave
+  `(no output)` / `Exit code: 1` because the suggested line wrap split the literal, so the wrap
+  was moved and the same grep then gave exactly one hit (762);
+  `grep -n 'run.log:745' ios-android-mirror-plan.md` → a hit (1897);
+  `grep -n '03-implement.events.jsonl' ios/SPIKES.md` → a hit (622).
+  Spot checks, one per call: `node tests/ios-audit.js` → `ios-audit: all checks passed`;
+  `node tests/no-network.js` → `no-network: all checks passed`;
+  `node tests/vendor-integrity.js` → `vendor-integrity: all checks passed`;
+  `node tools/smoke.mjs` → `Smoke test passed.`;
+  `node tools/golden/models.mjs --check` → `whisper golden fresh (1911152 bytes)`;
+  `DEVELOPER_DIR=/Library/Developer/CommandLineTools node tools/golden/check.mjs` → `goldens fresh`;
+  `ios/tools/audit-binary.sh android/models/build/bin/iosSimulatorArm64/debugTest/test.kexe` →
+  `allowed: test.kexe: _dlsym (…)` and `binary audit clean (1 Mach-O files in 1 inputs)`;
+  from `android/`, `TZ=UTC ./gradlew :speech:compileDebugAndroidTestKotlin --rerun` →
+  `BUILD SUCCESSFUL in 4s`. No command was refused by the sandbox; the two failed greps above are
+  recorded word for word.
+  Final checks, one per call: `git status --short` → `M ` for TODO.md, the gradle file and the
+  manifest, `MM` for the two edited files, nothing else; `git diff HEAD --stat` → five files,
+  628 insertions and 31 deletions before this bullet was added; `git diff --check` → no output;
+  the four fix greps above; and the refreshed `deepseek` list below. These were run before and
+  again after writing this bullet.
+  Chained commands this pass ran: none.
+  Not run, on purpose: the Step 8 regression list — it was run twice on 2026-11-25, once per
+  implement stage, reviews 1–3 verified its recorded results, and review 3's revision plan said
+  not to rerun any Gradle, emulator or xcodebuild task; a rerun would also overwrite the XMLs and
+  logcats that §3b.6.3 cites. Phones and CI stay out of scope.
+  The three nits were re-verified and are unchanged. TODO.md was re-read (its Run 8 items, lines
+  1146–1169, still agree with Progress), and `git diff --` on it and the two nit files showed no
+  unstaged change. The five modified files were already staged
+  when this pass began (`M ` in `git status --short`); this pass's edits are the unstaged half, so
+  the two edited files read `MM`, and the first pass's "Final checks" bullet keeps the numbers it
+  measured. The current numbers: `grep -n 'deepseek-v4.1-flash-free' ios-android-mirror-plan.md`
+  → 641, 642, 1163, 1384, 1460, 1681, 1697, 1946, 1952, 1967, 2014 and 2026 (still including 1384
+  and 1460); `git diff HEAD --stat` → 712 insertions and 31 deletions in 5 files.
+  Revision 1, 2026-11-25 (record-only), applied review 1's two findings: the second failed command
+  (the `:core-device` header grep, `(no output)` / `Exit code: 1`) is now in the command account,
+  the completeness sentence names two failed greps, and the TODO.md verification is recorded.
+  Commands this revision ran, one per call: `grep -n 'Exit code: 1' ios-android-mirror-plan.md` →
+  hits at 1863 (the first pass's pre-existing `Exit code: 127`, which contains the same substring),
+  1977 and 1984 (both inside this bullet, the two exit-1 failures; the plan expected two hits, and
+  the third is that 127 line); `grep -n 'still agree' ios-android-mirror-plan.md` → hit at 2010;
+  `git status --short` → the same five files with the same staged/unstaged split;
+  `git diff --check` → no output; `git diff HEAD --stat` → the five-file totals in the refreshed
+  sentence; `grep -n 'deepseek-v4.1-flash-free' ios-android-mirror-plan.md` → the line list there;
+  `grep -n 'native audit clean (8 libraries in 1 APKs)' ios/SPIKES.md` → exactly one hit (762);
+  `grep -n 'run.log:723' ios-android-mirror-plan.md` → 1871 (the fix), 1956 and 1981 (this
+  bullet's two quotations); `git diff -- TODO.md android/speech/build.gradle.kts
+  android/speech/src/androidTest/AndroidManifest.xml` → no unstaged change. All were rerun after
+  this clause was written; the text-matching greps then also hit this clause's own quotations, and
+  the refreshed numbers above are from that final rerun. No chained command; index untouched.
+
 ### Next: Run 8, spike 3b part 1 (ONNX Runtime on both platforms, proven with Whisper base.en)
 
 **Run 8 stopped at Step 1 on 2026-11-23 (see Run 8 above).** On 2026-11-24 the owner chose ORT
 1.22.0 for all platforms (Decision 1, updated), with the iOS archive from NuGet, and Step 1 was
-done that day. **Steps 4 to 6 are done; Steps 7 to 9 are still to do.**
+done that day. **Steps 1 to 9 are done; Steps 7 to 9 on 2026-11-25 (see the Run 8 Progress entry).**
 
 Run 7 committed as 61d95215; its steps are in that commit's copy of this plan.
 
@@ -2590,7 +2950,7 @@ Android milestones keep their numbers (M0–M8). Mirror milestones are X1–X8.
 |---|---|---|---|
 | X1a | `core` multiplatform, without Xcode | A JDK 21 on the host | The common-metadata compile passes, `:core:jvmTest` is green, the Android consumers compile, the JS tests are all green, and the iOS files have been reviewed by reading. **Status:** done 2026-11-21, run 2; Kotlin 2.0.21 has no common-test metadata task, so that half waits for X1b |
 | X1b | `core` on iOS | X1a, and Xcode with an iOS simulator runtime | The goldens and scenarios pass on the iOS simulator, and the XCFramework builds. The Swift `Crypto` decrypts the WebCrypto vector on the simulator. **Status:** done 2026-11-22. Run 4 ran it on Xcode 27.2 with Kotlin 2.0.21. Run 5 passed 71 tests on the simulator, built the XCFramework and ran the Swift `Crypto` tests against it |
-| X2 | Spikes | X1b, for the iOS parts; X1a for the Android parts | `ios/SPIKES.md` records: the PDF go-or-fallback decision with timings; the 3b table for every model on both platforms, including whether MMS fits low-end iPhones; an audit that fails on the canary; the 3d VoiceOver and TalkBack results, and which controls went native. **Status:** 3a ran on the iOS simulator in Run 6 (2026-11-22) and its provisional decision is fallback, with simulator timings only; 3c ran in Run 7 (2026-11-23): the audit fails on the canary and passes on the XCFramework, the package's products and the clean test bundles (simulator and host only; the `.app` audit waits for X6); 3b part 1 (Run 8, 2026-11-23) stopped at Step 1: ORT 1.21.0's Android JNI library is 4 KB-aligned and the iOS archive could not be fetched verifiably, so the version is the owner's to choose again; 3b and 3d are still open |
+| X2 | Spikes | X1b, for the iOS parts; X1a for the Android parts | `ios/SPIKES.md` records: the PDF go-or-fallback decision with timings; the 3b table for every model on both platforms, including whether MMS fits low-end iPhones; an audit that fails on the canary; the 3d VoiceOver and TalkBack results, and which controls went native. **Status:** 3a ran on the iOS simulator in Run 6 (2026-11-22) and its provisional decision is fallback, with simulator timings only; 3c ran in Run 7 (2026-11-23): the audit fails on the canary and passes on the XCFramework, the package's products and the clean test bundles (simulator and host only; the `.app` audit waits for X6); 3b part 1 (Run 8, 2026-11-23 to 2026-11-25) is done on ORT 1.22.0: Whisper base.en runs through `:models` on the host JVM, `ssa35` and the iOS simulator with 9/9 token ids equal to the reference and 9/9 kept values on each, and ORT passes the Android and iOS audits (`ios/SPIKES.md` §3b.6; host, emulator and simulator only, no phone); the rest of 3b (MMS, NLLB, Simba, phones) and 3d are still open |
 | X3 | Lingala voice | X2 (3b, for the on-phone part) | The normalizer and its golden are in place. Every fixed string is rendered with Simba into `audio-ln/`, and the audio-manifest test covers Lingala. Simba runs on both phones within budget. Volunteers have listened to a sample. The 4.5 fix has landed |
 | X4 | Lingala words | Nothing; start now | Volunteer review imported, with `reviewedByNativeSpeaker: true`. Until then, the disclosure in 4.1 ships |
 | X5 | Understanding spoken Lingala | X2 (3b) | Evaluation set recorded by volunteers. Scores per type, with language ID on and off. Input matrix narrowed |

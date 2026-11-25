@@ -414,7 +414,7 @@ into its bundle (deviation 1). In `SsaPdfTests` that request would make audit
 - **The plan's Progress section** (Run 7) lists every refused or failed
   command, word for word.
 
-# Spike 3b, part 1: ONNX Runtime packages — evidence (Run 8, stopped at Step 1)
+# Spike 3b, part 1: ONNX Runtime and Whisper base.en — evidence (Run 8)
 
 Run 8 (2026-11-23) followed the plan's *Next: Run 8*. It stopped at Step 1 on two of its stop
 conditions, so no `:models` code, golden or pin file was written:
@@ -423,7 +423,8 @@ conditions, so no `:models` code, golden or pin file was written:
 - the iOS package could not be fetched over verified TLS, and no publisher checksum for it was
   found.
 
-The plan's Run 8 entry has every command, word for word.
+The plan's Run 8 entry has every command, word for word. It resumed on 2026-11-24 with ORT 1.22.0
+(§3b.4a) and finished on 2026-11-25. §3b.6 has the part 1 result.
 
 ## 3b.1 The Node reference (Step 0)
 
@@ -555,3 +556,271 @@ built):
 - **iOS:** a verified way to get the `onnxruntime-c` archive. That means a working TLS connection
   to `download.onnxruntime.ai`, or a checksum Microsoft publishes that the bytes can be checked
   against.
+
+## 3b.6 Part 1 result: Whisper base.en on ORT 1.22.0 (Run 8 Steps 4 to 9)
+
+### 3b.6.1 Not phone numbers
+
+Every figure below is from the host Mac, the `ssa35` emulator (`sdk_gphone64_arm64`, API 35,
+arm64-v8a, on the Mac) or the iOS simulator (the Mac's CPU). None of them decides anything about
+phones (M0). They are included to prove the port works and to compare sources, not to claim phone
+latency or memory.
+
+### 3b.6.2 Timing and memory
+
+| Runtime | Source | Load ms, encoder / decoder | First clip (`date`) ms, features / encoder / decoder | Median of the other 8 clips ms, features / encoder / decoder | Peak memory | Token ids equal to the reference (n/9) | Kept values (n/9) |
+|---|---|---|---|---|---|---|---|
+| Node, transformers.js 3.8.1 on `onnxruntime-node` 1.21.0 | Run 8 Step 0, 2026-11-23 (§3b.1) | 314 (whole pipeline) | 352 (total) | 335 (total) | not measured | — (the reference) | 9/9 |
+| Node, transformers.js 3.8.1 on `onnxruntime-node` 1.21.0 | Step 8 rerun, first stage (deepseek), 2026-11-25, from `02-implement.events.jsonl` | 298 (whole pipeline) | 351 (total) | 335 (total) | not measured | — (the reference) | 9/9 |
+| Node, transformers.js 3.8.1 on `onnxruntime-node` 1.21.0 | Step 8 rerun, Big Pickle stage, 2026-11-25 | 293 (whole pipeline) | 358 (total) | 333 (total) | not measured | — (the reference) | 9/9 |
+| Host JVM, ORT 1.22.0 desktop jar | Steps 5–6 implementer, 2026-11-24 (Progress item 6) | 839 / 220 | 5 / 226 / 184 | 5.5 / 199 / 77 | not measured | 9/9 | 9/9 |
+| Host JVM, ORT 1.22.0 desktop jar | Steps 5–6 review 2, saved XML (Nov 24 18:34 local) | 534 / 187 | 5 / 218 / 86 | 5 / 197 / 76 | not measured | 9/9 | 9/9 |
+| Host JVM, ORT 1.22.0 desktop jar | Step 8 rerun, first stage (deepseek), 2026-11-25, from `02-implement.events.jsonl` | 544 / 223 | 5 / 220 / 113 | 5.5 / 196 / 78 | not measured | 9/9 | 9/9 |
+| Host JVM, ORT 1.22.0 desktop jar | Step 8 rerun, Big Pickle stage, 2026-11-25 | 530 / 213 | 6 / 224 / 146 | 5.5 / 196.5 / 77 | not measured | 9/9 | 9/9 |
+| `ssa35`, ORT 1.22.0 AAR | Step 5 implementer, 2026-11-24 (Progress item 15) | 94 / 331 | 16 / 301 / 181 | 14 / 273.5 / 116.5 | 1,043,255,296 B (994 MiB), `VmHWM` | 9/9 | 9/9 |
+| `ssa35`, ORT 1.22.0 AAR | Steps 5–6 review 1, saved logcat (Nov 24 18:21 local) | 66 / 1549 | 212 / 2089 / 1165 | 88.5 / 1927 / 793 | 857,509,888 B (817 MiB), `VmHWM` | 9/9 | 9/9 |
+| `ssa35`, ORT 1.22.0 AAR | Step 8 rerun, first stage (deepseek), 2026-11-25, from `02-implement.events.jsonl` | 537 / 2402 | 92 / 1940 / 1656 | 95.5 / 1823.5 / 706.5 | 857,026,560 B (817 MiB), `VmHWM` | 9/9 | 9/9 |
+| `ssa35`, ORT 1.22.0 AAR | Step 8 rerun, Big Pickle stage, 2026-11-25 | 482 / 2346 | 85 / 1803 / 946 | 86 / 1831.5 / 645.5 | 780,230,656 B (744 MiB), `VmHWM` | 9/9 | 9/9 |
+| iOS simulator, ORT 1.22.0 xcframework | Step 6 implementer, 2026-11-24 (Progress item 20) | 51 / 239 | 95 / 224 / 114 | 109 / 216 / 88 | 900,268,032 B (858 MiB), `resident_size_peak` | 9/9 | 9/9 |
+| iOS simulator, ORT 1.22.0 xcframework | Steps 5–6 review 2, saved XML (Nov 24 18:34 local) | 67 / 215 | 93 / 203 / 90 | 101 / 197 / 80 | 839,368,704 B (800 MiB), `resident_size_peak` | 9/9 | 9/9 |
+| iOS simulator, ORT 1.22.0 xcframework | Step 8 rerun, first stage (deepseek), 2026-11-25, from `02-implement.events.jsonl` | 75 / 253 | 93 / 207 / 127 | 102 / 196 / 81.5 | 799,539,200 B (762 MiB), `resident_size_peak` | 9/9 | 9/9 |
+| iOS simulator, ORT 1.22.0 xcframework | Step 8 rerun, Big Pickle stage, 2026-11-25 | 65 / 209 | 92 / 204 / 93 | 101.5 / 196 / 81 | 836,550,656 B (797 MiB), `resident_size_peak` | 9/9 | 9/9 |
+
+Notes on the table:
+
+- The Android peak is `VmHWM`, the whole instrumented test process's high-water mark. It includes
+  earlier tests and the harness reading each model file whole to hash it.
+- The iOS peak is `task_vm_info.resident_size_peak` of the test process. Review 1 of Steps 5–6 also
+  saw 844,939,264 B (805 MiB), with no per-clip numbers saved
+  (`agent-loop-runs/2026-11-24-1731-implement-steps-5-and-6-of/04-review-1.md:33`).
+- The JVM prints `peak resident memory: not measured on this runtime`. Node is not measured.
+- Review 1's emulator run was about 7× slower; review 1 put this down to the boot not having
+  finished. Its saved load was 66 / 1549 ms and its first clip was 212 / 2089 / 1165 ms.
+- There were four emulator runs. Three of the four emulator runs were slow: Steps 5–6 review 1,
+  the first stage's Step 8 rerun and the Big Pickle Step 8 rerun. Only the Step 5 implementer's run
+  was fast (other-eight encoder median 273.5 ms). The first-stage rerun came after its own fresh
+  boot (`:core-device` 13m 41s and the PDF spike) and had encoder median 1823.5 ms and load
+  537 / 2402 ms; the Big Pickle rerun came after `:core-device` (12m 1s) and the PDF spike on the
+  same boot and had encoder median 1831.5 ms and load 482 / 2346 ms. An unfinished boot does not
+  explain the slowdown, and the cause is not known.
+- Step 4's own JVM and simulator runs are in the plan's Progress entry and are not repeated here.
+- All three Node rows use the plan's other-eight rule. For Step 0 the eight clips after `date` give
+  335 ms, the same as the median `stt-eval.mjs` printed in §3b.1, which matches a median over all
+  nine clips. For the first-stage rerun `stt-eval.mjs` printed `Median 335 ms per clip`, and the
+  eight clips after `date` also give 335 ms. For the Big Pickle rerun it printed
+  `Median 334 ms per clip`, also a median over all nine clips; the eight clips after `date` give
+  333 ms, which is the value in the table.
+
+### 3b.6.3 Per-clip timings by source
+
+Each cell is features / encoder / decoder in ms. Clip order is date, phone, routing, silence,
+ssn-digits, ssn-grouped, ssn-paused, text-hospital, yes; their id counts are 8, 9, 12, 4, 9, 10,
+9, 9, 5. The saved columns come from the copies in `android/build/run8-saved-results/`; the
+first-stage rerun columns come from `02-implement.events.jsonl`, and the Big Pickle rerun
+columns were read from the Step 8 XMLs and logcats at the time. Later reruns (review 1, review 2,
+revise 1 and revise 2) overwrote the jvmTest XMLs, so the Big Pickle JVM column is now kept only
+in `03-implement.events.jsonl`; the `ssa35` logcat and the simulator XMLs still held the Big
+Pickle values when the second pass checked them on 2026-11-25. The `features` here is the value
+inside the model test; the separate FEATURES table below times the front end on its own. That is
+why, for example, the Big Pickle emulator rerun's `date` is 85 ms in the model test but 215 ms in
+the FEATURES test.
+
+**Host JVM:**
+
+| Row | Steps 5–6 implementer, 2026-11-24 | Steps 5–6 review 2, saved XML | Step 8 rerun, first stage (deepseek), 2026-11-25, from `02-implement.events.jsonl` | Step 8 rerun, Big Pickle stage, 2026-11-25 |
+|---|---|---|---|---|
+| Load, encoder / decoder | 839 / 220 | 534 / 187 | 544 / 223 | 530 / 213 |
+| date | 5 / 226 / 184 | 5 / 218 / 86 | 5 / 220 / 113 | 6 / 224 / 146 |
+| phone | 7 / 213 / 126 | 5 / 199 / 76 | 6 / 196 / 98 | 6 / 198 / 109 |
+| routing | 6 / 198 / 136 | 5 / 198 / 116 | 6 / 197 / 183 | 7 / 197 / 153 |
+| silence | 4 / 199 / 41 | 3 / 195 / 33 | 5 / 200 / 41 | 4 / 198 / 37 |
+| ssn-digits | 5 / 199 / 76 | 5 / 191 / 79 | 5 / 197 / 72 | 5 / 194 / 69 |
+| ssn-grouped | 6 / 200 / 78 | 6 / 197 / 82 | 6 / 193 / 78 | 6 / 195 / 78 |
+| ssn-paused | 8 / 196 / 79 | 8 / 198 / 76 | 8 / 193 / 78 | 8 / 197 / 80 |
+| text-hospital | 4 / 200 / 68 | 4 / 197 / 68 | 4 / 196 / 79 | 4 / 195 / 76 |
+| yes | 2 / 197 / 40 | 2 / 194 / 41 | 2 / 196 / 39 | 2 / 196 / 43 |
+| Peak | not measured | not measured | not measured | not measured |
+
+**`ssa35`:**
+
+| Row | Step 5 implementer, 2026-11-24 | Steps 5–6 review 1, saved logcat | Step 8 rerun, first stage (deepseek), 2026-11-25, from `02-implement.events.jsonl` | Step 8 rerun, Big Pickle stage, 2026-11-25 |
+|---|---|---|---|---|
+| Load, encoder / decoder | 94 / 331 | 66 / 1549 | 537 / 2402 | 482 / 2346 |
+| date | 16 / 301 / 181 | 212 / 2089 / 1165 | 92 / 1940 / 1656 | 85 / 1803 / 946 |
+| phone | 14 / 276 / 120 | 88 / 2037 / 870 | 103 / 2037 / 1226 | 82 / 1857 / 644 |
+| routing | 15 / 272 / 153 | 60 / 1958 / 1321 | 104 / 1883 / 899 | 88 / 1799 / 842 |
+| silence | 13 / 270 / 47 | 78 / 1896 / 466 | 81 / 1825 / 350 | 84 / 1900 / 429 |
+| ssn-digits | 14 / 279 / 110 | 98 / 1762 / 676 | 92 / 1711 / 691 | 92 / 2044 / 923 |
+| ssn-grouped | 15 / 270 / 124 | 90 / 3134 / 1235 | 99 / 2176 / 1349 | 100 / 1806 / 739 |
+| ssn-paused | 17 / 276 / 119 | 109 / 1561 / 716 | 117 / 1809 / 722 | 114 / 1864 / 647 |
+| text-hospital | 13 / 275 / 114 | 85 / 1736 / 697 | 84 / 1822 / 659 | 82 / 1788 / 631 |
+| yes | 11 / 272 / 60 | 89 / 2023 / 888 | 72 / 1789 / 356 | 72 / 1756 / 347 |
+| Peak | 1,043,255,296 B (994 MiB), `VmHWM` | 857,509,888 B (817 MiB), `VmHWM` | 857,026,560 B (817 MiB), `VmHWM` | 780,230,656 B (744 MiB), `VmHWM` |
+
+**iOS simulator:**
+
+| Row | Step 6 implementer, 2026-11-24 | Steps 5–6 review 2, saved XML | Step 8 rerun, first stage (deepseek), 2026-11-25, from `02-implement.events.jsonl` | Step 8 rerun, Big Pickle stage, 2026-11-25 |
+|---|---|---|---|---|
+| Load, encoder / decoder | 51 / 239 | 67 / 215 | 75 / 253 | 65 / 209 |
+| date | 95 / 224 / 114 | 93 / 203 / 90 | 93 / 207 / 127 | 92 / 204 / 93 |
+| phone | 115 / 219 / 87 | 110 / 196 / 85 | 111 / 201 / 82 | 112 / 197 / 85 |
+| routing | 117 / 211 / 119 | 111 / 196 / 105 | 111 / 193 / 108 | 112 / 197 / 107 |
+| silence | 67 / 217 / 38 | 65 / 196 / 38 | 65 / 195 / 37 | 65 / 195 / 39 |
+| ssn-digits | 103 / 218 / 89 | 92 / 200 / 78 | 93 / 197 / 82 | 92 / 191 / 81 |
+| ssn-grouped | 118 / 211 / 92 | 115 / 196 / 92 | 111 / 194 / 88 | 111 / 194 / 86 |
+| ssn-paused | 165 / 214 / 94 | 159 / 203 / 77 | 156 / 198 / 79 | 156 / 196 / 78 |
+| text-hospital | 76 / 227 / 87 | 71 / 199 / 82 | 72 / 194 / 81 | 72 / 199 / 81 |
+| yes | 42 / 215 / 47 | 38 / 198 / 44 | 38 / 198 / 44 | 38 / 196 / 42 |
+| Peak | 900,268,032 B (858 MiB), `resident_size_peak` | 839,368,704 B (800 MiB), `resident_size_peak` | 799,539,200 B (762 MiB), `resident_size_peak` | 836,550,656 B (797 MiB), `resident_size_peak` |
+
+**Node, totals only (ms):**
+
+| Row | Run 8 Step 0, 2026-11-23 (§3b.1) | Step 8 rerun, first stage (deepseek), 2026-11-25, from `02-implement.events.jsonl` | Step 8 rerun, Big Pickle stage, 2026-11-25 |
+|---|---|---|---|
+| Load | 314 | 298 | 293 |
+| date | 352 | 351 | 358 |
+| phone | 335 | 340 | 336 |
+| routing | 354 | 342 | 353 |
+| silence | 301 | 301 | 300 |
+| ssn-digits | 335 | 335 | 334 |
+| ssn-grouped | 339 | 343 | 332 |
+| ssn-paused | 332 | 335 | 339 |
+| text-hospital | 336 | 332 | 331 |
+| yes | 308 | 303 | 307 |
+| Peak | not measured | not measured | not measured |
+
+**FEATURES timed on their own (ms), from the `FEATURES[…]` lines:**
+
+| Runtime | Source | date | phone | routing | silence | ssn-digits | ssn-grouped | ssn-paused | text-hospital | yes |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Host JVM | Implementer, 2026-11-24 | 18 | 21 | 7 | 5 | 6 | 7 | 9 | 5 | 3 |
+| Host JVM | Review 2, saved XML | 22 | 8 | 12 | 6 | 6 | 7 | 9 | 5 | 3 |
+| Host JVM | Step 8 rerun, first stage (deepseek), 2026-11-25, from `02-implement.events.jsonl` | 20 | 9 | 12 | 6 | 6 | 7 | 9 | 4 | 3 |
+| Host JVM | Step 8 rerun, Big Pickle stage, 2026-11-25 | 16 | 19 | 13 | 5 | 5 | 6 | 8 | 4 | 2 |
+| `ssa35` | Implementer, 2026-11-24 | 38 | 17 | 17 | 15 | 16 | 17 | 19 | 14 | 18 |
+| `ssa35` | Review 1, saved logcat | 38 | 16 | 17 | 14 | 17 | 17 | 19 | 15 | 14 |
+| `ssa35` | Step 8 rerun, first stage (deepseek), 2026-11-25, from `02-implement.events.jsonl` | 251 | 43 | 48 | 40 | 40 | 58 | 86 | 76 | 83 |
+| `ssa35` | Step 8 rerun, Big Pickle stage, 2026-11-25 | 215 | 94 | 71 | 39 | 36 | 38 | 42 | 72 | 79 |
+| iOS simulator | Implementer, 2026-11-24 | 97 | 130 | 140 | 73 | 102 | 114 | 162 | 74 | 39 |
+| iOS simulator | Review 2, saved XML | 91 | 111 | 110 | 64 | 91 | 110 | 154 | 70 | 37 |
+| iOS simulator | Step 8 rerun, first stage (deepseek), 2026-11-25, from `02-implement.events.jsonl` | 92 | 112 | 110 | 65 | 91 | 111 | 156 | 70 | 37 |
+| iOS simulator | Step 8 rerun, Big Pickle stage, 2026-11-25 | 92 | 111 | 109 | 64 | 90 | 109 | 153 | 69 | 37 |
+
+### 3b.6.4 Disk
+
+- The pinned model files are `encoder_model_quantized.onnx`, 23,201,320 B, and
+  `decoder_model_merged_quantized.onnx`, 53,692,803 B: 76,894,123 B together. They ship in the
+  test APK only (155,303,765 B, Progress item 13), not in `app-debug.apk`.
+- ORT in the debug APK is uncompressed: arm64-v8a `libonnxruntime.so` 18,214,224 B +
+  `libonnxruntime4j_jni.so` 100,600 B; x86_64 21,880,016 B + 90,728 B.
+- `app-debug.apk` was 70,642,340 B before ORT (Steps 5–6 baseline) and 71,327,072 B in Run 8's
+  first Step 0 attempt, then 111,160,286 B with ORT. That is +40,517,946 B over the baseline and
+  +39,833,214 B over the first attempt. The Step 8 rebuild was UP-TO-DATE and `stat` still read
+  `111160286 Nov 24 18:09:35 2026`.
+- ORT's iOS static archive slices: `ios-arm64` 36,880,608 B (`arm64`),
+  `ios-arm64_x86_64-simulator` 79,865,552 B (`x86_64 arm64`), and
+  `ios-arm64_x86_64-maccatalyst` 77,609,544 B (`x86_64 arm64`). A static archive is not the size an
+  app carries after linking; that waits for X6. The linked simulator `test.kexe` was 35,558,440 B
+  in Progress item 22 and Step 8's `ls -l` still read `35558440 Nov 24 18:11`.
+- The iOS download is `onnxruntime.xcframework.zip`, 45,861,984 B, extracted from the 121,402,697 B
+  NuGet package `Microsoft.ML.OnnxRuntime` 1.22.0.
+
+### 3b.6.5 Pins
+
+`android/models/onnxruntime.SHA256SUMS` in full:
+
+```
+# ONNX Runtime 1.22.0. Each file is checked against the checksum its publisher gives
+# (Maven Central .sha256 for the first two; the third is extracted from the NuGet package
+# Microsoft.ML.OnnxRuntime 1.22.0, whose own SHA-512 is pinned in tools/fetch-onnxruntime.mjs).
+04a4617a9c797cf49225595e45b5546081cb34c86ac817581141577d3b7dbfe2  onnxruntime-android-1.22.0.aar
+41bb3b51b6a2e489cd39f538d5a1c74e4333845ab1ccad63e752b6f19ebeee45  onnxruntime-1.22.0.jar
+8a64917aecbb87ad49ca78f8a1e442f713ea633d8475e576369802fb2af6e767  onnxruntime.xcframework.zip
+```
+
+The AAR and the jar equal Maven Central's `.sha256` files. The zip has no checksum of its own; it
+is extracted from the NuGet `.nupkg`, whose SHA-512
+`zb3eqkL6hHPGzZgArsuTH9VWdUs4ooKTJHBXF6ZZfQsPvzModaAEv3u69zwtqKuwUJ/DPc8i+uKoyXMzdwqrPg==`
+equals nuget.org's catalog `packageHash`, and is pinned in `tools/fetch-onnxruntime.mjs`. The model
+and fixture pins are in `models/whisper-base.en/SHA256SUMS` and
+`android/models/speech-fixtures.SHA256SUMS`.
+
+### 3b.6.6 Step 1 checks
+
+From the plan's Run 8 Step 1 update: every `PT_LOAD` is `0x4000` in both libraries and both ABIs;
+there is no networking import, and `libonnxruntime.so` imports `dlopen`/`dlsym`; the AAR manifest
+asks for no permission and has no provider; the desktop jar holds
+`osx-aarch64/libonnxruntime.dylib` (33,481,272 B); and the iOS xcframework audit passed with three
+exact `prelinked_objects.o _dlsym` lines for device, simulator and maccatalyst.
+
+Step 8 repeated those checks and added the linked-binary checks:
+
+- The Android audits, which passed in both implement stages (the exact commands are Progress
+  rows 62–63): `android/tools/audit-permissions.sh` on the debug APK and the debug, release and
+  staging merged manifests gave `permission audit clean (4 artifacts)`, and
+  `android/tools/audit-native.sh` on `app-debug.apk` gave
+  `native audit clean (8 libraries in 1 APKs)`.
+- `ios/tools/audit-binary.sh …/onnxruntime.xcframework` → `binary audit clean (3 Mach-O files in 1
+  inputs)`.
+- `ios/tools/audit-binary.sh …/debugTest/test.kexe` → `binary audit clean (1 Mach-O files in 1
+  inputs)`. `xcrun otool -L` on it listed only system libraries and weak CoreML, with no
+  CFNetwork, Network or WebKit.
+- `xcodebuild test -scheme CoreCrypto-Package -destination 'platform=iOS Simulator,name=iPhone 18 Pro'`
+  → `** TEST SUCCEEDED **`, 8 tests (`SsaPdfTests` 3 with one expected failure accepted,
+  `NetworkGuardTests` 2, `CoreCryptoTests` 3), 0 failures.
+- `xcodebuild build-for-testing … -derivedDataPath …` → `** TEST BUILD SUCCEEDED **`.
+- Audits (a)–(g): (a) `SsaCore.xcframework` clean, (b) `CoreCrypto.o`/`SsaPdf.o` clean,
+  (c) `CoreCryptoTests.xctest`/`SsaPdfTests.xctest` clean, (d) `NetCanary.o` failed by design and
+  named `_OBJC_CLASS_$_NSURLSession`, (e) `NetworkGuardTests.xctest` failed by design,
+  (f) `ios/tools` gave `BINARY AUDIT ERROR: no Mach-O files found in: …/ios/tools`, and
+  (g) `…/does-not-exist` gave `BINARY AUDIT ERROR: no such input: …/does-not-exist`.
+- `node tests/ios-audit.js` → `ios-audit: all checks passed`. The `note: allowlist entry not used
+  here` lines from the audits are informational.
+
+### 3b.6.7 New allowlist lines
+
+The four new non-comment lines in `ios/tools/audit-binary.allowlist`, quoted exactly:
+
+```
+onnxruntime.xcframework/ios-arm64/onnxruntime.framework/onnxruntime(prelinked_objects.o) _dlsym ONNX Runtime 1.22.0 (NuGet Microsoft.ML.OnnxRuntime iOS build): the only caller, in every slice and architecture, is onnxruntime::(anonymous)::PosixEnv::GetSymbolFromLibrary, which looks a symbol up in a library that was loaded with dlopen (custom-op and execution-provider libraries); our code loads none, to be re-checked when :models links it
+onnxruntime.xcframework/ios-arm64_x86_64-simulator/onnxruntime.framework/onnxruntime(prelinked_objects.o) _dlsym ONNX Runtime 1.22.0 (NuGet Microsoft.ML.OnnxRuntime iOS build): the only caller, in every slice and architecture, is onnxruntime::(anonymous)::PosixEnv::GetSymbolFromLibrary, which looks a symbol up in a library that was loaded with dlopen (custom-op and execution-provider libraries); our code loads none, to be re-checked when :models links it
+onnxruntime.xcframework/ios-arm64_x86_64-maccatalyst/onnxruntime.framework/Versions/A/onnxruntime(prelinked_objects.o) _dlsym ONNX Runtime 1.22.0 (NuGet Microsoft.ML.OnnxRuntime iOS build): the only caller, in every slice and architecture, is onnxruntime::(anonymous)::PosixEnv::GetSymbolFromLibrary, which looks a symbol up in a library that was loaded with dlopen (custom-op and execution-provider libraries); our code loads none, to be re-checked when :models links it
+test.kexe _dlsym from libSystem; callers in the linked :models test executable are ONNX Runtime 1.22.0's onnxruntime::(anonymous)::PosixEnv::GetSymbolFromLibrary, Kotlin/Native's _Kotlin_getSourceInfo_core_symbolication, and clang compiler-rt's __initializeAvailabilityCheck (pulled in by ONNX Runtime's ___isPlatformVersionAtLeast references), traced with otool -tvV; not our Kotlin
+```
+
+The allowlist has 77 non-comment entries: 73 from Run 7, plus these 4. The `test.kexe` line's
+third caller, clang compiler-rt's `__initializeAvailabilityCheck`, was not one the run plan
+expected; the plan's Step 6c.4 stop rule applied. The owner is to confirm or remove that line.
+
+### 3b.6.8 Decision 5, as confirmed
+
+The plan's Step 4 Progress findings are confirmed here: the prompt is `[50257, 50362]`;
+`begin_suppress_tokens` `[220, 50256]` apply at the first generated position only;
+`suppress_tokens` is not applied (commented out at `src/models.js:1417–1419`); decoding is greedy
+and stops at 50256 or at `max_length` 448; ties go to the first maximum (strict `>`,
+`utils/maths.js:254–265`); every clip stopped at eos.
+
+### 3b.6.9 Tolerance
+
+The features tolerance is an absolute `1e-4`, unchanged. From the Step 8 reruns, the largest
+differences are:
+
+- Host JVM: matrix `1.1920928955078125E-7`, frameSum `7.152557373046875E-7`, frameMax
+  `1.1920928955078125E-7`, window `1.1102230246251565E-16`, melFilters `0.0`.
+- `ssa35`: matrix `1.1920928955078125E-7`, frameSum `7.152557373046875E-7`, frameMax
+  `1.1920928955078125E-7`, window `1.1102230246251565E-16`, melFilters
+  `7.979727989493313E-17`.
+- iOS simulator: matrix `1.1920928955078125E-7`, frameSum `7.152557373046875E-7`, frameMax
+  `1.1920928955078125E-7`, window `1.1102230246251565E-16`, melFilters
+  `7.979727989493313E-17`.
+
+The first-stage rerun reported the same `max |diff|` values as the Big Pickle rerun for all three
+model-test runtimes. All are below `1e-4`. Token ids are exact on the JVM (`strictTokenIds`) and
+counted on the emulator and simulator; all six Step 8 model-test reruns reported 9/9 ids equal to the
+reference and 9/9 kept values.
+
+### 3b.6.10 Not verified
+
+Phones; the device `iosArm64` `test.kexe` audit and the `.app` audit (X6); that the NuGet build
+equals the dead CocoaPods one; `:models` in `SsaCore`; audio over 30 s; `AppController` wiring;
+JVM peak memory; CI.
