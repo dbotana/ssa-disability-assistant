@@ -12,8 +12,11 @@ import platform.posix.memcpy
  * registers a custom op or selects an execution provider: ORT's default CPU
  * provider is the reference's `executionProviders: ['cpu']`.
  *
- * Handles are `void*`, error strings are malloc'd (see [ortCheck]), and the
- * environment is created once per process and never released.
+ * Handles are `void*`, and error strings are malloc'd (see [ortCheck]). The
+ * environment is created once per process, on first use, and kept in the
+ * shim's `ssa_env`. No session releases it: the shim's `atexit` handler,
+ * `ssa_ort_shutdown`, releases it at process exit (see the note there on why
+ * that depends on registration order).
  */
 actual fun openOnnxSession(path: String): OnnxSession = OrtNativeSession(path)
 
@@ -25,7 +28,7 @@ private fun ortCheck(error: CPointer<ByteVar>?) {
     throw IllegalStateException("ONNX Runtime: $message")
 }
 
-/** One ORT environment per process; ORT owns it and it must outlive every session. */
+/** One ORT environment per process, created on first use. It must outlive every session, so no session releases it; the shim's atexit handler does, at process exit. */
 private val ortEnv: COpaquePointer by lazy {
     memScoped {
         val out = alloc<COpaquePointerVar>()

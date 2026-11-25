@@ -2,7 +2,9 @@ import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.SetProperty
 import org.gradle.api.tasks.CacheableTask
+import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.PathSensitive
@@ -17,7 +19,7 @@ import java.security.MessageDigest
  *
  * It fails on a hash that differs, on a pinned name with no file, and on a file that is
  * not pinned: a new ONNX Runtime version has to be pinned on purpose. Anything that uses
- * these files depends on this task.
+ * these files depends on this task. With `only` set, just those names are checked.
  */
 @CacheableTask
 abstract class VerifyPinnedFiles : DefaultTask() {
@@ -28,6 +30,19 @@ abstract class VerifyPinnedFiles : DefaultTask() {
     @get:InputFile
     @get:PathSensitive(PathSensitivity.NONE)
     abstract val pins: RegularFileProperty
+
+    /**
+     * The pinned names to check. Empty (the default) means every pin, and each must have a
+     * file. Otherwise only these names, each of which must be pinned and present; the other
+     * pins may then have no file. The Android and host builds check the AAR and the jar this
+     * way, without needing the iOS zip.
+     */
+    @get:Input
+    abstract val only: SetProperty<String>
+
+    init {
+        only.convention(emptySet())
+    }
 
     @TaskAction
     fun verify() {
@@ -41,9 +56,12 @@ abstract class VerifyPinnedFiles : DefaultTask() {
         }
         if (pinned.isEmpty()) throw GradleException("$pinFile pins nothing")
 
+        val wanted = only.get()
+        val required = if (wanted.isEmpty()) pinned.keys else wanted.intersect(pinned.keys)
         val present = files.files.associateBy { it.name }
         val problems = mutableListOf<String>()
-        (pinned.keys - present.keys).forEach { problems += "pinned but missing: $it" }
+        (wanted - pinned.keys).forEach { problems += "asked to check $it, which is not pinned" }
+        (required - present.keys).forEach { problems += "pinned but missing: $it" }
         (present.keys - pinned.keys).forEach { problems += "not pinned: $it" }
         for ((name, file) in present) {
             val want = pinned[name] ?: continue

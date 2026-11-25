@@ -15,6 +15,7 @@ import org.ssa.assistant.core.validate.Validate
 import org.ssa.assistant.models.onnx.FloatTensor
 import org.ssa.assistant.models.onnx.openOnnxSession
 import org.ssa.assistant.models.testing.PinnedModel
+import org.ssa.assistant.models.testing.peakResidentBytes
 import org.ssa.assistant.models.testing.WhisperGolden
 import org.ssa.assistant.models.testing.readTestBytes
 import org.ssa.assistant.models.testing.readWav16k
@@ -175,6 +176,11 @@ class WhisperModelTest {
         println(
             "MODELS[$runtimeName] token ids match the reference: $idsRight/${WhisperGolden.clips.size}; " +
                 "kept values right: $keptRight/${WhisperGolden.clips.size}",
+        )
+        val peak = peakResidentBytes()
+        println(
+            "MODELS[$runtimeName] peak resident memory: " +
+                (peak?.let { "$it bytes (${it / (1024 * 1024)} MiB)" } ?: "not measured on this runtime"),
         )
         encoder.close()
         decoder.close()

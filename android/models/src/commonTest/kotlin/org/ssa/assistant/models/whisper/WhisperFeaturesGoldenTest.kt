@@ -40,6 +40,7 @@ class WhisperFeaturesGoldenTest {
         var matrixMax = 0.0
         var frameSumMax = 0.0
         var frameMaxMax = 0.0
+        val matrixClips = mutableListOf<String>()
         for (clip in WhisperGolden.clips) {
             val name = WhisperGolden.string(clip, "name")
             val file = WhisperGolden.string(clip, "file")
@@ -70,6 +71,7 @@ class WhisperFeaturesGoldenTest {
             }
 
             clipFeatures["matrix"]?.let { packed ->
+                matrixClips += name
                 val expectedMatrix = WhisperGolden.floats(packed)
                 assertEquals(expectedMatrix.size, actual.size, "$name matrix size")
                 for (i in actual.indices) {
@@ -83,6 +85,9 @@ class WhisperFeaturesGoldenTest {
                 "frameSum max |diff| $frameSumMax; frameMax max |diff| $frameMaxMax; " +
                 "window max |diff| $windowMax; melFilters max |diff| $melMax",
         )
+        // tools/golden/models.mjs writes the full matrix for yes.wav; without it the
+        // matrix bound below would hold with nothing compared.
+        assertTrue("yes" in matrixClips, "the golden has no features.matrix for yes, so the matrix check compared nothing")
         assertTrue(windowMax <= 1e-12, "window max |diff| $windowMax exceeds 1e-12")
         assertTrue(melMax <= 1e-12, "melFilters max |diff| $melMax exceeds 1e-12")
         assertTrue(matrixMax <= 1e-4, "yes matrix max |diff| $matrixMax exceeds 1e-4")

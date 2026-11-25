@@ -6,6 +6,18 @@
 // 16 KB page alignment (NDK r28+), all checked on the built artifacts by
 // tools/audit-native.sh. whisper.cpp, and ggml with it, is linked in
 // statically when it is vendored (M1b); :llm will be built the same way.
+//
+// Transcription moves to ONNX Runtime (mirror plan D6, spike 3b): the shared Whisper code is
+// :models, and this module supplies ORT on Android through the pinned AAR
+// (com.microsoft.onnxruntime:onnxruntime-android 1.22.0, checked against
+// models/onnxruntime.SHA256SUMS by :verifyOnnxRuntimeJava before every build). The whisper.cpp
+// probe in src/main/cpp/ (WhisperNative.kt) stays until the owner removes it.
+//
+// `./gradlew :speech:connectedDebugAndroidTest` runs :models' common tests on a device, as
+// :core-device does for :core: their sources are compiled into this module's instrumented test
+// APK, the golden and the fixture WAVs travel as Java resources (pinned by hash), and the pinned
+// whisper-base.en model as assets, with .onnx stored uncompressed. The model goes into the test
+// APK only, never into the library or the app.
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
@@ -50,14 +62,54 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+
+    sourceSets {
+        getByName("androidTest") {
+            java.srcDir("../models/src/commonTest/kotlin")
+            java.srcDir("src/androidTest/kotlin")
+            resources.srcDir("../models/src/commonTest/resources")
+        }
+    }
+
+    androidResources {
+        noCompress += "onnx"
+    }
+
+    packaging {
+        resources {
+            excludes += listOf("META-INF/LICENSE*", "META-INF/NOTICE*")
+        }
+    }
 }
+
+// :models' test sources reach the platform through ModelTestPlatform.kt (expect
+// declarations), which a plain Android module cannot compile; this module leaves it out and
+// supplies the same functions in src/androidTest/kotlin/.../ModelTestPlatform.android.kt.
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+    if (name.endsWith("AndroidTestKotlin")) {
+        exclude("**/models/testing/ModelTestPlatform.kt")
+        // The tests exercise :models' internal helpers too, so its compiled classes are a
+        // friend: the helpers stay internal in the library but resolve from another module.
+        dependsOn(":models:compileKotlinJvm")
+        friendPaths.from(project(":models").layout.buildDirectory.file("libs/models-jvm.jar"))
+    }
+}
+
+// Every build that resolves the ORT AAR checks it against its pin first.
+tasks.named("preBuild") { dependsOn(":verifyOnnxRuntimeJava") }
 
 dependencies {
     api(project(":core"))
+    implementation(project(":models"))
+    implementation(libs.onnxruntime.android)
     implementation(libs.kotlinx.coroutines.core)
 
     testImplementation(libs.junit)
+    androidTestImplementation(libs.junit)
+    // :models' tests are written against kotlin.test, which maps onto JUnit 4 here.
+    androidTestImplementation(kotlin("test-junit"))
     androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.espresso.core)
 }
 
@@ -65,11 +117,28 @@ dependencies {
 // the pins in audio.SHA256SUMS; the clip player finds them by ttshash.
 androidComponents {
     onVariants { variant ->
-        val copy = tasks.register<CopyPinnedAssets>("copy${variant.name.replaceFirstChar { it.uppercase() }}PinnedAudio") {
+        val name = variant.name.replaceFirstChar { it.uppercase() }
+        val copy = tasks.register<CopyPinnedAssets>("copy${name}PinnedAudio") {
             sourceDir.set(rootProject.layout.projectDirectory.dir("../audio"))
             pins.set(layout.projectDirectory.file("audio.SHA256SUMS"))
             assetPath.set("audio")
         }
         variant.sources.assets?.addGeneratedSourceDirectory(copy, CopyPinnedAssets::outputDir)
+
+        variant.androidTest?.let { test ->
+            // tests/fixtures/speech, pinned by hash exactly as :models pins it for its own tests.
+            val fixtures = tasks.register<CopyPinnedAssets>("copy${name}SpeechFixtures") {
+                sourceDir.set(rootProject.layout.projectDirectory.dir("../tests/fixtures/speech"))
+                pins.set(rootProject.layout.projectDirectory.file("models/speech-fixtures.SHA256SUMS"))
+                assetPath.set("fixtures/speech")
+            }
+            test.sources.resources?.addGeneratedSourceDirectory(fixtures, CopyPinnedAssets::outputDir)
+            // The pinned base.en model, as test-APK assets (ORT opens a model from a file, so the test copies them out).
+            val model = tasks.register<CopyPinnedModel>("copy${name}WhisperModel") {
+                sourceDir.set(rootProject.layout.projectDirectory.dir("../models/whisper-base.en"))
+                assetPath.set("whisper-base.en")
+            }
+            test.sources.assets?.addGeneratedSourceDirectory(model, CopyPinnedModel::outputDir)
+        }
     }
 }

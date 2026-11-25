@@ -25,7 +25,15 @@ static void ssa_ort_free_string(char* s) { free(s); }
 
 static OrtEnv* ssa_env = NULL;
 
-/* Release the env before ORT's C++ statics are destroyed at process exit. */
+/* Release the env at process exit, before ORT's C++ statics are destroyed. Without this the
+ * simulator test run aborted in teardown with "mutex lock failed: Invalid argument".
+ *
+ * This depends on registration order. atexit handlers and C++ static destructors run in the
+ * reverse order of their registration, so this handler runs before the destructors of the
+ * statics ORT built before ssa_ort_create_env registered it, but after the destructors of any
+ * static ORT builds later (a function-local static first reached in CreateSession or Run, say).
+ * If ReleaseEnv needs such a static, the teardown abort comes back. Re-check this when an ORT
+ * upgrade, a new model or a new call path changes what ORT builds after the env exists. */
 static void ssa_ort_shutdown(void) {
     if (ssa_env != NULL) {
         ssa_ort_api()->ReleaseEnv(ssa_env);

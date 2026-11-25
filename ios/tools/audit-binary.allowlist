@@ -128,3 +128,13 @@ SsaPdfTests.xctest/SsaPdfTests _dlsym from libSystem; caller is the statically l
 onnxruntime.xcframework/ios-arm64/onnxruntime.framework/onnxruntime(prelinked_objects.o) _dlsym ONNX Runtime 1.22.0 (NuGet Microsoft.ML.OnnxRuntime iOS build): the only caller, in every slice and architecture, is onnxruntime::(anonymous)::PosixEnv::GetSymbolFromLibrary, which looks a symbol up in a library that was loaded with dlopen (custom-op and execution-provider libraries); our code loads none, to be re-checked when :models links it
 onnxruntime.xcframework/ios-arm64_x86_64-simulator/onnxruntime.framework/onnxruntime(prelinked_objects.o) _dlsym ONNX Runtime 1.22.0 (NuGet Microsoft.ML.OnnxRuntime iOS build): the only caller, in every slice and architecture, is onnxruntime::(anonymous)::PosixEnv::GetSymbolFromLibrary, which looks a symbol up in a library that was loaded with dlopen (custom-op and execution-provider libraries); our code loads none, to be re-checked when :models links it
 onnxruntime.xcframework/ios-arm64_x86_64-maccatalyst/onnxruntime.framework/Versions/A/onnxruntime(prelinked_objects.o) _dlsym ONNX Runtime 1.22.0 (NuGet Microsoft.ML.OnnxRuntime iOS build): the only caller, in every slice and architecture, is onnxruntime::(anonymous)::PosixEnv::GetSymbolFromLibrary, which looks a symbol up in a library that was loaded with dlopen (custom-op and execution-provider libraries); our code loads none, to be re-checked when :models links it
+
+# -- :models iOS simulator test executable (Run 8 Step 6, spike 3b) ------------
+# android/models/build/bin/iosSimulatorArm64/debugTest/test.kexe, the first linked image with
+# ONNX Runtime inside, audited by passing that file, so its label is test.kexe. `xcrun nm -m`
+# binds _dlsym (from libSystem); `xcrun otool -tvV` puts its 22 call sites in ONNX Runtime's
+# onnxruntime::(anonymous)::PosixEnv::GetSymbolFromLibrary (1), Kotlin/Native's
+# _Kotlin_getSourceInfo_core_symbolication (11), and clang compiler-rt's availability check
+# __initializeAvailabilityCheck (10: dlsym(RTLD_DEFAULT, ...) of CoreFoundation functions),
+# linked in for ___isPlatformVersionAtLeast, which ONNX Runtime's prelinked_objects.o imports.
+test.kexe _dlsym from libSystem; callers in the linked :models test executable are ONNX Runtime 1.22.0's onnxruntime::(anonymous)::PosixEnv::GetSymbolFromLibrary, Kotlin/Native's _Kotlin_getSourceInfo_core_symbolication, and clang compiler-rt's __initializeAvailabilityCheck (pulled in by ONNX Runtime's ___isPlatformVersionAtLeast references), traced with otool -tvV; not our Kotlin

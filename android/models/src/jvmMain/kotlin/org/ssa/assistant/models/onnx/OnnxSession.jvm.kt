@@ -13,8 +13,8 @@ import java.nio.LongBuffer
 
 /**
  * ONNX Runtime's Java API behind [OnnxSession], for the host JVM (the desktop
- * tests) and, through the AAR, for Android later. The CPU provider is ORT's
- * default, as the reference's `executionProviders: ['cpu']`.
+ * tests) and, through the pinned AAR that `:speech` adds, on Android. The CPU
+ * provider is ORT's default, as the reference's `executionProviders: ['cpu']`.
  */
 actual fun openOnnxSession(path: String): OnnxSession = OrtJvmSession(path)
 

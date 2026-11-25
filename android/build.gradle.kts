@@ -24,6 +24,18 @@ val verifyOnnxRuntime = tasks.register<VerifyPinnedFiles>("verifyOnnxRuntime") {
     pins = layout.projectDirectory.file("models/onnxruntime.SHA256SUMS")
 }
 
+// The AAR and the jar alone: all that :speech (Android) and :models' JVM tasks use, so an
+// Android or host build (CI's Linux job among them) does not need the iOS zip, which only
+// tools/fetch-onnxruntime.mjs fetches. iOS tasks keep the full verifyOnnxRuntime.
+tasks.register<VerifyPinnedFiles>("verifyOnnxRuntimeJava") {
+    files.from(onnxRuntimeFiles)
+    pins = layout.projectDirectory.file("models/onnxruntime.SHA256SUMS")
+    only.set(listOf(
+        "onnxruntime-android-${libs.versions.onnxruntime.get()}.aar",
+        "onnxruntime-${libs.versions.onnxruntime.get()}.jar",
+    ))
+}
+
 tasks.register<Sync>("unpackOnnxRuntimeIos") {
     dependsOn(verifyOnnxRuntime)
     from(zipTree(onnxRuntimeIosZip))

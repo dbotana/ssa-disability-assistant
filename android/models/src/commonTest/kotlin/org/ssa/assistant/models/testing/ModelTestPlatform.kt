@@ -15,3 +15,10 @@ expect val strictTokenIds: Boolean
 expect val runtimeName: String
 
 expect fun runBlockingTest(block: suspend () -> Unit)
+
+/**
+ * Peak resident memory of this test process so far, in bytes: VmHWM from
+ * /proc/self/status on Android (and Linux), `resident_size_peak` from
+ * `task_vm_info` on iOS; null where it is not measured (the macOS host JVM).
+ */
+expect fun peakResidentBytes(): Long?
