@@ -1,0 +1,21 @@
+# The exact environment that produced the pinned MMS-1B-all exports
+# (android/models/third_party/mms-1b-all/onnx-<lang>/), recorded 2026-11-25
+# from the venv that ran tools/export-mms/export-mms.py. Recreate with:
+#
+#   python3.11 -m venv .venv && .venv/bin/pip install -r requirements.txt
+#
+# The optimum 1.x + transformers 4.x + torch 2.8 trio matches the toolchain
+# that produced the reference transformers.js export (Xenova/mms-1b-all,
+# 2025-08); optimum 2.x no longer ships optimum.onnxruntime, and newer torch
+# removed the symbolic optimum 1.x imports. onnxruntime is pinned to 1.22.0
+# because that is the runtime the apps run (Run 8, Decision 1). The exported
+# graphs have no publisher checksum: the pin is this file + export-mms.py +
+# the pinned facebook revision.
+numpy==2.4.6
+onnx==1.23.2
+onnxruntime==1.22.0
+optimum==1.27.0
+safetensors==0.8.0
+tokenizers==0.21.4
+torch==2.8.0
+transformers==4.53.3

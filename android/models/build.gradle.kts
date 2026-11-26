@@ -37,6 +37,9 @@ plugins {
 val ortXcframework = rootProject.layout.projectDirectory.dir("models/build/onnxruntime-ios/onnxruntime.xcframework")
 val ortSlices = mapOf("iosArm64" to "ios-arm64", "iosSimulatorArm64" to "ios-arm64_x86_64-simulator")
 val defaultModelDir = rootProject.file("../models/whisper-base.en").absolutePath
+// Run 9: the MMS exports (onnx-lin/, onnx-fra/, onnx-eng/, lid-126/), git-ignored and pinned by
+// models/mms.SHA256SUMS; jvmTest reads them through MMS_DIR as it reads Whisper through MODEL_DIR.
+val defaultMmsDir = rootProject.file("models/third_party/mms-1b-all").absolutePath
 
 // tests/fixtures/speech, pinned by hash, as :core pins its scenarios.
 val syncSpeechFixtures = tasks.register<CopyPinnedAssets>("syncSpeechFixtures") {
@@ -110,6 +113,13 @@ tasks.named<Test>("jvmTest") {
     val modelDir = System.getenv("MODEL_DIR")?.takeIf { it.isNotEmpty() } ?: defaultModelDir
     environment("MODEL_DIR", modelDir)
     inputs.property("modelDir", modelDir)
+    val mmsDir = System.getenv("MMS_DIR")?.takeIf { it.isNotEmpty() } ?: defaultMmsDir
+    environment("MMS_DIR", mmsDir)
+    inputs.property("mmsDir", mmsDir)
+    // MMS_GRAPH and MMS_GRAPHS reach the test JVM with the rest of the environment; as inputs, a
+    // changed selection makes the task run again instead of being reported up to date.
+    inputs.property("mmsGraph", System.getenv("MMS_GRAPH") ?: "")
+    inputs.property("mmsGraphs", System.getenv("MMS_GRAPHS") ?: "")
     maxHeapSize = "2g"
 }
 tasks.withType<AbstractTestTask>().configureEach {

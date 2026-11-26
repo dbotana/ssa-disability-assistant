@@ -27,5 +27,6 @@ ios/CoreCrypto/debug/
 ios/CoreCrypto/.build/
 ios/CoreCrypto/.swiftpm/
 
-# ONNX Runtime iOS archive, fetched by tools/fetch-onnxruntime.mjs (too large to commit).
+# ONNX Runtime archives (tools/fetch-onnxruntime.mjs) and the MMS-1B-all
+# adapters and ONNX export (tools/fetch-model.mjs): pinned but too large to commit.
 android/models/third_party/

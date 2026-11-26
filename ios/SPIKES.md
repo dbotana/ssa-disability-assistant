@@ -824,3 +824,181 @@ reference and 9/9 kept values.
 Phones; the device `iosArm64` `test.kexe` audit and the `.app` audit (X6); that the NuGet build
 equals the dead CocoaPods one; `:models` in `SsaCore`; audio over 30 s; `AppController` wiring;
 JVM peak memory; CI.
+
+## 3b.7 Part 2 result: MMS ASR (`lin`, `fra`, `eng`) and MMS language ID (Run 9, 2026-11-25 to 26)
+
+The plan's *Run 9 plan* section has the decisions and steps. Its Run 9 Progress entry has every
+command and its output.
+
+### 3b.7.1 Not phone numbers
+
+Every figure here comes from one of these: the M4 host (16 GB), with Python and with the JVM; the
+iOS 27.2 simulator (iPhone 18 Pro) on that host; or AVD `ssa35` (API 35, arm64, 4 GB of RAM).
+None of them is a phone figure. No Lingala speech exists yet, so every graph was run on the 9
+English fixture clips. The ASR rows measure whether the port matches its reference, not how well
+it recognizes Lingala.
+
+### 3b.7.2 What was run
+
+- **The graphs:**
+  - `onnx-lin`, `onnx-fra` and `onnx-eng`: `facebook/mms-1b-all` with one adapter baked in each,
+    exported by the owner with `tools/export-mms/export-mms.py`;
+  - `lid-126`: `facebook/mms-lid-126`, exported with that script's new `--lid` mode, opset 11.
+  - Each is an fp32 graph (the reference) plus a dynamic int8 `q8/` copy, which is a size
+    experiment only.
+- **The reference** is `tools/golden/mms.py`, on onnxruntime 1.22.0 with fp32. Its output,
+  `golden/mms.json`, is 140,964 B and was the same in all six runs this session: four in Steps
+  2 to 4, and two `--check` runs.
+- **The port** is in package `org.ssa.assistant.models.mms`:
+  - `Wav2Vec2Features`;
+  - `CtcTokenizer`;
+  - `CtcGreedy`;
+  - `MmsTranscriber`, for `Transcriber`;
+  - `MmsLanguageId`, for `LanguageId`;
+  - `MmsRecognizer`.
+
+### 3b.7.3 Timing, memory and agreement
+
+Load is `openOnnxSession`. The clips run in the order date, phone, routing, silence, ssn-digits,
+ssn-grouped, ssn-paused, text-hospital, yes. "First" is `date`, and "median" is the median of the
+other 8. On every runtime the features take 0 to 3 ms per clip and decoding 0 to 7 ms, so the
+model column is the time.
+
+| Graph | Runtime | Load | Model, first / median | Peak memory | Frame ids = reference | Text = reference | Kept (eng) |
+|---|---|---|---|---|---|---|---|
+| lin | Python reference, fp32 | 9.13 s | 1.344 s / 1.315 s | 4.41 GB RSS (whole generator) | — | — | — |
+| lin | host JVM, fp32 | 1672 ms | 1435 / 1287.5 ms | not measured | **9/9** | **9/9** | — |
+| lin | simulator, fp32 | 1661 ms | 1361 / 1262 ms | 4,098,326,528 B | 9/9 | 9/9 | — |
+| lin | simulator, q8 | 658 ms | 441 / 487 ms | 2,305,015,808 B | 3/9 | 8/9 | — |
+| lin | `ssa35`, q8 | 1687 ms | 666 / 576 ms | 2,366,910,464 B | 1/9 | 5/9 | — |
+| fra | Python reference, fp32 | 8.76 s | 1.570 s / 1.342 s | (as above) | — | — | — |
+| fra | host JVM, fp32 | 1717 ms | 1406 / 1270.5 ms | not measured | **9/9** | **9/9** | — |
+| fra | simulator, fp32 | 1631 ms | 1410 / 1248 ms | 4,098,326,528 B | 9/9 | 9/9 | — |
+| fra | simulator, q8 | 633 ms | 426 / 486.5 ms | 2,306,670,592 B | 1/9 | 7/9 | — |
+| fra | `ssa35`, q8 | 6941 ms | 3336 / 3727.5 ms | 2,360,197,120 B | 2/9 | 8/9 | — |
+| eng | Python reference, fp32 | 8.11 s | 1.400 s / 1.299 s | (as above) | — | — | — |
+| eng | host JVM, fp32 | 2386 ms | 1380 / 1255.5 ms | not measured | **9/9** | **9/9** | 4/9 |
+| eng | simulator, fp32 | 1638 ms | 1405 / 1259.5 ms | 4,098,326,528 B | 9/9 | 9/9 | 4/9 |
+| eng | simulator, q8 | 631 ms | 433 / 489.5 ms | 2,315,354,112 B | 1/9 | 7/9 | 4/9 |
+| eng | `ssa35`, q8 | 6287 ms | 3285 / 3731 ms | 2,302,218,240 B | 1/9 | 8/9 | 4/9 |
+| lid | Python reference, fp32 | 8.61 s | 1.409 s / 1.257 s | (as above) | top label — | | |
+| lid | host JVM, fp32 | 1706 ms | 1497 / 1212.5 ms | not measured | top label **9/9**, largest logit Δ 0.0 | | |
+| lid | simulator, fp32 | 1676 ms | 1461 / 1190.5 ms | 4,098,326,528 B | top label 9/9, largest logit Δ 0.0 | | |
+| lid | simulator, q8 | 635 ms | 429 / 450 ms | 2,328,346,624 B | top label 9/9, largest logit Δ 0.217 | | |
+| lid | `ssa35`, q8 | 2249 ms | 571 / 508.5 ms | 2,367,565,824 B | top label 9/9, largest logit Δ 0.202 | | |
+
+- **Bold** means the check was required (Decision 1: the host JVM on fp32). Every other agreement
+  figure is counted only.
+- **Peak memory** is the whole test process's high-water mark, read after each graph:
+  `resident_size_peak` on iOS and `VmHWM` on Android. It includes the graphs that ran before in the
+  same process, so it is an upper bound for one graph. The macOS JVM does not report one.
+- **`ssa35` ran in two halves.** The 4.2G of free space on `/data` could not hold all four q8
+  graphs at once (4,132,118,682 B), so Decision 10's `MMS_GRAPHS` split the run:
+  - run A was `lin,lid`;
+  - run B, about 30 minutes later, was `fra,eng`.
+
+  Run B's model times are about 5× run A's on the same AVD. The cause was not found, so the two
+  halves are not comparable with each other.
+- **The eng kept values (4/9)** are the same on every runtime: date, phone, ssn-digits and yes.
+  Whisper base.en stays the English model.
+- **Features** are bit-exact on 18/18 windows on all three Kotlin runtimes (SHA-256 of the output,
+  and the mean and divisor bits).
+- **The decode cases** are exact on all three: lin 21, fra 22 and eng 21.
+
+### 3b.7.4 Disk
+
+| Graph | fp32 (`model.onnx` + `model.onnx_data`) | q8 (`q8/model_quantized.onnx`) |
+|---|---|---|
+| lin | 1,251,107 + 3,859,000,320 B | 1,030,747,033 B |
+| fra | 1,250,850 + 3,860,194,536 B | 1,031,940,930 B |
+| eng | 1,251,402 + 3,859,374,080 B | 1,031,121,088 B |
+| lid | 1,252,954 + 3,863,621,632 B | 1,035,391,931 B |
+
+- **The adapters** are 9,054,748 B (`lin`), 10,248,704 B (`fra`) and 9,428,832 B (`eng`). One
+  graph with adapters swapped in at run time would cost about 3.9 GB fp32, or about 1 GB q8,
+  plus about 10 MB per language. That needs a new export, and is not done (Run 9 Decision 5).
+- **A Lingala pack** of language ID plus `lin` plus `fra`, as exported, weighs about 3.10 GB at
+  q8, or about 11.6 GB at fp32.
+- **`app-debug.apk`** grew from 111,160,286 B to 111,967,386 B (+807,100 B). The growth is code:
+  `classes2.dex`, 807,056 B, holds the `org/ssa/assistant/models/mms` classes, which reach the app
+  through `:speech` → `:models`.
+  - The APK holds no MMS graph, vocabulary or config.
+  - The plan said the size must not change. That was wrong for code, and right for model files.
+
+### 3b.7.5 Pins
+
+- `android/models/mms.SHA256SUMS` pins 64 files under `android/models/third_party/mms-1b-all/`:
+  adapters, `lid-126`, `lid-source`, the Xenova `onnx`, and `onnx-eng`, `onnx-fra` and
+  `onnx-lin`.
+- `node tools/fetch-model.mjs --verify mms` printed `All 64 MMS files match
+  android/models/mms.SHA256SUMS.`
+- **The locally produced graphs have no publisher checksum.** Their pin is the recipe
+  (`tools/export-mms/`) plus these hashes.
+- **The base weights do match their publisher's** LFS SHA-256 on huggingface.co:
+  - `facebook/mms-1b-all` `model.safetensors`: `0f1d95ce…deda98`;
+  - `facebook/mms-lid-126` `model.safetensors`: `69fa8def…de0ecd`.
+
+### 3b.7.6 Decisions 3 and 6, as confirmed (transformers 4.53.3)
+
+- **CTC decoding:**
+  - the argmax per frame is torch's (`automatic_speech_recognition.py:542`): the first index on a
+    tie, and the first NaN;
+  - `decode(..., skip_special_tokens=False)` (`:619`), so `<s>`, `</s>` and `<unk>` stay in the
+    text;
+  - `groupby` runs on the token strings, then `<pad>` is dropped, `|` becomes a space, and the
+    result is joined and `strip()`ped (`tokenization_wav2vec2.py:300-341`);
+  - then `clean_up_tokenization` (`tokenization_utils_base.py:3889`).
+- **Language ID:**
+  - the first 48,000 samples, normalized on their own;
+  - a softmax over all 126 labels, restricted to `lin`, `fra` and `eng`.
+  - The port and the golden take the softmax in float64; transformers' audio-classification
+    pipeline takes it in float32 (`audio_classification.py:228`). The probabilities are printed,
+    never required.
+  - Labels: `eng` = 2, `fra` = 4, `lin` = 66.
+  - On the fixtures, the unrestricted top label is `nno` for `silence` and `uzb` for `yes` (0.48
+    s). Restricted to the three, `eng` is best on all 9.
+  - `minProbability` has no default. The tests pass explicit values.
+
+### 3b.7.7 Findings for later runs
+
+- **ɛ and ɔ.** `ɛ`, `ɔ`, `Ɛ` and `Ɔ` are in none of the `lin`, `fra` or `eng` vocabularies. MMS
+  cannot write the two Lingala vowels, so 4.4's parsing must accept `e` and `o` for them.
+- **q8 diverges for ASR, but not for LID.**
+  - **ASR:** q8 agrees with fp32 on frame ids for 1 to 3 of 9 clips, though often on the text.
+  - **LID:** the q8 top label is 9/9, with a largest logit difference of about 0.2.
+  - Whether q8 ASR is good enough on Lingala speech can only be measured with recordings (4.4).
+- **mms-lid-126 has adapters** in all 48 layers. The `--lid` q8 leaves those 96 MatMuls in fp32,
+  as the ASR recipe does. The owner should confirm this.
+- **ORT 1.22.0's dynamic quantizer renames each Gemm** to `<name>_MatMul` before it matches
+  `nodes_to_exclude` (`onnx_quantizer.py:67-68`). `--lid` therefore excludes both names, and
+  asserts the result.
+- **Memory.** An fp32 graph needs about 4 GB of resident memory, and a q8 one about 2.2 to 2.4 GB.
+  The q8 figure comes from a process that also ran Whisper.
+  - A 4 GB iPhone cannot hold the fp32 graph.
+  - Whether one q8 graph fits under iOS's per-app limit on a 4 GB phone is still open (M0).
+  - `MmsLanguageId` keeps its session until `close()`, and `MmsRecognizer` cannot close it. An
+    app must release language ID before it opens an ASR graph.
+
+### 3b.7.8 Audits
+
+- `ios/tools/audit-binary.sh` on the linked `:models` simulator `test.kexe` (36,376,264 B) gives
+  `binary audit clean (1 Mach-O files in 1 inputs)`, with Run 8's `_dlsym` entry as the only
+  allowed line. The CommonCrypto `CC_SHA256_*` imports raise no finding.
+- `otool -L` lists the same libraries as Run 8. There is no CFNetwork, Network or WebKit framework.
+- Android:
+  - `audit-permissions.sh` gives `permission audit clean (4 artifacts)`. The merged manifests are
+    dated Nov 24, and Run 9 changed no manifest;
+  - `audit-native.sh` gives `native audit clean (8 libraries in 1 APKs)`.
+
+### 3b.7.9 Not verified
+
+- Phones, and Lingala speech.
+- The language-ID threshold's value.
+- The JVM's peak memory.
+- Why run B on `ssa35` was about 5× slower.
+- The device `iosArm64` and `.app` audits.
+- An LID cross-check through transformers' audio-classification pipeline.
+- That the ASR mode of `export-mms.py` still produces identical files. It was not re-run; its
+  body is unchanged against the owner's copy.
+- This run's adversarial review. The workflow's six reviewers all stopped at the usage limit
+  before reporting, so the only review was the lead's own targeted reading.

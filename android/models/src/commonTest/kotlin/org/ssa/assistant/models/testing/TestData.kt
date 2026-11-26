@@ -144,6 +144,9 @@ private fun ByteArray.hex(): String = buildString(size * 2) {
 
 fun sha256Hex(bytes: ByteArray): String = sha256(bytes).hex()
 
+/** Lowercase hex, as SHA256SUMS writes a digest. */
+fun hexOf(bytes: ByteArray): String = bytes.hex()
+
 /** The downloaded model directory, checked file by file before any file is read. */
 object PinnedModel {
     private val rawDir: String by lazy { modelDir() }
@@ -160,15 +163,16 @@ object PinnedModel {
     }
     private val verified: Boolean by lazy {
         for ((name, expected) in pins) {
-            val bytes = try {
-                readFileBytes("$rawDir/$name")
+            // Streamed (Run 9, Decision 9), so no file is read whole to be checked.
+            val actual = try {
+                sha256File("$rawDir/$name")
             } catch (e: Exception) {
                 throw IllegalStateException(
                     "model file $name is missing; run node tools/fetch-model.mjs --verify",
                     e,
                 )
             }
-            require(sha256Hex(bytes) == expected) {
+            require(actual == expected) {
                 "model file $name does not match SHA256SUMS; run node tools/fetch-model.mjs --verify"
             }
         }

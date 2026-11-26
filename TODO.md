@@ -1209,3 +1209,55 @@ written that day. It resumed on 2026-11-24 with ORT 1.22.0 and finished on 2026-
 - `AppController` wiring;
 - JVM peak memory;
 - CI.
+
+## Mirror Run 9 (2026-11-25 to 2026-11-26): spike 3b part 2, MMS ASR and MMS language ID
+
+The plan's *Run 9 plan* section and its Run 9 Progress entry have the exact commands and output.
+`ios/SPIKES.md` §3b.7 has the evidence. No stop condition was hit. Every figure is from the host,
+`ssa35` or the iOS simulator, not a phone, and no Lingala speech was run.
+
+- [x] **The export and the pins.** The owner exported `lin`, `fra` and `eng`. Run 9 added
+      `export-mms.py --lid` for `facebook/mms-lid-126`. All are pinned in
+      `android/models/mms.SHA256SUMS` (64 files), which `node tools/fetch-model.mjs --verify mms`
+      checks. Both base weights match huggingface.co's LFS SHA-256.
+- [x] **The golden.** `tools/golden/mms.py` (Python, ORT 1.22.0) writes `golden/mms.json`, and
+      it was the same in every run.
+- [x] **The port** is `org.ssa.assistant.models.mms` in `:models`: features, CTC tokenizer and
+      greedy decode, `MmsTranscriber`, `MmsLanguageId` and `MmsRecognizer`.
+- [x] **The host JVM and the simulator, fp32:** exact (9/9 per adapter, LID logits bit-identical).
+      `ssa35` and the simulator ran q8 and counted agreement. Audits are clean, and the full
+      regression list passed.
+- [ ] **Owner: confirm or strike** the `--lid` q8 leaving mms-lid-126's 96 adapter MatMuls fp32.
+- [ ] **Owner: confirm or strike** the `ORTModelForCTC.main_input_name` shim in `mms.py`'s
+      cross-check.
+- [ ] **Owner: decide which MMS graph a phone runs.** fp32 is 3.86 GB per graph, and about 4 GB
+      resident. ASR q8 is about 1 GB, but disagrees with fp32 on most clips' frame ids, though the
+      text often agrees. LID q8 kept all 9 labels. A single graph with adapters swapped in (a new
+      export) would save about 7.7 GB per pack at fp32.
+- [ ] **Owner: accept the +807,100 B of `:models` code in `app-debug.apk`,** or keep `:models`
+      out of `:speech` until it is wired. No model file is in the APK.
+- [ ] **When wiring `MmsRecognizer`:** close `MmsLanguageId`'s session before opening ASR (one
+      model at a time), and set `minProbability` from 4.4's recordings.
+- [ ] **Step 4.4: Lingala parsing must accept `e` and `o` for `ɛ` and `ɔ`.** No MMS vocabulary has
+      `ɛ` or `ɔ`.
+- [ ] **Owner: add to AGENTS.md's "Common checks"** (AGENTS.md was not edited):
+
+  ```
+  node tools/fetch-model.mjs --verify mms
+  android/models/third_party/mms-1b-all/.venv/bin/python tools/golden/mms.py --check
+  # from android/ (MMS_DIR defaults to models/third_party/mms-1b-all)
+  TZ=UTC ./gradlew :models:jvmTest
+  SIMCTL_CHILD_GOLDEN_DIR=<abs>/android/models/build/ios-test-resources SIMCTL_CHILD_MODEL_DIR=<abs>/models/whisper-base.en SIMCTL_CHILD_MMS_DIR=<abs>/android/models/third_party/mms-1b-all SIMCTL_CHILD_MMS_GRAPH=fp32 ./gradlew :models:iosSimulatorArm64Test
+  # push the q8 graphs to /data/local/tmp/mms/<folder>/ first (see the Run 9 Progress entry)
+  TZ=UTC ./gradlew :speech:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.MMS_DIR=/data/local/tmp/mms -Pandroid.testInstrumentationRunnerArguments.MMS_GRAPHS=lin,lid
+  ```
+
+**Still not verified:**
+
+- phones, and Lingala speech;
+- the LID threshold;
+- the JVM peak memory;
+- why the second `ssa35` half ran about 5× slower;
+- an LID cross-check through transformers' audio-classification pipeline;
+- an ASR rerun of `export-mms.py`, to show its output is unchanged;
+- this run's adversarial review, which hit the usage limit before reporting anything.
