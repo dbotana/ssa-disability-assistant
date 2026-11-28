@@ -23,8 +23,9 @@ final class AppServices: NSObject, IosServices {
     private let share: ShareAdapter
     private let speechAdapter: SpeechAdapter
 
-    init() throws {
-        let resources = try Resources()
+    // Not `init() throws`: in an NSObject subclass that overrides NSObject's
+    // non-throwing `init()`, which Swift refuses.
+    init(resources: Resources) throws {
         self.resources = resources
         let share = ShareAdapter(resources: resources)
         self.share = share
@@ -156,8 +157,8 @@ final class Resources {
 final class FilesAdapter: NSObject, FileStore {
     private let directory: URL
 
-    init() throws {
-        let manager = FileManager.default
+    // A parameter, so this does not override NSObject's non-throwing `init()`.
+    init(fileManager manager: FileManager = .default) throws {
         var url = try manager.url(
             for: .applicationSupportDirectory,
             in: .userDomainMask,
@@ -166,7 +167,7 @@ final class FilesAdapter: NSObject, FileStore {
         )
         var values = URLResourceValues()
         values.isExcludedFromBackup = true
-        url.setResourceValues(values)
+        try url.setResourceValues(values)
         directory = url
     }
 

@@ -104,7 +104,9 @@ interface IosAudioCapture {
 
     fun isRecording(): Boolean
 
-    fun release()
+    // Not `release()`: Objective-C export renames that to `release_`, and Swift
+    // then cannot tell the requirement from NSObject's ARC-unavailable `release`.
+    fun releaseMic()
 }
 
 // -- Kotlin adapters over the callbacks ------------------------------------------
@@ -167,7 +169,7 @@ class IosAudioPort(
     override fun lastCaptureDurationMs(): Int = last.durationMs
     override fun lastCaptureHadSpeech(): Boolean = last.hadSpeech
     override fun lastCapturePeak(): Double = last.peak
-    override fun releaseMic() = capture.release()
+    override fun releaseMic() = capture.releaseMic()
     override fun earcon(name: String) {}
 }
 

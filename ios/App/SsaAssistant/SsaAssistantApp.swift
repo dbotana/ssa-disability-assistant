@@ -1,3 +1,4 @@
+import SsaCore
 import SwiftUI
 import UIKit
 
@@ -73,7 +74,7 @@ final class Shell: ObservableObject {
     private let app: ShellApp?
 
     init() {
-        guard let services = try? AppServices() else {
+        guard let services = try? AppServices(resources: Resources()) else {
             // A missing or unpinned resource is fatal at launch: the app must
             // never run with a file it has not checked.
             app = nil

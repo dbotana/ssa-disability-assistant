@@ -21,9 +21,12 @@ __pycache__/
 agent-loop-runs/
 android/core/bin/*
 
-# The :core XCFramework is a build product: ./gradlew :core:assembleCoreDebugXCFramework
-# writes it beside ios/CoreCrypto/Package.swift, where SwiftPM can see it.
+# The SsaCore XCFramework (and its copy of ORT) is a build product:
+# ./gradlew :ui:assembleSsaCoreDebugXCFramework writes it beside
+# ios/CoreCrypto/Package.swift, where SwiftPM can see it.
 ios/CoreCrypto/debug/
+# The app's DerivedData, built here so tests/ios-audit.js can audit the .app.
+ios/App/build/
 ios/CoreCrypto/.build/
 ios/CoreCrypto/.swiftpm/
 # Copies of repository files for phone test runs (ios/tools/stage-device-fixtures.sh).

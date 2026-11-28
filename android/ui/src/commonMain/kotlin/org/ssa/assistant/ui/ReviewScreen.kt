@@ -88,19 +88,19 @@ internal fun ReviewScreen(
         onClick = onExport,
         modifier = Modifier.fillMaxWidth().described(label(i18n, "Export my forms", lang)),
     ) {
-        Text(label(i18n, "Export my forms", lang))
+        ButtonLabel(label(i18n, "Export my forms", lang))
     }
     OutlinedButton(
         onClick = { scope.launch { controller.runCommand("correct") } },
         modifier = Modifier.fillMaxWidth().described(label(i18n, "Change an answer", lang)),
     ) {
-        Text(label(i18n, "Change an answer", lang))
+        ButtonLabel(label(i18n, "Change an answer", lang))
     }
     OutlinedButton(
         onClick = { scope.launch { controller.runCommand("readback") } },
         modifier = Modifier.fillMaxWidth().described(label(i18n, "Read my answers aloud", lang)),
     ) {
-        Text(label(i18n, "Read my answers aloud", lang))
+        ButtonLabel(label(i18n, "Read my answers aloud", lang))
     }
     Body(message(i18n, "which_answer_hint", lang), lang)
 
@@ -112,7 +112,7 @@ internal fun ReviewScreen(
         },
         modifier = Modifier.fillMaxWidth().described(label(i18n, "Erase everything from this phone", lang)),
     ) {
-        Text(label(i18n, "Erase everything from this phone", lang))
+        ButtonLabel(label(i18n, "Erase everything from this phone", lang))
     }
 }
 

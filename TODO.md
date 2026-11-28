@@ -230,7 +230,9 @@ output. In short:
 - [ ] A relink or clean must not leave `test.kexe` without the files that
       `copyIosTestBundleResources` copies. That task only `mustRunAfter`s
       the link.
-- [ ] A real app bundle's resources for `NSBundle.mainBundle` (X6).
+- [x] A real app bundle's resources for `NSBundle.mainBundle` (X6). Done
+      2026-11-28: the iOS app stages them into `SsaResources/`, and its tests
+      read them on the simulator and an iPhone 15.
 
 ## Open
 
@@ -245,28 +247,68 @@ output. In short:
       Fixing it is a JS-first change: add an interrupted-capture path with its
       own message in `src/turn.js`, extend the turn scenarios, regenerate the
       goldens, then port it. Do not change `core` first.
-- [ ] **Commit `android/core/src/commonTest/resources/golden/summary.json`.**
-      Revision 1 added the `summary` golden (the port of `src/summary.js`);
-      `node tools/golden/check.mjs` fails with "not committed" until that one
-      new file is in git. Nothing else is stale: regenerating twice gives
-      identical bytes and no tracked golden changed.
-- [ ] **The iOS MVP's first compile and run (plan `plans/ios-mvp.md`).**
-      Written on 2026-11-28 in a Linux sandbox, so nothing here has been
-      compiled: `TZ=UTC ./gradlew :core:jvmTest`, `:models:jvmTest`,
-      `:ui:compileKotlinIosSimulatorArm64 :ui:compileDebugKotlinAndroid`,
-      `:app:assembleDebug`, `:ui:assembleSsaCoreDebugXCFramework`, both
-      `xcodebuild test` commands and `ios/tools/audit-binary.sh <the .app>`.
-      Revision 1 removed the known blockers it could find by reading (the
-      pre-`start()` snapshot, the resource-folder order, the staging script,
-      the JVM-only `Charsets` call, the `kotlinOptions` DSL, the Foundation
-      category imports), so what is left is what only a compiler can show:
-      a Compose API name (`KeyboardOptions(autoCorrectEnabled = false)`,
-      `LocaleList`, the `semantics { onClick }` action), a Kotlin/Native
-      bridging detail, or a Kotlin/Compose version conflict. The `summary`
-      port is the one behavioural risk: `SummaryGoldenTest` is the first thing
-      to check against `src/summary.js`. If the `.app` audit names a
-      networking symbol in Compose or Skiko, that is the plan's stop
-      condition: the owner decides, and no allowlist entry is added for it.
+- [ ] **The `.app` audit fails, and the allowlist is the owner's decision.**
+      `ios/tools/audit-binary.sh` on `SsaAssistant.app` (2026-11-28) finds no
+      networking framework and no networking symbol. It fails on
+      dynamic-lookup imports that no entry covers:
+      - Compose's `CMPLayoutRegion.o` imports `_NSClassFromString`.
+      - Skia imports `_dlsym` in `SkCTFont.o`, `SkFontMgr_mac_ct.o` and
+        `SkTypeface_mac_ct.o` (CoreText) and in
+        `GrGLMakeNativeInterface_iOS.o` (OpenGL ES).
+      - The Kotlin 2.4.21 runtime's `libkotlin.native.internal.4fyzlt.a.o`
+        imports `_dlsym`. The existing entry names Run 7's object.
+      - The app executable and `SsaAssistant.debug.dylib` import `_dlsym`
+        (Xcode's Debug-only stub).
+      - The hosted `SsaAssistantTests.xctest` imports `NSURLSession`. That is
+        the trap's deliberate request, so the bundle fails by design.
+
+      Until the owner decides, `tests/ios-audit.js` fails 3 checks ("the clean
+      set passes the audit", "the clean set reports clean", "the app bundle
+      passes the audit"). Questions for the owner:
+      - Allowlist the Compose, Skia and Kotlin objects in the XCFramework?
+      - How should the linked `SsaKit_…_PackageProduct.framework` be audited?
+        Its objects lose their names there.
+      - Should D1 audit a Release build, which has neither the debug stub nor
+        the hosted test bundle?
+
+      Detail: Progress, "iOS MVP: host checks and the phone run".
+- [ ] **A voice answer on the phone.** No test uses the talk button,
+      `AVAudioEngine` capture or Whisper through `:models` on a phone. Then
+      the full "both forms" interview by voice, tap and typing in airplane
+      mode, and App Privacy Report.
+- [ ] **VoiceOver by ear on the iPhone (spike 3d).** The UI test's
+      `performAccessibilityAudit()` passes, and each control is named once.
+      Still to hear:
+      - whether typing in the answer field echoes letters or says "bullet",
+        now that its keyboard carries the secure-entry trait;
+      - Magic Tap and the escape gesture;
+      - the read-back;
+      - the switch rows.
+- [ ] **The answer field's keyboard is secure entry, so the Dictate key is
+      drawn disabled, not removed.** UIKit has no public trait that hides
+      dictation or the prediction bar on its own, and Compose 1.12.2 does not
+      expose `spellCheckingType` or `inlinePredictionType`. What works is
+      `autocorrectionType(No)`, `isSecureTextEntry(true)` and
+      `textContentType(UITextContentTypeOneTimeCode)` (`AnswerKeyboard.ios.kt`).
+      Secure entry also keeps the keyboard to one layout, which needs another
+      look before French or Lingala are typed on iOS.
+- [ ] **Setup stays on screen for about 36 s after Start.** `start()` emits
+      only after the intro, the no-PIN warning and the first question have
+      been spoken, as on the web (`src/turn.js` `start`). The owner chose to
+      leave it for now. Changing it is a JS-first change.
+- [ ] **Re-run what this session changed but did not re-run:**
+      - the package tests on the phone (`ios/tools/stage-device-fixtures.sh`,
+        then the package's device `xcodebuild test`) against the `SsaKit` and
+        ORT changes;
+      - the app tests on the simulator after the last Setup change, which
+        passed on the phone only;
+      - `:core-device:connectedDebugAndroidTest` on `ssa35` after the Kotlin
+        upgrade.
+- [ ] **AGENTS.md's "Common checks" need the app's commands.** Add
+      `:ui:assembleSsaCoreDebugXCFramework` in place of `:core`'s old task,
+      and the app's `xcodebuild test … -derivedDataPath build` from `ios/App/`,
+      which is where `tests/ios-audit.js` looks for the `.app`. The owner
+      edits AGENTS.md.
 - [ ] **`:core`'s `Crypto` is synchronous, so Setup blocks while PBKDF2
       runs.** `IosBridge.openSession` moves `SessionGate` to
       `Dispatchers.Default` for that reason and posts progress back to the
@@ -1318,3 +1360,34 @@ The plan's *Run 9 plan* section and its Run 9 Progress entry have the exact comm
 
 **Left as it is (owner, 2026-11-27):** a fresh clone cannot run the MMS tests without the 27 GB
 `mms-1b-all/` folder.
+
+## Mirror iOS MVP: host checks and the phone run (2026-11-28)
+
+After the agent-loop run (`agent-loop-runs/2026-11-28-0006-ios-mvp/`,
+committed as `4b82b45f`), Claude ran the plan's host checks on the owner's Mac
+and fixed what they found. The commands, results and fixes are in the mirror
+plan's Progress entry "iOS MVP: host checks and the phone run". Not
+committed yet.
+
+- [x] `summary.json` is committed, and `check.mjs` reports "goldens fresh".
+- [x] `:core:jvmTest` passes 122 tests, `:models:jvmTest` 59 and
+      `:core:iosSimulatorArm64Test` 103. `:ui` compiles for iOS and Android.
+      `:app:assembleDebug` builds, and the permission audit is clean.
+- [x] The `:ui`-built `SsaCore` XCFramework links. `:ui` copies the pinned
+      ONNX Runtime beside it, and `Package.swift` declares it as a binary
+      target. The package passes its 8 simulator tests.
+- [x] The app builds and launches with one Kotlin runtime: the package's
+      single `SsaKit` product replaced `CoreCrypto` plus `SsaPdf`, which had
+      put two runtimes in one process and crashed at launch. The app also
+      gained the Info.plist key Compose requires, and the Swift compile fixes.
+- [x] On the simulator and an iPhone 15 (iOS 26.6.2), the app's 3 unit tests
+      and its UI test pass. The UI test covers Setup, a tapped option, three
+      typed answers with a read-back, Review, one export and the
+      accessibility audit.
+- [x] VoiceOver names are no longer doubled: the buttons, the talk button,
+      the answer field, the PIN field and its heading, and the two settings,
+      which are now one switch each.
+- [x] Send sits beside the answer field, so the keyboard no longer covers it.
+- [x] The answer field's keyboard shows no prediction bar, and its Dictate
+      key is disabled, on the simulator and on the phone.
+

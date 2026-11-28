@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
@@ -73,6 +74,18 @@ internal fun runsText(runs: List<UiState.TextRun>?, fallback: String): String {
 internal fun Modifier.described(text: String): Modifier = this.semantics {
     contentDescription = text
     role = Role.Button
+}
+
+/**
+ * The visible label inside a [described] button. A button merges its
+ * children's semantics, and on iOS Compose joins a merged text with the
+ * button's content description, so VoiceOver read "Start, Start" (seen in the
+ * UI test on 2026-11-28). The label's own semantics are cleared, so the
+ * catalogue description is the button's only spoken name.
+ */
+@Composable
+internal fun ButtonLabel(text: String) {
+    Text(text, modifier = Modifier.clearAndSetSemantics {})
 }
 
 /** A screen heading. */
@@ -175,10 +188,13 @@ internal fun TalkButton(
             },
         contentAlignment = Alignment.Center,
     ) {
+        // Cleared, as in [ButtonLabel]: the Box's description is the spoken
+        // name, and the merged text made VoiceOver say "…, Talk" after it.
         Text(
             text = text,
             color = MaterialTheme.colors.onPrimary,
             style = TextStyle(fontSize = 20.sp, fontWeight = FontWeight.SemiBold),
+            modifier = Modifier.clearAndSetSemantics {},
         )
     }
 }

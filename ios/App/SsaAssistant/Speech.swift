@@ -1,4 +1,5 @@
 import AVFoundation
+import SsaCore
 import UIKit
 
 /// `AVSpeechSynthesizer` with an on-device en-US voice (plan, Phase C3

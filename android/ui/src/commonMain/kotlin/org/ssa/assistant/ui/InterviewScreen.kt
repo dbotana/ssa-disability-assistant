@@ -1,5 +1,6 @@
 package org.ssa.assistant.ui
 
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
@@ -12,7 +13,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
@@ -94,14 +97,14 @@ internal fun InterviewScreen(
             enabled = state.controls.yes,
             modifier = Modifier.fillMaxWidth().described(message(i18n, "yes", lang)),
         ) {
-            Text(message(i18n, "yes", lang))
+            ButtonLabel(message(i18n, "yes", lang))
         }
         OutlinedButton(
             onClick = { scope.launch { controller.rejectReadBack() } },
             enabled = state.controls.no,
             modifier = Modifier.fillMaxWidth().described(message(i18n, "no", lang)),
         ) {
-            Text(message(i18n, "no", lang))
+            ButtonLabel(message(i18n, "no", lang))
         }
     }
 
@@ -112,44 +115,57 @@ internal fun InterviewScreen(
                 onClick = { scope.launch { controller.submitOption(option.value) } },
                 modifier = Modifier.fillMaxWidth().described(option.label),
             ) {
-                Text(option.label)
+                ButtonLabel(option.label)
             }
         }
     }
 
     if (state.controls.text) {
         Gap()
-        OutlinedTextField(
-            value = typed,
-            onValueChange = { typed = it },
-            label = { Text(label(i18n, "Type your answer", lang)) },
-            singleLine = false,
-            maxLines = 4,
-            // No autocorrect, no suggestions, no spell-check. SSN and bank
-            // numbers use secure entry, which on iOS also hides the dictation
-            // key. Spike 3d verifies on a phone that each option reaches the
-            // native field.
-            visualTransformation =
-                if (state.inputMasked) PasswordVisualTransformation() else VisualTransformation.None,
-            keyboardOptions = KeyboardOptions(
-                keyboardType = if (state.inputMasked) KeyboardType.NumberPassword else KeyboardType.Text,
-                imeAction = ImeAction.Done,
-                autoCorrectEnabled = false,
-            ),
-            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp).semantics {
-                contentDescription = label(i18n, "Your answer", lang)
-            },
-        )
-        Button(
-            onClick = {
-                val text = typed
-                if (text.isBlank()) return@Button
-                typed = ""
-                scope.launch { controller.submitTyped(text) }
-            },
-            modifier = Modifier.fillMaxWidth().described(label(i18n, "Send answer", lang)),
+        // Send sits beside the field, not below it: iOS lifts the focused
+        // field above the keyboard, and a button under the field stayed
+        // hidden behind it (UI test, 2026-11-28).
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(label(i18n, "Send answer", lang))
+            OutlinedTextField(
+                value = typed,
+                onValueChange = { typed = it },
+                // The visible label is not spoken: the field's description is
+                // its name, and VoiceOver read "Your answer, Type your answer".
+                label = {
+                    Text(label(i18n, "Type your answer", lang), modifier = Modifier.clearAndSetSemantics {})
+                },
+                singleLine = false,
+                maxLines = 4,
+                // No autocorrect, no suggestions, no spell-check. SSN and bank
+                // numbers use secure entry. The iOS traits that KeyboardOptions
+                // cannot set (the prediction bar, the dictation key) come from
+                // answerKeyboardOptions().
+                visualTransformation =
+                    if (state.inputMasked) PasswordVisualTransformation() else VisualTransformation.None,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = if (state.inputMasked) KeyboardType.NumberPassword else KeyboardType.Text,
+                    imeAction = ImeAction.Done,
+                    autoCorrectEnabled = false,
+                    platformImeOptions = answerKeyboardOptions(),
+                ),
+                modifier = Modifier.weight(1f).semantics {
+                    contentDescription = label(i18n, "Your answer", lang)
+                },
+            )
+            Button(
+                onClick = {
+                    val text = typed
+                    if (text.isBlank()) return@Button
+                    typed = ""
+                    scope.launch { controller.submitTyped(text) }
+                },
+                modifier = Modifier.padding(start = 8.dp).described(label(i18n, "Send answer", lang)),
+            ) {
+                ButtonLabel(label(i18n, "Send", lang))
+            }
         }
     }
 }

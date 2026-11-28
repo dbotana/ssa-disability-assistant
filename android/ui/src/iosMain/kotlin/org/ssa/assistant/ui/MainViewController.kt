@@ -1,3 +1,5 @@
+@file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
+
 package org.ssa.assistant.ui
 
 import androidx.compose.runtime.State

@@ -117,7 +117,7 @@ final class CaptureAdapter: NSObject, IosAudioCapture {
         engine.isRunning
     }
 
-    func release() {
+    func releaseMic() {
         tearDown()
     }
 

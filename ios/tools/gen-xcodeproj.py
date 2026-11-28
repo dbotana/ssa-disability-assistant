@@ -11,8 +11,12 @@ passes DEVELOPMENT_TEAM on the command line.
 
 The project has an app target (SsaAssistant, iOS 17, iPhone, bundle id
 org.ssa.assistant.ios), a unit-test bundle and a UI-test bundle, the local
-Swift package ../CoreCrypto (products CoreCrypto and SsaPdf) and
-onnxruntime.xcframework from android/models/build/. A shell-script phase
+Swift package ../CoreCrypto (its product SsaKit, which holds the CoreCrypto and
+SsaPdf targets, so the process gets one copy of SsaCore), which also
+brings ONNX Runtime: the package's `onnxruntime` binary target, a copy of the
+pinned xcframework that :ui:assembleSsaCoreDebugXCFramework puts beside
+SsaCore. The app must not link ORT a second time ("Multiple commands produce
+onnxruntime.framework"). A shell-script phase
 stages the pinned resources into the bundle's SsaResources/ folder at build
 time (ios/App/README.md records the layout).
 
@@ -35,7 +39,6 @@ UI_TEST_SOURCES_DIR = os.path.join(APP, "SsaAssistantUITests")
 APP_NAME = "SsaAssistant"
 BUNDLE_ID = "org.ssa.assistant.ios"
 DEPLOYMENT_TARGET = "17.0"
-ORT_PATH = "../../android/models/build/onnxruntime-ios/onnxruntime.xcframework"
 
 # The shell that stages ios/App/SsaResources.SHA256SUMS-checked resources into
 # the app bundle. Every copy is from the repository, never from the network.
@@ -124,14 +127,14 @@ def build():
         "prod:uitests",
         "{isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = %sUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; }" % APP_NAME,
     )
-    ort_ref = p.add(
-        "ref:onnxruntime",
-        "{isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = onnxruntime.xcframework; path = %s; sourceTree = \"<group>\"; }" % ORT_PATH,
-    )
 
-    # -- the local Swift package and its two products ------------------------
+    # -- the local Swift package and its one product -------------------------
+    # One product, not CoreCrypto and SsaPdf separately: Xcode makes each
+    # product a dynamic framework when the app and its test bundle both use it,
+    # and two products meant two copies of the static SsaCore, two Kotlin
+    # runtimes, and a crash at launch (Package.swift, SsaKit).
     package = p.add("pkg:CoreCrypto", "{isa = XCLocalSwiftPackageReference; relativePath = ../CoreCrypto; }")
-    products = ["CoreCrypto", "SsaPdf"]
+    products = ["SsaKit"]
     deps = {
         name: p.add("dep:%s" % name, "{isa = XCSwiftPackageProductDependency; package = %s; productName = %s; }" % (package, name))
         for name in products
@@ -154,7 +157,6 @@ def build():
         name: p.add("bf:dep:%s" % name, "{isa = PBXBuildFile; productRef = %s; }" % deps[name])
         for name in products
     }
-    ort_build_file = p.add("bf:ort", "{isa = PBXBuildFile; fileRef = %s; }" % ort_ref)
 
     # -- groups --------------------------------------------------------------
     app_group = p.add(
@@ -177,14 +179,10 @@ def build():
         "{isa = PBXGroup; children = (%s, %s, %s); name = Products; sourceTree = \"<group>\"; }"
         % (app_product, test_product, ui_test_product),
     )
-    frameworks_group = p.add(
-        "group:frameworks",
-        "{isa = PBXGroup; children = (%s); name = Frameworks; sourceTree = \"<group>\"; }" % ort_ref,
-    )
     main_group = p.add(
         "group:main",
-        "{isa = PBXGroup; children = (%s, %s, %s, %s, %s); sourceTree = \"<group>\"; }"
-        % (app_group, test_group, ui_test_group, frameworks_group, products_group),
+        "{isa = PBXGroup; children = (%s, %s, %s, %s); sourceTree = \"<group>\"; }"
+        % (app_group, test_group, ui_test_group, products_group),
     )
 
     # -- phases --------------------------------------------------------------
@@ -198,7 +196,7 @@ def build():
         return p.add(name, "{isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; }")
 
     app_sources_phase = sources_phase("phase:app:sources", app_build_files)
-    app_frameworks_phase = frameworks_phase("phase:app:frameworks", [ort_build_file] + list(dep_build_files.values()))
+    app_frameworks_phase = frameworks_phase("phase:app:frameworks", list(dep_build_files.values()))
     app_resources_phase = resources_phase("phase:app:resources")
 
     stage_script = p.add(
@@ -249,6 +247,9 @@ def build():
         ("PRODUCT_NAME", q("$(TARGET_NAME)")),
         ("PRODUCT_BUNDLE_IDENTIFIER", q(BUNDLE_ID)),
         ("GENERATE_INFOPLIST_FILE", "YES"),
+        # Merged with the generated keys: CADisableMinimumFrameDurationOnPhone,
+        # which Compose Multiplatform requires and INFOPLIST_KEY_* cannot set.
+        ("INFOPLIST_FILE", q("SsaAssistant/Info.plist")),
         ("INFOPLIST_KEY_CFBundleDisplayName", q("Forms Assistant")),
         ("INFOPLIST_KEY_UILaunchScreen_Generation", "YES"),
         ("INFOPLIST_KEY_UIApplicationSceneManifest_Generation", "YES"),

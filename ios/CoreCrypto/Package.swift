@@ -80,13 +80,33 @@ let package = Package(
         .library(name: "CoreCrypto", targets: ["CoreCrypto"]),
         .library(name: "SsaPdf", targets: ["SsaPdf"]),
         .library(name: "NetCanary", targets: ["NetCanary"]),
+        // What ios/App links: both targets in one product. When the app and
+        // its unit-test bundle both depend on package products, Xcode makes
+        // each product a dynamic framework, and with `CoreCrypto` and `SsaPdf`
+        // separate each carried its own copy of the static SsaCore, so the app
+        // had two Kotlin runtimes and crashed passing an object between them.
+        // One product means one copy, one runtime (plan, B3).
+        .library(name: "SsaKit", targets: ["CoreCrypto", "SsaPdf"]),
     ],
     targets: [
         .binaryTarget(name: "SsaCore", path: "debug/SsaCore.xcframework"),
-        .target(name: "CoreCrypto", dependencies: ["SsaCore"]),
+        // SsaCore exports :models, whose cinterop calls ORT's C API, and a
+        // static Kotlin framework carries no third-party library. The same
+        // Gradle task copies the pinned ORT xcframework here; the link flags
+        // are :models' own (android/models/build.gradle.kts): libc++ and CoreML.
+        .binaryTarget(name: "onnxruntime", path: "debug/onnxruntime.xcframework"),
+        .target(
+            name: "CoreCrypto",
+            dependencies: ["SsaCore", "onnxruntime"],
+            linkerSettings: [.linkedLibrary("c++"), .linkedFramework("CoreML")]
+        ),
         .target(name: "RepoFixtures", resources: [.copy("repo")]),
         .testTarget(name: "CoreCryptoTests", dependencies: ["CoreCrypto", "RepoFixtures"]),
-        .target(name: "SsaPdf", dependencies: ["SsaCore"]),
+        .target(
+            name: "SsaPdf",
+            dependencies: ["SsaCore", "onnxruntime"],
+            linkerSettings: [.linkedLibrary("c++"), .linkedFramework("CoreML")]
+        ),
         .testTarget(name: "SsaPdfTests", dependencies: ["SsaPdf", "SsaCore", "RepoFixtures"]),
         .target(name: "NetCanary"),
         .testTarget(name: "NetworkGuardTests", dependencies: ["SsaPdf", "CoreCrypto", "SsaCore", "RepoFixtures"]),

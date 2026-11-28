@@ -101,3 +101,17 @@ tasks.withType<org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFrameworkTask>().c
 tasks.matching { it.name.startsWith("link") || it.name.startsWith("assembleSsaCore") }.configureEach {
     dependsOn(":unpackOnnxRuntimeIos")
 }
+
+// SsaCore is static and does not carry ORT, so whatever links SsaCore must
+// also link ORT's static xcframework, or `_OrtGetApiBase` is undefined. SwiftPM
+// accepts a local binary target only inside the package, so the pinned,
+// unpacked ORT xcframework is copied beside SsaCore (ios/CoreCrypto/debug/,
+// git-ignored), where Package.swift's `onnxruntime` binary target reads it.
+val copyOnnxRuntimeForSwiftPackage by tasks.registering(Sync::class) {
+    dependsOn(":unpackOnnxRuntimeIos")
+    from(ortXcframework)
+    into(file("${rootProject.projectDir}/../ios/CoreCrypto/debug/onnxruntime.xcframework"))
+}
+tasks.matching { it.name == "assembleSsaCoreDebugXCFramework" }.configureEach {
+    finalizedBy(copyOnnxRuntimeForSwiftPackage)
+}

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Only the keys Xcode cannot generate from INFOPLIST_KEY_* build settings; the
+  rest are generated (ios/tools/gen-xcodeproj.py, GENERATE_INFOPLIST_FILE) and
+  merged with this file.
+
+  CADisableMinimumFrameDurationOnPhone: Compose Multiplatform's
+  PlistSanityCheck aborts the app at launch without it.
+-->
+<plist version="1.0">
+<dict>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
+</dict>
+</plist>

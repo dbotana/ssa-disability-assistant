@@ -50,7 +50,7 @@ internal fun ExportScreen(
             onClick = { scope.launch { controller.exportForms(listOf(id)) } },
             modifier = Modifier.fillMaxWidth().described(label(i18n, "Export", lang) + " " + title),
         ) {
-            Text(label(i18n, "Export", lang) + " " + title)
+            ButtonLabel(label(i18n, "Export", lang) + " " + title)
         }
     }
     if (names.size > 1) {
@@ -58,7 +58,7 @@ internal fun ExportScreen(
             onClick = { scope.launch { controller.exportForms(names.map { it.first }) } },
             modifier = Modifier.fillMaxWidth().described(label(i18n, "Export both forms", lang)),
         ) {
-            Text(label(i18n, "Export both forms", lang))
+            ButtonLabel(label(i18n, "Export both forms", lang))
         }
     }
 
@@ -69,7 +69,7 @@ internal fun ExportScreen(
                 onClick = { actions.share(file) },
                 modifier = Modifier.fillMaxWidth().described(label(i18n, "Save or share", lang) + " " + file.fileName),
             ) {
-                Text(
+                ButtonLabel(
                     label(i18n, "Save or share", lang) + " " + file.fileName +
                         if (file.version == null) "" else " (${file.version})",
                 )
@@ -91,7 +91,7 @@ internal fun ExportScreen(
         onClick = onBack,
         modifier = Modifier.fillMaxWidth().described(label(i18n, "Back to my answers", lang)),
     ) {
-        Text(label(i18n, "Back to my answers", lang))
+        ButtonLabel(label(i18n, "Back to my answers", lang))
     }
     OutlinedButton(
         onClick = {
@@ -100,6 +100,6 @@ internal fun ExportScreen(
         },
         modifier = Modifier.fillMaxWidth().described(label(i18n, "Erase everything from this phone", lang)),
     ) {
-        Text(label(i18n, "Erase everything from this phone", lang))
+        ButtonLabel(label(i18n, "Erase everything from this phone", lang))
     }
 }

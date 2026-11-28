@@ -2,6 +2,7 @@ package org.ssa.assistant.ui
 
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.Button
 import androidx.compose.material.OutlinedTextField
@@ -14,6 +15,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
@@ -68,14 +71,18 @@ internal fun SetupScreen(
     }
 
     Gap()
+    // Shown, not spoken: the field's description already says "PIN,
+    // optional", and VoiceOver read it twice in a row.
     Text(
         label(i18n, "PIN (optional)", lang),
-        modifier = Modifier.padding(bottom = 4.dp),
+        modifier = Modifier.padding(bottom = 4.dp).clearAndSetSemantics {},
     )
     OutlinedTextField(
         value = pin,
         onValueChange = { pin = it },
-        label = { Text(label(i18n, "PIN", lang)) },
+        // The field's description is its spoken name; the visible label is
+        // not read again after it ("…, PIN").
+        label = { Text(label(i18n, "PIN", lang), modifier = Modifier.clearAndSetSemantics {}) },
         singleLine = true,
         // SSNs and PINs never go through the predictive keyboard.
         visualTransformation = PasswordVisualTransformation(),
@@ -123,7 +130,7 @@ internal fun SetupScreen(
         },
         modifier = Modifier.fillMaxWidth().described(label(i18n, "Start", lang)),
     ) {
-        Text(label(i18n, "Start", lang))
+        ButtonLabel(label(i18n, "Start", lang))
     }
 
     if (savedAt != null) {
@@ -139,7 +146,7 @@ internal fun SetupScreen(
             },
             modifier = Modifier.fillMaxWidth().described(label(i18n, "Resume", lang)),
         ) {
-            Text(label(i18n, "Resume my saved session", lang))
+            ButtonLabel(label(i18n, "Resume my saved session", lang))
         }
     }
 }
@@ -169,17 +176,25 @@ private fun onOpened(
     }
 }
 
+/**
+ * One control, not two: the whole row is the switch, so VoiceOver reads its
+ * text once with its state, and a double-tap anywhere on it toggles it. Before,
+ * the text and the switch were separate elements with the same words.
+ */
 @Composable
 private fun SwitchRow(text: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     androidx.compose.foundation.layout.Row(
-        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 4.dp)
+            .toggleable(value = checked, role = Role.Switch, onValueChange = onCheckedChange)
+            .semantics { contentDescription = text },
         verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
     ) {
-        Text(text, modifier = Modifier.weight(1f).padding(end = 12.dp))
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            modifier = Modifier.semantics { contentDescription = text },
-        )
+        // Cleared, as in ButtonLabel: on iOS Compose still exposed the merged
+        // text as its own element (UI test on the iPhone, 2026-11-28).
+        Text(text, modifier = Modifier.weight(1f).padding(end = 12.dp).clearAndSetSemantics {})
+        // The row handles the toggle; the switch only shows its state.
+        Switch(checked = checked, onCheckedChange = null)
     }
 }
