@@ -11,6 +11,7 @@
         "readbackOpen": false,
         "inputMasked": false,
         "voiceDisabled": false,
+        "starting": false,
         "progressText": "14% done",
         "reviewIntro": "I removed condition 1, Diabetes. 10 required answers are still blank. You can change another answer, or download your forms.",
         "answers": {
@@ -101,6 +102,7 @@
         "readbackOpen": false,
         "inputMasked": false,
         "voiceDisabled": false,
+        "starting": false,
         "progressText": "1 % terminé",
         "reviewIntro": "",
         "answers": {},
@@ -201,6 +203,7 @@
         "readbackOpen": false,
         "inputMasked": false,
         "voiceDisabled": false,
+        "starting": false,
         "progressText": "1 % terminé",
         "reviewIntro": "Vos réponses sont prêtes. 10 réponses obligatoires sont encore vides : Quel est votre prénom légal ? Quel est votre nom légal ? Quelle est votre date de naissance ? Donnez le jour, le mois, puis l'année. Dans quelle ville êtes-vous né ? Dans quel État ou province êtes-vous né ? Dans quel pays êtes-vous né ? Quel est votre numéro de sécurité sociale ? Quel mois et quelle année votre condition a-t-elle commencé à limiter votre capacité à travailler ? Recevez-vous une indemnisation des accidents du travail ou une autre prestation d'invalidité ? Donnez-vous l'autorisation à la Social Security de demander vos dossiers médicaux directement à vos prestataires ? Vous pouvez modifier une réponse, ou télécharger vos formulaires tels quels.",
         "answers": {
@@ -290,6 +293,7 @@
         "readbackOpen": false,
         "inputMasked": false,
         "voiceDisabled": false,
+        "starting": false,
         "progressText": "6% done",
         "reviewIntro": "",
         "answers": {
@@ -382,6 +386,7 @@
         "readbackOpen": true,
         "inputMasked": false,
         "voiceDisabled": false,
+        "starting": false,
         "progressText": "0% done",
         "reviewIntro": "",
         "answers": {},
@@ -482,6 +487,7 @@
         "readbackOpen": false,
         "inputMasked": false,
         "voiceDisabled": false,
+        "starting": false,
         "progressText": "7 % terminé",
         "reviewIntro": "",
         "answers": {
@@ -575,6 +581,7 @@
         "readbackOpen": false,
         "inputMasked": true,
         "voiceDisabled": false,
+        "starting": false,
         "progressText": "11% done",
         "reviewIntro": "",
         "answers": {
@@ -671,6 +678,7 @@
         "readbackOpen": false,
         "inputMasked": false,
         "voiceDisabled": false,
+        "starting": false,
         "progressText": "3 % esili",
         "reviewIntro": "",
         "answers": {
@@ -761,6 +769,7 @@
         "readbackOpen": false,
         "inputMasked": false,
         "voiceDisabled": false,
+        "starting": false,
         "progressText": "1% done",
         "reviewIntro": "",
         "answers": {
@@ -850,6 +859,7 @@
         "readbackOpen": false,
         "inputMasked": false,
         "voiceDisabled": false,
+        "starting": false,
         "progressText": "68% done",
         "reviewIntro": "All done. Your forms are ready to download.",
         "answers": {
@@ -1048,6 +1058,7 @@
         "readbackOpen": false,
         "inputMasked": true,
         "voiceDisabled": false,
+        "starting": false,
         "progressText": "100% done",
         "reviewIntro": "",
         "answers": {
@@ -1454,6 +1465,7 @@
         "readbackOpen": false,
         "inputMasked": false,
         "voiceDisabled": false,
+        "starting": false,
         "progressText": "1% done",
         "reviewIntro": "",
         "answers": {
@@ -1543,6 +1555,7 @@
         "readbackOpen": false,
         "inputMasked": false,
         "voiceDisabled": false,
+        "starting": false,
         "progressText": "11% done",
         "reviewIntro": "",
         "answers": {
@@ -1639,6 +1652,7 @@
         "readbackOpen": false,
         "inputMasked": false,
         "voiceDisabled": false,
+        "starting": false,
         "progressText": "6% done",
         "reviewIntro": "",
         "answers": {
@@ -1731,6 +1745,7 @@
         "readbackOpen": false,
         "inputMasked": false,
         "voiceDisabled": false,
+        "starting": false,
         "progressText": "4% done",
         "reviewIntro": "",
         "answers": {

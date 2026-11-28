@@ -24,14 +24,17 @@ export function createAppController(ports) {
     const screen = s.languages?.screen ?? 'en';
     const q = turn.displayQuestion();
     const run = text => [{ text: text ?? '', lang: screen }];
+    // While the intro is spoken the interview screen is up but takes no
+    // input, so it shows no controls (turn.js, `starting`).
+    const live = s.panel === 'interview' && !s.starting;
     return {
       ...s,
       controls: {
-        talk: s.panel === 'interview' && !s.voiceDisabled,
-        text: s.panel === 'interview',
+        talk: live && !s.voiceDisabled,
+        text: live,
         yes: s.readbackOpen,
         no: s.readbackOpen,
-        options: (q?.options ?? []).map(o => ({ value: o.value, label: i18n.translate(o.label, screen) }))
+        options: s.starting ? [] : (q?.options ?? []).map(o => ({ value: o.value, label: i18n.translate(o.label, screen) }))
       },
       exportList: [...formsOf(s.answers)],
       runs: {

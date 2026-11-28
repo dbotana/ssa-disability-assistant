@@ -292,16 +292,19 @@ output. In short:
       `textContentType(UITextContentTypeOneTimeCode)` (`AnswerKeyboard.ios.kt`).
       Secure entry also keeps the keyboard to one layout, which needs another
       look before French or Lingala are typed on iOS.
-- [ ] **Setup stays on screen for about 36 s after Start.** `start()` emits
-      only after the intro, the no-PIN warning and the first question have
-      been spoken, as on the web (`src/turn.js` `start`). The owner chose to
-      leave it for now. Changing it is a JS-first change.
+- [x] **Setup stays on screen for about 36 s after Start.** Fixed JS-first
+      (2026-11-28): `start()` now emits the interview screen, with the first
+      question on it, before the intro is spoken. The snapshot's new
+      `starting` is true until the first question has been spoken. Meanwhile
+      the controller ignores input and `uiState.controls` shows no talk, text
+      or option controls. Ported to `TurnController`, `AppController` and
+      `UiState`; `appstate.json` regenerated. On the simulator the question
+      replaced Setup about 1.5 s after Start. Still to hear with VoiceOver:
+      whether moving to the interview screen during the intro talks over it.
 - [ ] **Re-run what this session changed but did not re-run:**
       - the package tests on the phone (`ios/tools/stage-device-fixtures.sh`,
         then the package's device `xcodebuild test`) against the `SsaKit` and
         ORT changes;
-      - the app tests on the simulator after the last Setup change, which
-        passed on the phone only;
       - `:core-device:connectedDebugAndroidTest` on `ssa35` after the Kotlin
         upgrade.
 - [ ] **AGENTS.md's "Common checks" need the app's commands.** Add

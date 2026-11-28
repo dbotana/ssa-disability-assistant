@@ -167,6 +167,7 @@ export function createTurnController(ports) {
       readbackOpen: readBackOpen(),
       inputMasked: !revealSensitive && isSensitive(q),
       voiceDisabled,
+      starting: introducing,
       progressText: progressText(),
       reviewIntro,
       answers: engine.answers(),
@@ -231,10 +232,22 @@ export function createTurnController(ports) {
   // -- the ask ------------------------------------------------------------------
 
   async function askCurrent({ announceSection = false, prefix = '' } = {}) {
+    const segments = showCurrent({ announceSection, prefix });
+    if (!segments) { await finishInterview(); return; }
+    await speakSegments(segments);
+
+    resumeListening();
+  }
+
+  /**
+   * Put the current question on screen and return what asking it says, or
+   * null when there is no question left. Nothing is spoken or emitted here.
+   */
+  function showCurrent({ announceSection = false, prefix = '' } = {}) {
     pending = null;
     const q = engine.current();
 
-    if (!q) { await finishInterview(); return; }
+    if (!q) return null;
 
     const segments = [];
     if (correcting) {
@@ -272,9 +285,7 @@ export function createTurnController(ports) {
     questionTextContent = screen(q.prompt);
     hintTextContent = q.hint ? screen(q.hint) : '';
     reviewIntro = '';
-    await speakSegments(segments);
-
-    resumeListening();
+    return segments;
   }
 
   async function speakSegments(segments) {
@@ -313,6 +324,11 @@ export function createTurnController(ports) {
   // than running over it. main.js guards the setup panel the same way
   // (startOnce); this is the guard every front end gets.
   let starting = null;
+  // True from the first emit of a start until its first question has been
+  // spoken. The interview screen is up by then, but it takes no input yet:
+  // an answer given during the intro would race the question start() is
+  // about to ask.
+  let introducing = false;
 
   function start(opts = {}) {
     if (starting) return starting;
@@ -338,28 +354,45 @@ export function createTurnController(ports) {
     // A language whose speech pack is not installed keeps typed answers and
     // closes the voice lane, with an explanation (D5/decision 1). The input,
     // screen and output languages remain independent even here.
-    if (!i18n.sttFor(languages.input).installed && mode !== 'text') {
+    const sttMissing = !i18n.sttFor(languages.input).installed && mode !== 'text';
+    if (sttMissing) {
       voiceDisabled = true;
       mode = 'text';
       lastInputWasText = true;
-      const unavailable = msg('stt_unavailable');
-      announce(unavailable, true);
-      await speech.speak(unavailable, { lang: outputLang() });
     }
 
-    await speech.speak(out(introFor(mode)), { lang: outputLang() });
-    if (!store.isPersisting()) {
-      const noPin = msg('no_pin_warning');
-      announce(noPin, true);
-      await speech.speak(noPin, { lang: outputLang() });
+    // The interview screen goes up now, with the first question on it, and
+    // not once the intro, the warnings and the question have been spoken:
+    // that kept Setup on screen for over half a minute after Start. It takes
+    // no input until the question has been asked (`introducing`).
+    const first = showCurrent({ announceSection: true });
+    if (!first) { sectionLabel = ''; questionTextContent = ''; hintTextContent = ''; }
+    introducing = true;
+    try {
+      emit({});
+      if (sttMissing) {
+        const unavailable = msg('stt_unavailable');
+        announce(unavailable, true);
+        await speech.speak(unavailable, { lang: outputLang() });
+      }
+      await speech.speak(out(introFor(mode)), { lang: outputLang() });
+      if (!store.isPersisting()) {
+        const noPin = msg('no_pin_warning');
+        announce(noPin, true);
+        await speech.speak(noPin, { lang: outputLang() });
+      }
+      if (withheld.length) {
+        const msgText = msg('withheld_warning');
+        announce(msgText, true);
+        await speech.speak(msgText, { lang: outputLang() });
+      }
+      touchActivity();
+      if (first) await speakSegments(first);
+    } finally {
+      introducing = false;
     }
-    if (withheld.length) {
-      const msgText = msg('withheld_warning');
-      announce(msgText, true);
-      await speech.speak(msgText, { lang: outputLang() });
-    }
-    touchActivity();
-    await askCurrent({ announceSection: true });
+    if (first) resumeListening();
+    else await finishInterview();
     emit({});
   }
 
@@ -370,7 +403,7 @@ export function createTurnController(ports) {
   // -- input: voice ----------------------------------------------------------------
 
   async function onTalkDown() {
-    if (busy || voiceDisabled || audio.isRecording()) return;
+    if (introducing || busy || voiceDisabled || audio.isRecording()) return;
     lastInputWasText = false;
     statusText = msg('listening', {}, 'screen');
     emit({});
@@ -389,7 +422,7 @@ export function createTurnController(ports) {
   }
 
   async function listenHandsFree() {
-    if (busy || voiceDisabled || mode !== 'handsfree') return;
+    if (introducing || busy || voiceDisabled || mode !== 'handsfree') return;
     statusText = msg('listening', {}, 'screen');
     emit({});
     // Nobody reads out nine digits without breathing. Digit fields get a
@@ -421,6 +454,7 @@ export function createTurnController(ports) {
   }
 
   async function sendAudio(blob) {
+    if (introducing) return;
     touchActivity();
     // Four cheap filters before transcribing: nothing recorded, a bumped
     // button, or a capture of only room tone. All end the same way — ask
@@ -617,7 +651,7 @@ export function createTurnController(ports) {
 
   async function submitTyped(text) {
     const t = String(text ?? '').trim();
-    if (!t) return;
+    if (!t || introducing) return;
     lastInputWasText = true;
     busy = true;
     try {
@@ -694,6 +728,7 @@ export function createTurnController(ports) {
   const KEEPS_CORRECTION = new Set(['repeat', 'help', 'where', 'readback', 'save_quit']);
 
   async function runCommand(cmd) {
+    if (introducing) return;
     if (cmd === 'repeat' && readBackOpen()) {
       announce(lastSpoken);
       await speakSegments(lastSegments.length ? lastSegments : [lastSpoken]);
@@ -1278,7 +1313,7 @@ export function createTurnController(ports) {
 
   async function onKey(code, { typing = false } = {}) {
     touchActivity();
-    if (panel !== 'interview') return;
+    if (panel !== 'interview' || introducing) return;
 
     // While an answer is being read back the space bar keeps it.
     if (!typing && readBackOpen()) {

@@ -3697,6 +3697,56 @@ framework the objects lose their names, so an entry there can name only the fram
 and an iPhone 15. X6 is not done: the Android app has not moved to `:ui`, the voice path and 3d's
 VoiceOver results are still needed, and D1 waits for the owner's allowlist decision.
 
+### Setup after Start (2026-11-28, JS first)
+
+`TODO.md` item: Setup stayed on screen for about 37 s after Start, because `start()` emitted
+nothing until the intro, the no-PIN warning and the first question had been spoken (fix 7 above).
+
+**The change, in the JS reference first.**
+- `src/turn.js`: `askCurrent` is split. `showCurrent` puts the question on screen and returns
+  what asking it says, and `askCurrent` speaks it. `startNow` calls `showCurrent` and emits the
+  interview panel with the first question on it before any speech. It then speaks the
+  stt-unavailable line, the intro and the warnings, as before, and the question last.
+- The snapshot has a new field, `starting`. It is true from that first emit until the first
+  question has been spoken. While it is true, `onTalkDown`, `listenHandsFree`, `sendAudio`,
+  `submitTyped`, `runCommand` and `onKey` return without acting. Before, nobody could answer
+  until `start()` returned, and this keeps that: an answer during the intro would race the
+  question `start()` is about to ask, and `showCurrent` clears an open read-back.
+- `src/app-controller.js`: `controls.talk`, `controls.text` and `controls.options` are off
+  while `starting`. `src/main.js` hides the talk button and the text entry and disables the
+  command buttons while `starting`.
+- The spoken and announced text, and its order, are unchanged: `turn.json` did not change.
+  `appstate.json` gains `"starting": false` in each final state.
+- New `tests/start-screen.js` holds speech mid-intro and checks the early snapshot, the input
+  gate and the app controller's controls.
+
+**The port.** `TurnController` (`showCurrent`, `introducing`, the same guards, `starting` in the
+snapshot), `AppController` (the controls) and `UiState` (`starting`, in `toJson` after
+`voiceDisabled`). `:ui` needed no change: `InterviewScreen` already draws from `controls`, and
+the iOS shell redraws on every `onState`. `ScriptedInterviewTest` has
+`theInterviewScreenIsUpWhileTheIntroIsSpoken`, the Kotlin copy of the JS test.
+`InterviewUITests` now waits at most 10 s for the first question's text after Start and asserts
+that Start is gone. It still waits up to 120 s for the option buttons.
+
+**Results.**
+
+| Check | Result |
+|---|---|
+| `node tests/start-screen.js` | "start-screen: all checks passed" |
+| `for f in tests/*.js; do node "$f"; done` | 28 files; all pass except `tests/ios-audit.js`, which fails the same 3 checks as above (owner's allowlist decision) |
+| `node tools/smoke.mjs` | "Smoke test passed." |
+| `TZ=UTC node tools/golden/index.mjs`, then `node tools/export-schema.mjs` | only `appstate.json` changed; a second run left it byte-identical. `check.mjs` was not run: it compares against `HEAD`, so it fails until the owner commits the new golden |
+| `TZ=UTC ./gradlew :core:jvmTest` | BUILD SUCCESSFUL, 123 tests, 0 failures |
+| `SIMCTL_CHILD_GOLDEN_DIR=$PWD/core/build/ios-test-resources ./gradlew :core:iosSimulatorArm64Test` | BUILD SUCCESSFUL, 104 tests, 0 failures |
+| `./gradlew :ui:assembleSsaCoreDebugXCFramework` | BUILD SUCCESSFUL |
+| `xcodebuild test -project SsaAssistant.xcodeproj -scheme SsaAssistant -destination 'platform=iOS Simulator,name=iPhone 18 Pro' -derivedDataPath build` (from `ios/App/`) | TEST SUCCEEDED: 3 unit tests and `testTypedInterviewThenOneExport` (145 s). Start was tapped at 7.21 s and the question was found at its first check, 8.73 s; the option buttons were tapped at 44.79 s |
+
+Gradle and `xcodebuild` ran outside the command sandbox, as before.
+
+**Not done.** The web page was not opened in a browser, so the `main.js` change was not
+checked by hand. VoiceOver by ear: whether moving to the interview screen during the intro talks
+over it. The phone, and `:core-device:connectedDebugAndroidTest` on `ssa35`, were not run.
+
 ## Remaining work to reach X8 (ordered)
 
 The mirror milestones (X1–X8) are the spine. X1a, X1b and X2 (3a, 3c,

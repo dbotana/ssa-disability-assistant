@@ -36,8 +36,12 @@ class AppController(
         val panel = s["panel"]?.asString() ?: "interview"
         val voiceDisabled = s["voiceDisabled"] == Json.True
         val readbackOpen = s["readbackOpen"] == Json.True
+        val starting = s["starting"] == Json.True
+        // While the intro is spoken the interview screen is up but takes no
+        // input, so it shows no controls (TurnController, `starting`).
+        val live = panel == "interview" && !starting
 
-        val options = q?.options.orEmpty().map {
+        val options = if (starting) emptyList() else q?.options.orEmpty().map {
             UiState.OptionControl(it.value, i18n.translate(it.label, screen))
         }
 
@@ -50,6 +54,7 @@ class AppController(
             readbackOpen = readbackOpen,
             inputMasked = s["inputMasked"] == Json.True,
             voiceDisabled = voiceDisabled,
+            starting = starting,
             progressText = s["progressText"]?.asString() ?: "",
             reviewIntro = s["reviewIntro"]?.asString() ?: "",
             answers = s["answers"]?.asObject() ?: Obj(),
@@ -61,8 +66,8 @@ class AppController(
             section = s["section"]?.asObject() ?: Obj(),
             missing = s["missing"]?.asString() ?: "",
             controls = UiState.Controls(
-                talk = panel == "interview" && !voiceDisabled,
-                text = panel == "interview",
+                talk = live && !voiceDisabled,
+                text = live,
                 yes = readbackOpen,
                 no = readbackOpen,
                 options = options,

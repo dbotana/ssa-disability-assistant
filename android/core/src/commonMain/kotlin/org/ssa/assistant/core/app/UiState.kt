@@ -15,6 +15,8 @@ data class UiState(
     val readbackOpen: Boolean,
     val inputMasked: Boolean,
     val voiceDisabled: Boolean,
+    /** The intro is being spoken: the interview screen is up, its controls are not. */
+    val starting: Boolean,
     val progressText: String,
     val reviewIntro: String,
     val answers: Obj,
@@ -70,6 +72,7 @@ data class UiState(
         o["readbackOpen"] = Json.bool(readbackOpen)
         o["inputMasked"] = Json.bool(inputMasked)
         o["voiceDisabled"] = Json.bool(voiceDisabled)
+        o["starting"] = Json.bool(starting)
         o["progressText"] = Json.Str(progressText)
         o["reviewIntro"] = Json.Str(reviewIntro)
         o["answers"] = answers

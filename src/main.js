@@ -106,7 +106,8 @@ function boot() {
     importStatus: el('import-status'),
     setupStatus: el('setup-status'),
     pin: el('save-pin'),
-    showSensitive: el('show-sensitive')
+    showSensitive: el('show-sensitive'),
+    commandButtons: [...document.querySelectorAll('#interview-panel [data-command]')]
   });
 
   // An older version saved Social Security and bank numbers in plain text.
@@ -212,8 +213,11 @@ function render(s) {
   ui.setup.hidden = s.panel !== 'setup';
   ui.interview.hidden = s.panel !== 'interview';
   ui.review.hidden = s.panel !== 'review';
-  ui.textEntry.hidden = false;
-  ui.talk.hidden = s.voiceDisabled;
+  // While the intro is spoken the interview panel is up but takes no input
+  // (turn.js, `starting`), so its controls stay hidden until the question.
+  ui.textEntry.hidden = s.starting;
+  ui.talk.hidden = s.voiceDisabled || s.starting;
+  for (const b of ui.commandButtons) b.disabled = s.starting;
 
   ui.sectionLabel.textContent = s.sectionLabel;
   ui.question.textContent = s.questionText;

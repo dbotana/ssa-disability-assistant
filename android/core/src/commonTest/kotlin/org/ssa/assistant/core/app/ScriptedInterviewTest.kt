@@ -6,9 +6,11 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.yield
 import org.ssa.assistant.core.CivilDate
 import org.ssa.assistant.core.LanguageSettings
 import org.ssa.assistant.core.golden.runTestBlocking
@@ -60,6 +62,10 @@ class ScriptedInterviewTest {
         var durationMs = 1200
         /** What the audio port reports as the blob size; 0 for an interrupted capture. */
         var blobSize = -1
+        /** While true, each utterance waits in [held] until the test completes it. */
+        var hold = false
+        val held = mutableListOf<CompletableDeferred<Unit>>()
+        var recording = false
 
         override val store: TurnController.StorePort = object : TurnController.StorePort {
             override fun saveState(state: Json.Obj): Boolean = false
@@ -71,11 +77,13 @@ class ScriptedInterviewTest {
             override fun forgetKey() {}
         }
         override val speech: TurnController.SpeechPort = object : TurnController.SpeechPort {
-            override suspend fun speak(text: String, interrupt: Boolean, lang: String) { spoken.add(text) }
+            override suspend fun speak(text: String, interrupt: Boolean, lang: String) {
+                spoken.add(text)
+                if (hold) CompletableDeferred<Unit>().also { held.add(it) }.await()
+            }
             override fun cancel() {}
         }
         override val audio: TurnController.AudioPort = object : TurnController.AudioPort {
-            private var recording = false
             override suspend fun startRecording(options: Json.Obj) { recording = true }
             override suspend fun stopRecording(): TurnController.Blob {
                 recording = false
@@ -164,6 +172,55 @@ class ScriptedInterviewTest {
         assertNull(app.state().answers["for_self"], "the form did not move on")
         assertEquals(before, app.state().answers.writeJson())
         assertTrue(fakes.announced.isNotEmpty(), "the loop announced its error line")
+    }
+
+    /**
+     * The interview screen replaces Setup as soon as `start()` runs, with the
+     * first question on it, and takes no input until that question has been
+     * spoken: the snapshot's `starting`, as in `tests/start-screen.js`.
+     */
+    @Test
+    fun theInterviewScreenIsUpWhileTheIntroIsSpoken() = runTestBlocking {
+        val fakes = Fakes(this, CaptureBuffer(), ScriptedTranscriber("yes"))
+        fakes.hold = true
+        val app = app(fakes)
+        val started = launch { app.start(TurnController.StartOptions(mode = "voice", confirm = true)) }
+        while (fakes.held.isEmpty()) yield()
+
+        assertEquals(1, fakes.spoken.size, "only the intro has been spoken: ${fakes.spoken}")
+        assertTrue(fakes.snapshots.isNotEmpty(), "a snapshot is emitted before the intro ends")
+        val during = app.state()
+        assertEquals("interview", during.panel)
+        assertTrue(during.starting, "the start is under way")
+        assertTrue(during.questionText.contains("Which form"), during.questionText)
+        assertFalse(during.controls.talk, "no Talk button during the intro")
+        assertFalse(during.controls.text, "no text field during the intro")
+        assertTrue(during.controls.options.isEmpty(), "no options during the intro")
+
+        // Input during the intro is held, not raced against the first question.
+        app.submitTyped("both")
+        assertNull(app.state().answers["forms"], "a typed answer during the intro is not taken")
+        assertNull(app.onKey("Space"), "a key during the intro does nothing")
+        app.onTalkDown()
+        assertFalse(fakes.recording, "Talk during the intro does not record")
+        app.runCommand("skip")
+        assertTrue(app.state().questionText.contains("Which form"), "a command during the intro does nothing")
+
+        fakes.hold = false
+        while (started.isActive) {
+            val waiting = fakes.held.toList()
+            fakes.held.clear()
+            waiting.forEach { it.complete(Unit) }
+            yield()
+        }
+
+        val after = app.state()
+        assertFalse(after.starting, "after the first question the start is over")
+        assertTrue(after.controls.talk && after.controls.text, "the controls are back")
+        assertTrue(after.controls.options.isNotEmpty(), "the form options are back")
+        assertTrue(fakes.spoken.last().contains("Which form"), "the question was spoken last: ${fakes.spoken}")
+        app.submitTyped("both")
+        assertEquals("both", app.state().answers["forms"]?.asString())
     }
 
     /**

@@ -300,10 +300,20 @@ class TurnController(private val ports: Ports, schema: Schema) {
     // -- the ask ------------------------------------------------------------------
 
     private suspend fun askCurrent(announceSection: Boolean = false, prefix: String = "") {
-        pending = null
-        val q = engine!!.current()
+        val segments = showCurrent(announceSection, prefix)
+        if (segments == null) { awaitFinishInterview(); return }
+        awaitSpeakSegments(segments)
 
-        if (q == null) { awaitFinishInterview(); return }
+        resumeListening()
+    }
+
+    /**
+     * Put the current question on screen and return what asking it says, or
+     * null when there is no question left. Nothing is spoken or emitted here.
+     */
+    private fun showCurrent(announceSection: Boolean = false, prefix: String = ""): List<String>? {
+        pending = null
+        val q = engine!!.current() ?: return null
 
         val segments = mutableListOf<String>()
         if (correcting != null) {
@@ -348,9 +358,7 @@ class TurnController(private val ports: Ports, schema: Schema) {
         questionTextContent = screen(q.prompt)
         hintTextContent = q.hint?.let { screen(it) } ?: ""
         reviewIntro = ""
-        awaitSpeakSegments(segments)
-
-        resumeListening()
+        return segments
     }
 
     private suspend fun awaitSpeakSegments(segments: List<String>) {
@@ -390,6 +398,12 @@ class TurnController(private val ports: Ports, schema: Schema) {
     // Start or Resume while the intro is being spoken — joins the first rather
     // than running over it.
     private var starting: Job? = null
+
+    // True from the first emit of a start until its first question has been
+    // spoken. The interview screen is up by then, but it takes no input yet:
+    // an answer given during the intro would race the question start() is
+    // about to ask.
+    private var introducing = false
 
     suspend fun start(opts: StartOptions = StartOptions()) {
         val inFlight = starting
@@ -435,28 +449,44 @@ class TurnController(private val ports: Ports, schema: Schema) {
         // A language whose speech pack is not installed keeps typed answers and
         // closes the voice lane, with an explanation (D5/decision 1). The input,
         // screen and output languages remain independent even here.
-        if (!ports.i18n.sttInstalled(languages.input) && mode != "text") {
+        val sttMissing = !ports.i18n.sttInstalled(languages.input) && mode != "text"
+        if (sttMissing) {
             voiceDisabled = true
             mode = "text"
             lastInputWasText = true
-            val unavailable = msg("stt_unavailable")
-            ports.announce(unavailable, true)
-            ports.speech.speak(unavailable, interrupt = false, lang = outputLang())
         }
 
-        ports.speech.speak(out(introFor(mode)), interrupt = true, lang = outputLang())
-        if (!ports.store.isPersisting()) {
-            val noPin = msg("no_pin_warning")
-            ports.announce(noPin, true)
-            ports.speech.speak(noPin, interrupt = false, lang = outputLang())
+        // The interview screen goes up now, with the first question on it, and
+        // not once the intro, the warnings and the question have been spoken:
+        // that kept Setup on screen for over half a minute after Start. It
+        // takes no input until the question has been asked (`introducing`).
+        val first = showCurrent(announceSection = true)
+        if (first == null) { sectionLabel = ""; questionTextContent = ""; hintTextContent = "" }
+        introducing = true
+        try {
+            emit()
+            if (sttMissing) {
+                val unavailable = msg("stt_unavailable")
+                ports.announce(unavailable, true)
+                ports.speech.speak(unavailable, interrupt = false, lang = outputLang())
+            }
+            ports.speech.speak(out(introFor(mode)), interrupt = true, lang = outputLang())
+            if (!ports.store.isPersisting()) {
+                val noPin = msg("no_pin_warning")
+                ports.announce(noPin, true)
+                ports.speech.speak(noPin, interrupt = false, lang = outputLang())
+            }
+            if (withheld.isNotEmpty()) {
+                val message = msg("withheld_warning")
+                ports.announce(message, true)
+                ports.speech.speak(message, interrupt = false, lang = outputLang())
+            }
+            touchActivity()
+            if (first != null) awaitSpeakSegments(first)
+        } finally {
+            introducing = false
         }
-        if (withheld.isNotEmpty()) {
-            val message = msg("withheld_warning")
-            ports.announce(message, true)
-            ports.speech.speak(message, interrupt = false, lang = outputLang())
-        }
-        touchActivity()
-        askCurrent(announceSection = true)
+        if (first != null) resumeListening() else awaitFinishInterview()
         emit()
     }
 
@@ -466,7 +496,7 @@ class TurnController(private val ports: Ports, schema: Schema) {
     // -- input: voice ----------------------------------------------------------------
 
     suspend fun onTalkDown() {
-        if (busy || voiceDisabled || ports.audio.isRecording()) return
+        if (introducing || busy || voiceDisabled || ports.audio.isRecording()) return
         lastInputWasText = false
         statusText = msg("listening", emptyMap(), "screen")
         emit()
@@ -485,7 +515,7 @@ class TurnController(private val ports: Ports, schema: Schema) {
     }
 
     private suspend fun listenHandsFree() {
-        if (busy || voiceDisabled || mode != "handsfree") return
+        if (introducing || busy || voiceDisabled || mode != "handsfree") return
         statusText = msg("listening", emptyMap(), "screen")
         emit()
         // Nobody reads out nine digits without breathing. Digit fields get a
@@ -511,6 +541,7 @@ class TurnController(private val ports: Ports, schema: Schema) {
     }
 
     suspend fun sendAudio(blob: Blob) {
+        if (introducing) return
         touchActivity()
         // Four cheap filters before transcribing: nothing recorded, a bumped
         // button, or a capture of only room tone. All end the same way — ask
@@ -714,7 +745,7 @@ class TurnController(private val ports: Ports, schema: Schema) {
 
     suspend fun submitTyped(text: String?) {
         val t = jsTrim(text ?: "")
-        if (t.isEmpty()) return
+        if (t.isEmpty() || introducing) return
         lastInputWasText = true
         busy = true
         try {
@@ -798,6 +829,7 @@ class TurnController(private val ports: Ports, schema: Schema) {
     private val KEEPS_CORRECTION = setOf("repeat", "help", "where", "readback", "save_quit")
 
     suspend fun runCommand(cmd: String) {
+        if (introducing) return
         if (cmd == "repeat" && readBackOpen()) {
             ports.announce(lastSpoken, false)
             awaitSpeakSegments(if (lastSegments.isNotEmpty()) lastSegments else listOf(lastSpoken))
@@ -1470,7 +1502,7 @@ class TurnController(private val ports: Ports, schema: Schema) {
      */
     suspend fun onKey(code: String, typing: Boolean = false): Json.Obj? {
         touchActivity()
-        if (panel != "interview") return null
+        if (panel != "interview" || introducing) return null
 
         // While an answer is being read back the space bar keeps it.
         if (!typing && readBackOpen()) {
@@ -1562,6 +1594,7 @@ class TurnController(private val ports: Ports, schema: Schema) {
             o["readbackOpen"] = Json.bool(readBackOpen())
             o["inputMasked"] = Json.bool(!revealSensitive && isSensitive(q))
             o["voiceDisabled"] = Json.bool(voiceDisabled)
+            o["starting"] = Json.bool(introducing)
             o["progressText"] = Json.Str(progressText())
             o["reviewIntro"] = Json.Str(reviewIntro)
             o["answers"] = engine!!.answers()

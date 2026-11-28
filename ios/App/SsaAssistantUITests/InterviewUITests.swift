@@ -36,9 +36,14 @@ final class InterviewUITests: XCTestCase {
         // The first question is `forms`, a choice; tapping an option answers
         // it. The Starter Kit alone keeps the interview to one form, so the
         // export list has one entry.
-        // Setup stays on screen until `start()` emits, which is after the
-        // intro, the no-PIN warning and the first question have been spoken
-        // aloud (as on the web: src/turn.js `start`), so allow for the speech.
+        // The interview screen, with the first question on it, comes up as
+        // soon as Start runs. Its controls appear once the intro, the no-PIN
+        // warning and the question have been spoken aloud (src/turn.js
+        // `start`, the snapshot's `starting`), so allow for the speech there.
+        let firstQuestion = app.staticTexts.matching(
+            NSPredicate(format: "label BEGINSWITH %@", "Which form are we filling out today")).firstMatch
+        XCTAssertTrue(firstQuestion.waitForExistence(timeout: 10), "the interview screen did not replace Setup")
+        XCTAssertFalse(startButton.exists, "Setup is still on screen")
         let kit = app.buttons["Adult Disability Starter Kit"]
         XCTAssertTrue(kit.waitForExistence(timeout: 120), "the form question did not appear")
         kit.tap()
