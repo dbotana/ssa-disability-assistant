@@ -61,8 +61,18 @@ Open Android items stay in [TODO.md](TODO.md) and [android-to-do.md](android-to-
 
   The package runs 8 simulator tests. There is still no app target and no `.xcodeproj`, so the
   audit has not run on a `.app`.
-- **Next:** Run 10, NLLB, then Run 11, Simba. The open MMS questions are in Run 9's "For the
-  owner": the q8 adapter choice, a language-ID threshold, and which graph a phone runs.
+  - **On a phone (2026-11-27, after Run 9):** the same 8 tests pass on an iPhone 15 (iOS
+    26.6.2), through a throwaway host app outside the repository. The PDF spike's per-form totals
+    are 0.83 to 1.18 s, with no cold-start cost on that launch (`ios/SPIKES.md` §8). The Kotlin
+    `test.kexe` suites have not run on a phone.
+- **Next:** Run 10, NLLB, then Run 11, Simba. The owner answered Run 9's MMS questions on
+  2026-11-27 ("Run 9 decisions" in Progress):
+  - a phone runs q8;
+  - the LID q8 quantizes its adapters;
+  - one ASR graph with swappable adapters is exported (`onnx-swap/`), but not yet wired into
+    `:models`.
+
+  A language-ID threshold still waits for Lingala recordings.
 
 ## Progress
 
@@ -2432,6 +2442,201 @@ Gradle and was rerun bare.
 
 **Not verified:** see `ios/SPIKES.md` §3b.7.9.
 
+### After Run 9 (2026-11-27): the package tests on a phone
+
+Not a planned run: the owner asked for the tests to run on the iPhone plugged into the Mac.
+Claude ran it, interactively. Evidence is in `ios/SPIKES.md` §8.
+
+**The device.** iPhone 15 (`iPhone15,4`), iOS 26.6.2 (Build 23G90), by cable.
+`xcrun devicectl list devices` showed it `available (paired)`. Inside the command sandbox,
+`devicectl` and `xcodebuild` were refused (`couldn't create cache file '/var/folders/.../xcrun_db-…'
+(errno=Operation not permitted)`, and `Could not resolve package dependencies: error: permissionDenied`),
+so every `xcrun` and `xcodebuild` command below ran outside it.
+
+**What the owner did:**
+
+- turned on Developer Mode, which was `Disabled`;
+- signed in to Xcode with an Apple ID (a free personal team);
+- created an Apple Development certificate;
+- trusted it on the phone.
+
+**What was found and fixed:**
+
+1. **The tests read the Mac's disk.** All three test files read the forms, `vendor/`, the
+   goldens and `tools/schema.json` through `#filePath`, and the PDF spike wrote into
+   `ios/CoreCrypto/.build/`. A phone has neither. Changes:
+   - a test-only target `RepoFixtures` (`ios/CoreCrypto/Sources/RepoFixtures/`), in no product;
+   - `ios/tools/stage-device-fixtures.sh`, which copies the 10 files into its git-ignored `repo/`
+     resource;
+   - `.gitignore`;
+   - the three test files, which read through it;
+   - `PdfSpikeTests`, whose output directory, `device` label and summary attachment change;
+   - the `Package.swift` comment.
+
+   The source tree is used whenever it is readable. `TEST_RUNNER_SSA_FIXTURES=bundle` forces the
+   copy on the simulator.
+2. **The certificate was invalid** (`1 identities found`, `0 valid identities found`). It is
+   issued by WWDR G3, and the login keychain held only the WWDR intermediate that expired on
+   2023-02-07. `AppleWWDRCAG3.cer` from apple.com was added with `security add-certificates`
+   (SHA-256 `DC:F2:18:78:…:60:1F`, issued by Apple Root CA). After that: `1 valid identities found`.
+3. **A device needs a host app.** `xcodebuild test -scheme CoreCrypto-Package -destination
+   'platform=iOS,id=<UDID>'` →
+   `Tool-hosted testing is unavailable on device destinations. Select a host application for the test target, or use a simulator destination instead.`
+   AGENTS.md forbids an app target before X6. The owner chose a throwaway host in the session
+   scratchpad (§8), outside the repository.
+
+**Checks, in order:**
+
+| Command | Result |
+|---|---|
+| `xcodebuild build-for-testing -scheme CoreCrypto-Package -destination 'generic/platform=iOS' -derivedDataPath <repo>/ios/CoreCrypto/.build/xcode CODE_SIGNING_ALLOWED=NO`, before the change | `** TEST BUILD SUCCEEDED **` |
+| `ios/tools/stage-device-fixtures.sh` | `staged 10 files into …/Sources/RepoFixtures/repo` |
+| `xcodebuild test -scheme CoreCrypto-Package -destination 'platform=iOS Simulator,name=iPhone 18 Pro'` (source tree) | `** TEST SUCCEEDED **`, 3 + 2 + 3 tests, 0 failures. Piped into `grep`, against AGENTS.md |
+| the same with `TEST_RUNNER_SSA_FIXTURES=bundle` | `** TEST SUCCEEDED **`, 8 tests; `fixtures=bundle`, output in the simulator's `tmp/pdf-spike`. Piped |
+| the unsigned device build, after the change | `** TEST BUILD SUCCEEDED **`; `CoreCrypto_RepoFixtures.bundle` is inside each `.xctest` |
+| `xcodebuild build-for-testing` (simulator, `-derivedDataPath <repo>/ios/CoreCrypto/.build/xcode`), then `node tests/ios-audit.js` | `ios-audit: all checks passed` |
+| the scratch `PhoneTests` scheme: `build-for-testing … -allowProvisioningUpdates`, the owner's team id | `** TEST BUILD SUCCEEDED **`. Without a team: `Signing for "PhoneTests" requires a development team` |
+| `test-without-building`, runs 1 to 3 | run 1 waited on `Unlock David’s iPhone to Continue`, then all three failed: `The application could not be launched because the Developer App Certificate is not trusted.` |
+| `test-without-building`, run 4 | `** TEST EXECUTE SUCCEEDED **`, `Executed 8 tests, with 0 failures (0 unexpected) in 10.886 (10.889) seconds` |
+| `node tools/golden/crosscheck.mjs <the four phone PDFs>` | `crosscheck: 4 PDFs re-read with pdf-lib, 0 failure(s)` |
+| `ios/tools/audit-binary.sh` on the `Debug-iphoneos` products | clean: `CoreCrypto.o`, `SsaPdf.o`, `CoreCryptoTests.xctest`, `SsaPdfTests.xctest`; failed by design: `NetCanary.o`, `NetworkGuardTests.xctest` |
+
+**The phone figures** (spike 3a, one cold launch):
+
+- `JSContext` load: 20 ms;
+- the four-PDF session: 4021 ms;
+- per form: 831 ms (ssa) and 1180 ms (ds);
+- warm writes: 483 to 501 ms, about 7× the simulator's;
+- self-check: 313 and 344 problems, all writer convention.
+
+Every form is under the 3 s gate, and the decision stays provisional fallback (`ios/SPIKES.md` §1, §8).
+
+**Not verified:**
+
+- the Kotlin `test.kexe` suites (`:core`, `:models`) on the phone, which iOS will not launch
+  bare;
+- a low-end iPhone;
+- more than one cold launch;
+- the `.app` audit;
+- the PDFKit preview.
+
+The free team's provisioning lasts 7 days.
+
+### Run 9 decisions (2026-11-27): the owner's answers, carried out
+
+Claude ran these interactively, on the owner's answers to Run 9's "For the owner". Evidence:
+`ios/SPIKES.md` §3b.7.10.
+
+**The answers:**
+
+1. **The LID q8's adapter MatMuls left fp32: struck.** The q8 copy quantizes them.
+2. **The `main_input_name` shim in `mms.py`'s cross-check: confirmed.**
+3. **A phone runs the q8 graphs.** fp32 stays the reference: goldens come from it, and the host
+   JVM's exact checks use it. q8 agreement is counted, not required (Run 9 Decision 1 otherwise
+   stands).
+4. **One graph with adapters swapped in: export it.**
+5. **The APK's +807,100 B of `:models` code: accepted.** The rule is now that no model file goes
+   into the APK; code may.
+6. **The MMS commands go into AGENTS.md's "Common checks":** done, with the `ssa35` push layout.
+7. **A fresh clone cannot run the MMS tests without `mms-1b-all/`:** left as it is.
+
+**1. The LID q8, rebuilt.**
+
+- `tools/export-mms/export-mms.py` gains `--lid --requantize`. The `--lid` quantization now
+  lives in `lid_quantize()`, and leaves only the 8 Convs and the head (`/projector/MatMul`,
+  `/classifier/Gemm`) fp32.
+- `--requantize` doesn't re-export:
+  1. it hashes the pinned fp32 files against `lid-126/SHA256SUMS`;
+  2. it checks the fp32 labels against `parity-lid.json`;
+  3. it quantizes;
+  4. it moves the old `q8/` to `third_party/mms-1b-all/superseded/lid-126-q8-adapters-fp32/`
+     (about 1 GB, kept for the owner to delete);
+  5. it rewrites `SOURCE.txt`, which now says q8 is the phone's graph, and `SHA256SUMS`.
+- `HF_HUB_OFFLINE` was not needed: nothing is fetched. The run took 135.6 s:
+  - `quantizing 96 adapter matmuls among 481 of 482 MatMul nodes`;
+  - `q8 graph: 481 MatMulInteger, 2 MatMul, 0 Gemm, 8 Conv, 0 ConvInteger; 10 of 10 nodes meant to stay fp32 did; 0 adapter matmuls left fp32`.
+- **Parity:** the top label equals fp32's and PyTorch's on 9/9 clips. The largest logit
+  difference is 0.2155 (`yes`), against 0.2170 for Run 9's copy. `model_quantized.onnx` is
+  1,029,948,747 B (Run 9's: 1,035,391,931 B).
+- **Pins.** Three `lid-126/` lines changed in `android/models/mms.SHA256SUMS`: `q8/model_quantized.onnx`,
+  `q8/ort_config.json`, and `SOURCE.txt`, which is new. Run 9's `--lid` wrote `SHA256SUMS`
+  before `SOURCE.txt`, so its `SOURCE.txt` was never pinned. The ASR folders still don't pin
+  theirs.
+- **The golden.** `mms.py` regenerated `golden/mms.json` (141,050 B, 136.0 s, peak RSS
+  4.14 GiB). Only the `lid` q8 pins changed: 3 insertions and 2 deletions. Then
+  `mms.py --check` → `mms golden fresh (141050 bytes)`.
+
+**4. The swap export.** `export-mms.py --swap` writes `onnx-swap/` and `parity-swap.json`.
+
+- **The graph's inputs:** `input_values`, then the 290 tensors of `adapters/adapter.<lang>.safetensors`
+  (48 layers × 6, plus `lm_head.weight` and `lm_head.bias`), named exactly as in the file and
+  listed in `adapter_inputs.json`.
+- **The vocabulary dimension is dynamic:** 81 (`lin`), 314 (`fra`) and 154 (`eng`).
+- **How it was exported:** the TorchScript exporter at opset 11 with eager attention, as
+  optimum's exports were. The 290 parameters are removed from their modules, and `forward` sets
+  them from the inputs.
+- **The base model** loads at the pinned revision with no `target_lang`, offline.
+- **Two failed attempts first:**
+  - With `target_lang='lin'`, transformers asked for `huggingface.co/facebook/mms-1b-all/resolve/main/adapter.lin.safetensors`,
+    and the sandbox refused it: `403 not in this command's allowed_domains`. `load_adapter` is
+    called without the revision (`transformers/models/wav2vec2/modeling_wav2vec2.py:1850`,
+    `self.load_adapter(target_lang, force_load=True)`), so it reads `main`. The run was stopped
+    and nothing was downloaded.
+    - **For the owner:** the `--lang` ASR mode has the same call, so the owner's per-language
+      exports loaded their adapters through `main`, and into the default cache rather than
+      `hf-cache/`. That cache has `refs/main` = `3d33597edbdaaba14a8e858e2c8caa76e3cec0cd`, the
+      pinned revision, and its three adapters hash to `adapters/SHA256SUMS`. So the exports used
+      the pinned bytes. A future `--lang` run should pass the revision; `export-mms.py` is not
+      changed for it here.
+  - With `torch.func.functional_call`, the trace failed:
+    `RuntimeError: The stateless API can't be used with Jitted modules`.
+- **The run that worked:** `HF_HUB_OFFLINE=1 .venv/bin/python tools/export-mms/export-mms.py --swap`,
+  05:24:44 to 05:29:46 UTC. It checked the three adapters against `adapters/SHA256SUMS` and left
+  fp32 the 8 Convs, the 96 adapter MatMuls (now on graph inputs) and `lm_head`.
+- **fp32 parity, against each pinned `onnx-<lang>/` fp32 graph:** greedy frame ids equal on
+  **9/9** clips for each of `lin`, `fra` and `eng`. The largest logit differences are 2.35e-3,
+  3.09e-4 and 6.43e-4; no clip is bit-identical. It is a different exporter path from
+  optimum's.
+- **q8 parity:**
+  - against the fp32 reference ids: 7/9 (`lin`), 8/9 (`fra`), 7/9 (`eng`). The per-language q8
+    copies gave 3/9, 1/9 and 1/9 on the same reference (Run 9, simulator). The cause of the
+    difference is not established;
+  - against each `onnx-<lang>/q8`: 6/9, 8/9, 9/9, with the largest logit difference up to 6.85.
+- **Sizes:** `model.onnx` 1,372,495 B + `model.onnx_data` 3,849,984,000 B; `q8/model_quantized.onnx`
+  1,021,943,732 B. One q8 graph plus three adapters (about 29 MB) replaces three q8 graphs
+  (about 3.09 GB).
+- **Pins:** 10 `onnx-swap/` lines added to `mms.SHA256SUMS`, and its header updated →
+  `All 75 MMS files match android/models/mms.SHA256SUMS.`
+- **Not done:** `:models` doesn't use `onnx-swap/` yet. `MmsTranscriber` still maps a language to
+  its own graph. It needs to:
+  - feed an adapter's 290 tensors, with a safetensors reader;
+  - take the vocabulary size from the adapter;
+  - have a golden from `mms.py` for the swap graph.
+
+  That is the next MMS step.
+
+**Checks after the changes:**
+
+| Command | Result |
+|---|---|
+| `node tools/fetch-model.mjs --verify mms` | `All 75 MMS files match android/models/mms.SHA256SUMS.` |
+| `.venv/bin/python tools/golden/mms.py --check` | `mms golden fresh (141050 bytes)`, 124.7 s, peak RSS 4.23 GiB |
+| `TZ=UTC ./gradlew :models:jvmTest --rerun` | `BUILD SUCCESSFUL in 1m 10s`; JUnit XML 59 tests, 0 failures; fp32 frame ids 9/9 on lin, fra, eng; lid 9/9, largest logit Δ 0.0 |
+| `SIMCTL_CHILD_… SIMCTL_CHILD_MMS_GRAPH=q8 ./gradlew :models:iosSimulatorArm64Test --rerun` | `BUILD SUCCESSFUL in 32s`; 59 tests, 0 failures. `lid (q8)` 9/9, largest Δ 0.2155; ASR q8 as in Run 9 (lin 3/9, fra 1/9, eng 1/9 frame ids); peak 2,346,549,248 B |
+| `ssa35`: push `lid-126` (q8) to `/data/local/tmp/mms/lid-126/`, then `TZ=UTC ./gradlew :speech:connectedDebugAndroidTest -P…MMS_DIR=/data/local/tmp/mms -P…MMS_GRAPHS=lid` | `Finished 59 tests on ssa35(AVD) - 15`, `BUILD SUCCESSFUL in 1m 34s`. From logcat: `lid (q8): top label matches the reference: 9/9; largest logit difference 0.242`, load 9954 ms, peak 2,284,720,128 B; Whisper 9/9 and 9/9. Then `adb shell rm -r /data/local/tmp/mms` and `adb emu kill` |
+
+The commands ran outside the command sandbox (Gradle's wrapper lock, `adb`'s listener and
+`simctl`). The exports and `mms.py` ran inside it, apart from the refused fetch above.
+
+**Not run:**
+
+- `:models:iosSimulatorArm64Test` on fp32 (the fp32 graphs and the golden's values are
+  unchanged);
+- the ASR q8 graphs on `ssa35` (unchanged);
+- the web tests and goldens (no JS changed);
+- the swap graph on any Kotlin runtime;
+- the phone.
+
 ### Run 8 plan (completed 2026-11-25): spike 3b part 1 (ONNX Runtime on both platforms, proven with Whisper base.en)
 
 **Run 8 stopped at Step 1 on 2026-11-23 (see Run 8 above).** On 2026-11-24 the owner chose ORT
@@ -3106,7 +3311,8 @@ The mirror milestones (X1–X8) are the spine. X1a, X1b and X2 (3a, 3c,
   probe and `stt_pack`, adding the new commands to AGENTS.md "Common
   checks", and deleting the scratch files in `android/build/`.
 - Verification owed: rebuild/audit release + staging manifests (X1a),
-  real-phone timings and the cold first-form cost, the PDFKit preview,
+  real-phone timings on a low-end iPhone (an iPhone 15 ran the package tests on 2026-11-27,
+  `ios/SPIKES.md` §8) and Whisper/MMS on any phone, the PDFKit preview,
   Acrobat/Chrome/Preview open, app-bundle resources for `NSBundle.mainBundle`
   (X6), the `.app` and device-`iosArm64` audits, CI, App Privacy Report,
   JVM peak memory.

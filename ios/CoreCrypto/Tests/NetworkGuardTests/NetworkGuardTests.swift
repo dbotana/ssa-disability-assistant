@@ -1,5 +1,6 @@
 import Foundation
 import XCTest
+import RepoFixtures
 import SsaCore
 @testable import SsaPdf
 @testable import CoreCrypto
@@ -17,7 +18,7 @@ import SsaCore
 /// so keeping it here lets the CoreCryptoTests and SsaPdfTests bundles pass.
 final class NetworkGuardTests: XCTestCase {
 
-    private var repoRoot: URL {
+    private var sourceRoot: URL {
         URL(fileURLWithPath: #filePath)          // ios/CoreCrypto/Tests/NetworkGuardTests/NetworkGuardTests.swift
             .deletingLastPathComponent()          // NetworkGuardTests
             .deletingLastPathComponent()          // Tests
@@ -25,6 +26,9 @@ final class NetworkGuardTests: XCTestCase {
             .deletingLastPathComponent()          // ios
             .deletingLastPathComponent()          // repository root
     }
+
+    /// The source tree on the simulator, the staged copy on a phone (RepoFixtures).
+    private var repoRoot: URL { RepoFixtures.root(sourceRoot: sourceRoot) }
 
     override func setUp() {
         super.setUp()

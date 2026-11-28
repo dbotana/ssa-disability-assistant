@@ -36,7 +36,9 @@ two of the three "provisional go" conditions are not met:
 
 The fallback is the common Kotlin incremental-update writer from mirror plan
 3a. **It is not built in this run.** The decision stays provisional until
-there are phone timings. Two costs are unknown on a phone:
+there are phone timings. (2026-11-27: an iPhone 15 met the 3 s gate on every
+form, with no cold-start cost on that launch; see §8. A low-end iPhone and the
+convention mismatch are still open.) Two costs were unknown on a phone:
 
 - Whether a phone pays the cold-start cost at all, and on which step, is
   unknown: all the evidence is from the simulator. It must be measured on a
@@ -167,8 +169,11 @@ the test verifies that per field against the template. There are **no** group
 
 ## 7. Still open
 
-- Real-phone timings (low-end and recent iPhone). The simulator has JIT; a
-  third-party app's `JSContext` on a device does not.
+- Real-phone timings on a low-end iPhone. A recent iPhone (iPhone 15) ran on
+  2026-11-27, §8. The simulator has JIT; a third-party app's `JSContext` on a
+  device does not.
+- Whether the cold-start cost appears on a phone over several cold launches.
+  §8 is one launch, and it did not show it.
 - The preview: whether PDFKit's `PDFView` draws the filled widgets waits for
   the shared UI (X6). No preview was built.
 - Opening and editing the four PDFs in Acrobat, Chrome and Preview.
@@ -176,6 +181,99 @@ the test verifies that per field against the template. There are **no** group
   since `IosResources.roots` is test-only and there is no app target yet.
 - The self-check convention mismatch above, if it stands after the owner
   decides whether the JS writer should adopt `/HelvWA`.
+
+## 8. On a phone: iPhone 15 (2026-11-27)
+
+**The first phone figures in this file.** One device, one cold launch of the
+test process: iPhone 15 (`iPhone15,4`, A16, 6 GB), iOS 26.6.2 (Build 23G90),
+connected by cable, Xcode 27.2. The `CoreCrypto-Package` tests ran unchanged
+apart from where they read their files (below). Every test passed.
+
+**How it ran.**
+
+- **The fixtures.** On the simulator the tests read the repository through
+  `#filePath`. A phone cannot see the Mac's disk, so
+  `ios/tools/stage-device-fixtures.sh` copies the 10 files the tests read into
+  `Sources/RepoFixtures/repo/`, a git-ignored resource of a new test-only
+  target, `RepoFixtures`. The tests use that copy only when the source tree is
+  unreadable, or when `SSA_FIXTURES=bundle`. The simulator still reads the live
+  files.
+- **The output.** On a phone, the PDFs and records go to the test process's
+  temporary directory. The summary is also attached to the `.xcresult`. The
+  `device` field now says `iOS device <model> <os>` on a phone, and the same
+  string as before on the simulator.
+- **A host app.** On a device, `xcodebuild test -scheme CoreCrypto-Package`
+  refuses: `Cannot test target “SsaPdfTests” on “David’s iPhone”: Tool-hosted
+  testing is unavailable on device destinations. Select a host application for
+  the test target, or use a simulator destination instead.` AGENTS.md allows
+  no app target before X6, so the owner chose a throwaway host outside the
+  repository, in the session scratchpad:
+  - an empty UIKit `TestHost` app;
+  - one unit-test target, `PhoneTests`, that compiles the repository's three
+    test files in place;
+  - a wrapper package whose `Sources/` are symlinks to `ios/CoreCrypto/Sources/`,
+    with a copy of `debug/SsaCore.xcframework`.
+
+  It was signed with the owner's free personal team. None of it is in the
+  repository. X6's real app target replaces it.
+
+**Timings, cold pass, fresh `JSContext`** (from the per-case records copied
+back with `xcrun devicectl device copy from --domain-type appDataContainer`):
+
+| case | form | read ms | js ms | write ms (JS) | transfer ms | check ms | total ms | bytes | ratio |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| ln-both-a | ssa | 0.12 | 529 | 528 | 62 | 240 | 831 | 473855 | 1.01 |
+| ln-both-b | ssa | 0.10 | 522 | 522 | 63 | 246 | 831 | 474570 | 1.01 |
+| ln-both-a | ds | 0.26 | 535 | 532 | 185 | 460 | 1180 | 1393761 | 1.04 |
+| ln-both-b | ds | 0.23 | 523 | 521 | 187 | 468 | 1179 | 1394494 | 1.04 |
+
+- **cold `JSContext` load** (pin check, pdf-lib, writer): **20 ms**, against
+  1068 ms on the simulator (§3).
+- **four-PDF session total, cold:** **4021 ms**, against 12412 ms on the
+  simulator.
+- **warm second-pass write times:** ssa-a 482.9 ms, ssa-b 489.3 ms, ds-a
+  500.5 ms, ds-b 501.4 ms, against 68–77 ms on the simulator: about 7× slower,
+  as expected without JIT.
+- **No cold-start cost on this launch.** The first form (831 ms) costs the
+  same as the second. The simulator's 6–9 s first form (§1) did not appear.
+- **Every per-form total is at most 3 s** (largest 1.18 s), so on this phone
+  the time gate in §1 is met. The decision stays **provisional fallback**: the
+  self-check convention mismatch still stands, and a low-end iPhone is still
+  unmeasured.
+
+**Correctness, as on the simulator:**
+
+- the self-check has 313 (ssa) and 344 (ds) problems, all group (a) writer
+  convention, and no unexpected check;
+- `limitations` is empty for all four PDFs;
+- `missing` is empty;
+- `node tools/golden/crosscheck.mjs <the four PDFs copied back>` →
+  `crosscheck: 4 PDFs re-read with pdf-lib, 0 failure(s)`.
+
+**The other tests on the phone:**
+
+- `CoreCryptoTests`: 3/3 pass. The WebCrypto vector decrypts, and the
+  `SessionStore` round trip passes.
+- `NetworkGuardTests`: 2/2 pass. The `URLProtocol` trap saw no request during
+  the four fills and the `SessionStore` round trip, and it caught the
+  deliberate request.
+- `testNetworkGlobalsAreRefused` and `testTamperedScriptIsRefused` pass.
+- `Executed 8 tests, with 0 failures (0 unexpected) in 10.886 (10.889) seconds`.
+
+**The audit on device builds** (arm64 `Debug-iphoneos`, the repository package
+built with `CODE_SIGNING_ALLOWED=NO`):
+
+- `CoreCrypto.o` and `SsaPdf.o`: `binary audit clean (2 Mach-O files in 2 inputs)`;
+- the `CoreCryptoTests.xctest` and `SsaPdfTests.xctest` bundles: `binary audit clean (2 Mach-O files in 2 inputs)`;
+- `NetCanary.o`: `BINARY AUDIT FAILED: NetCanary.o: imports _OBJC_CLASS_$_NSURLSession`, by design;
+- `NetworkGuardTests.xctest`: `BINARY AUDIT FAILED: ... imports _OBJC_CLASS_$_NSURLSession`, by design.
+
+The `.app` audit still waits for X6: the scratch host is not the app.
+
+**Not covered on the phone:** the Kotlin `:core` and `:models` suites. Their
+`test.kexe` is a bare executable, which iOS does not launch, so Whisper, MMS and
+the `core` goldens still have no phone figures. A low-end iPhone, and the PDFKit
+preview, are also still open.
 
 # Spike 3c: the iOS network audit and its canary — evidence
 
@@ -1002,3 +1100,52 @@ model column is the time.
   body is unchanged against the owner's copy.
 - This run's adversarial review. The workflow's six reviewers all stopped at the usage limit
   before reporting, so the only review was the lead's own targeted reading.
+
+### 3b.7.10 After Run 9: the owner's decisions (2026-11-27)
+
+The plan's "Run 9 decisions" Progress entry has the commands and output. None of these are phone
+figures.
+
+- **A phone runs q8.** fp32 stays the reference for goldens and for the host JVM's exact checks.
+- **The LID q8 now quantizes the 96 adapter MatMuls,** as the owner decided; only the 8 Convs and
+  the head stay fp32 (481 of 482 MatMuls quantized). It was rebuilt from the pinned fp32 graph
+  (`export-mms.py --lid --requantize`), which did not change. Run 9's copy is in
+  `third_party/mms-1b-all/superseded/`.
+
+  | LID q8 | Bytes | Top label = fp32 | Largest logit Δ |
+  |---|---:|---|---:|
+  | Run 9 (adapters fp32), Python | 1,035,391,931 | 9/9 | 0.2170 |
+  | 2026-11-27 (adapters q8), Python | 1,029,948,747 | 9/9 | 0.2155 |
+  | 2026-11-27, simulator | | 9/9 | 0.2155 |
+  | 2026-11-27, `ssa35` | | 9/9 | 0.2421 |
+
+  On `ssa35` the load took 9954 ms (2249 ms in Run 9) and the peak was 2,284,720,128 B. The load
+  time on a freshly booted AVD is not comparable to Run 9's.
+- **One ASR graph with the adapters as inputs** (`onnx-swap/`, `export-mms.py --swap`):
+  - **inputs:** `input_values` plus the 290 tensors of an `adapter.<lang>.safetensors`, by name;
+    the vocabulary dimension is dynamic;
+  - **fp32:** 1,372,495 + 3,849,984,000 B. Its greedy frame ids equal each per-language fp32
+    graph's on 9/9 clips for `lin`, `fra` and `eng`. The largest logit Δ is 2.35e-3 (`lin`),
+    3.09e-4 (`fra`) and 6.43e-4 (`eng`), and no clip is bit-identical;
+  - **q8:** 1,021,943,732 B, by the ASR recipe (the Convs, adapter MatMuls and `lm_head` stay
+    fp32). Its frame ids equal the fp32 reference on 7/9 (`lin`), 8/9 (`fra`) and 7/9 (`eng`),
+    where the per-language q8 copies manage 3/9, 1/9 and 1/9. The cause of that difference is
+    not established;
+  - **a Lingala pack** of LID q8, swap q8 and the `lin` and `fra` adapters would weigh about
+    2.07 GB, against about 3.10 GB with per-language q8 graphs (§3b.7.4).
+  - **Not wired:** `:models` still loads one graph per language. Using `onnx-swap/` needs:
+    - a safetensors reader in `:models`;
+    - `MmsTranscriber` to feed the adapter's tensors;
+    - a golden for the swap graph.
+
+    It has not run on any Kotlin runtime.
+- **A finding:** `Wav2Vec2ForCTC.from_pretrained(..., target_lang=...)` loads the adapter from the
+  repository's `main` branch, not from the pinned revision
+  (`transformers/models/wav2vec2/modeling_wav2vec2.py:1850`). The swap mode avoids it, by loading
+  with no `target_lang`, offline, and feeding the pinned adapter files. The owner's `--lang`
+  exports went through it, and it also ignores `cache_dir`. The default cache
+  (`~/.cache/huggingface/hub/models--facebook--mms-1b-all`) records `refs/main` =
+  `3d33597edbdaaba14a8e858e2c8caa76e3cec0cd`, the pinned revision, and its three
+  `adapter.<lang>.safetensors` hash to the values in `adapters/SHA256SUMS`. So the exports used
+  the pinned bytes; only the route was unpinned. A future `--lang` export should pass the
+  revision, or feed the pinned files, as `--swap` does.

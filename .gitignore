@@ -26,6 +26,9 @@ android/core/bin/*
 ios/CoreCrypto/debug/
 ios/CoreCrypto/.build/
 ios/CoreCrypto/.swiftpm/
+# Copies of repository files for phone test runs (ios/tools/stage-device-fixtures.sh).
+ios/CoreCrypto/Sources/RepoFixtures/repo/*
+!ios/CoreCrypto/Sources/RepoFixtures/repo/README.md
 
 # ONNX Runtime archives (tools/fetch-onnxruntime.mjs) and the MMS-1B-all
 # adapters and ONNX export (tools/fetch-model.mjs): pinned but too large to commit.

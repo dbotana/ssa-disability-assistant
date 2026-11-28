@@ -1,4 +1,5 @@
 import Foundation
+import RepoFixtures
 import SsaCore
 import XCTest
 @testable import SsaPdf
@@ -9,7 +10,7 @@ import XCTest
 /// `tools/golden/crosscheck.mjs`.
 final class PdfSpikeTests: XCTestCase {
 
-    private var repoRoot: URL {
+    private var sourceRoot: URL {
         URL(fileURLWithPath: #filePath)          // ios/CoreCrypto/Tests/SsaPdfTests/PdfSpikeTests.swift
             .deletingLastPathComponent()          // SsaPdfTests
             .deletingLastPathComponent()          // Tests
@@ -17,6 +18,9 @@ final class PdfSpikeTests: XCTestCase {
             .deletingLastPathComponent()          // ios
             .deletingLastPathComponent()          // repository root
     }
+
+    /// The source tree on the simulator, the staged copy on a phone (RepoFixtures).
+    private var repoRoot: URL { RepoFixtures.root(sourceRoot: sourceRoot) }
 
     /// The checks the JS writer is known to fail because pdf-lib does not
     /// follow the Android AcroFormWriter /HelvWA convention. A problem with a
@@ -106,7 +110,9 @@ final class PdfSpikeTests: XCTestCase {
                 (form, self.templateFieldsWithoutAppearance(data))
             })
 
-        let outputDir = repoRoot.appendingPathComponent("ios/CoreCrypto/.build/pdf-spike")
+        // ios/CoreCrypto/.build/pdf-spike on the simulator; the test's temporary
+        // directory on a phone, where summary.json also comes back as an attachment.
+        let outputDir = RepoFixtures.outputDirectory(sourceRoot: sourceRoot, name: "pdf-spike")
         try FileManager.default.createDirectory(at: outputDir, withIntermediateDirectories: true)
 
         let clock = ContinuousClock()
@@ -175,9 +181,7 @@ final class PdfSpikeTests: XCTestCase {
                     "checkMs": checkMs,
                     "totalMs": totalMs,
                 ],
-                "device": "iOS Simulator "
-                    + (ProcessInfo.processInfo.environment["SIMULATOR_MODEL_IDENTIFIER"] ?? "?")
-                    + " " + ProcessInfo.processInfo.operatingSystemVersionString,
+                "device": RepoFixtures.deviceLabel,
                 "selfCheck": [
                     "ok": result.ok,
                     "problems": result.problems.map { ["field": $0.field as Any, "check": $0.check] },
@@ -225,12 +229,17 @@ final class PdfSpikeTests: XCTestCase {
             },
             "sessionTotalMs": sessionTotal,
             "warmWriteMs": warmWriteMs,
-            "device": "iOS Simulator "
-                + (ProcessInfo.processInfo.environment["SIMULATOR_MODEL_IDENTIFIER"] ?? "?")
-                + " " + ProcessInfo.processInfo.operatingSystemVersionString,
+            "device": RepoFixtures.deviceLabel,
         ]
         let summaryData = try JSONSerialization.data(withJSONObject: summary, options: [.prettyPrinted, .sortedKeys])
         try summaryData.write(to: outputDir.appendingPathComponent("summary.json"))
+        print("spike3a summary \(RepoFixtures.deviceLabel) load=\(String(format: "%.0f", contextLoadMs)) session=\(String(format: "%.0f", sessionTotal)) fixtures=\(RepoFixtures.usesBundle(sourceRoot: sourceRoot) ? "bundle" : "source tree") out=\(outputDir.path)")
+
+        // The timings in the .xcresult, so a phone run's numbers reach the Mac.
+        let attachment = XCTAttachment(data: summaryData, uniformTypeIdentifier: "public.json")
+        attachment.name = "spike3a-summary.json"
+        attachment.lifetime = .keepAlways
+        add(attachment)
     }
 
     func testNetworkGlobalsAreRefused() {

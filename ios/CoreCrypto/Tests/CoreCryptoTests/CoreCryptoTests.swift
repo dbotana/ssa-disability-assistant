@@ -1,4 +1,5 @@
 import XCTest
+import RepoFixtures
 import SsaCore
 @testable import CoreCrypto
 
@@ -11,8 +12,9 @@ final class CoreCryptoTests: XCTestCase {
 
     // The golden and the schema are read from the repository, not copied into
     // this package: there is one `store.json`, produced by the JS reference,
-    // and a second copy would drift.
-    private var repoRoot: URL {
+    // and a second copy would drift. A phone run reads the snapshot that
+    // ios/tools/stage-device-fixtures.sh takes just before the build (RepoFixtures).
+    private var sourceRoot: URL {
         URL(fileURLWithPath: #filePath)          // ios/CoreCrypto/Tests/CoreCryptoTests/CoreCryptoTests.swift
             .deletingLastPathComponent()          // CoreCryptoTests
             .deletingLastPathComponent()          // Tests
@@ -20,6 +22,8 @@ final class CoreCryptoTests: XCTestCase {
             .deletingLastPathComponent()          // ios
             .deletingLastPathComponent()          // repository root
     }
+
+    private var repoRoot: URL { RepoFixtures.root(sourceRoot: sourceRoot) }
 
     private func readJSON(_ path: String) throws -> [String: Any] {
         let url = repoRoot.appendingPathComponent(path)

@@ -1227,20 +1227,27 @@ The plan's *Run 9 plan* section and its Run 9 Progress entry have the exact comm
 - [x] **The host JVM and the simulator, fp32:** exact (9/9 per adapter, LID logits bit-identical).
       `ssa35` and the simulator ran q8 and counted agreement. Audits are clean, and the full
       regression list passed.
-- [ ] **Owner: confirm or strike** the `--lid` q8 leaving mms-lid-126's 96 adapter MatMuls fp32.
-- [ ] **Owner: confirm or strike** the `ORTModelForCTC.main_input_name` shim in `mms.py`'s
+- [x] **Struck (owner, 2026-11-27):** the `--lid` q8 leaving mms-lid-126's 96 adapter MatMuls
+      fp32. `export-mms.py --lid --requantize` rebuilt `lid-126/q8/` from the pinned fp32 graph
+      with them quantized (481 of 482 MatMuls; the head and the 8 Convs stay fp32). The top label
+      equals fp32's and PyTorch's on 9/9 clips, with a largest logit difference of 0.2155 (`yes`).
+      The old copy is in `third_party/mms-1b-all/superseded/` (about 1 GB; delete it when you like).
+      The pins and the golden's `lid` q8 hashes are updated. See the plan's "Run 9 decisions" entry.
+- [x] **Confirmed (owner, 2026-11-27):** the `ORTModelForCTC.main_input_name` shim in `mms.py`'s
       cross-check.
-- [ ] **Owner: decide which MMS graph a phone runs.** fp32 is 3.86 GB per graph, and about 4 GB
-      resident. ASR q8 is about 1 GB, but disagrees with fp32 on most clips' frame ids, though the
-      text often agrees. LID q8 kept all 9 labels. A single graph with adapters swapped in (a new
-      export) would save about 7.7 GB per pack at fp32.
-- [ ] **Owner: accept the +807,100 B of `:models` code in `app-debug.apk`,** or keep `:models`
-      out of `:speech` until it is wired. No model file is in the APK.
+- [x] **Decided (owner, 2026-11-27): a phone runs the q8 graphs.** fp32 stays the reference for
+      goldens and the host JVM's exact checks; q8 agreement stays counted, not required.
+- [x] **Single graph with adapters swapped in (owner, 2026-11-27): export it.**
+      `export-mms.py --swap` writes `onnx-swap/`; see the plan's "Run 9 decisions" entry for its
+      parity. Wiring it into `:models` (`MmsTranscriber` feeding an adapter's tensors) is open.
+- [x] **Accepted (owner, 2026-11-27):** the +807,100 B of `:models` code in `app-debug.apk`. The
+      rule is now that no model file goes into the APK.
 - [ ] **When wiring `MmsRecognizer`:** close `MmsLanguageId`'s session before opening ASR (one
       model at a time), and set `minProbability` from 4.4's recordings.
 - [ ] **Step 4.4: Lingala parsing must accept `e` and `o` for `ɛ` and `ɔ`.** No MMS vocabulary has
       `ɛ` or `ɔ`.
-- [ ] **Owner: add to AGENTS.md's "Common checks"** (AGENTS.md was not edited):
+- [x] **Added to AGENTS.md's "Common checks" (owner, 2026-11-27),** with the push layout for
+      `ssa35`. The commands as Run 9 proposed them:
 
   ```
   node tools/fetch-model.mjs --verify mms
@@ -1261,3 +1268,6 @@ The plan's *Run 9 plan* section and its Run 9 Progress entry have the exact comm
 - an LID cross-check through transformers' audio-classification pipeline;
 - an ASR rerun of `export-mms.py`, to show its output is unchanged;
 - this run's adversarial review, which hit the usage limit before reporting anything.
+
+**Left as it is (owner, 2026-11-27):** a fresh clone cannot run the MMS tests without the 27 GB
+`mms-1b-all/` folder.

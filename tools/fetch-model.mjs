@@ -38,7 +38,9 @@
 // 2026-11-25 with tools/export-mms/ (onnx-lin/, onnx-fra/, onnx-eng/), and Run 9
 // Step 1 added the language-ID graph from facebook/mms-lid-126
 // (export-mms.py --lid, into lid-126/; this script fetches only that repo's
-// config files, into lid-source/). A locally produced graph has no publisher
+// config files, into lid-source/). On 2026-11-27 export-mms.py --swap added one
+// ASR graph with the adapter tensors as inputs (onnx-swap/), and
+// --lid --requantize rebuilt lid-126/q8/. A locally produced graph has no publisher
 // checksum: its pin is the recipe in tools/export-mms/ plus its hashes. Every
 // MMS file, fetched or exported, fp32 and q8, is pinned in the committed
 // android/models/mms.SHA256SUMS, which `--verify mms` checks.

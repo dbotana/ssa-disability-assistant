@@ -14,6 +14,17 @@
 #   python3 export-mms.py --lang eng --xenova-check  # also compare against the
 #                                                    # existing transformers.js export
 #   python3 export-mms.py --lid                      # the language-ID model instead
+#   python3 export-mms.py --lid --requantize         # rebuild lid-126/q8 from the pinned fp32
+#   python3 export-mms.py --swap                     # one ASR graph, adapters as inputs
+#
+# --swap (owner, 2026-11-27) exports MMS-1B-all once, with the 290 tensors of
+# an adapter file (48 layers x 6 adapter tensors, plus lm_head.weight and
+# lm_head.bias) as graph inputs named exactly as in adapter.<lang>.safetensors,
+# and the vocabulary dimension dynamic. An app keeps one graph and swaps a
+# ~10 MB adapter in, instead of one 3.86 GB (fp32) or ~1 GB (q8) graph per
+# language. Parity: against each onnx-<lang>/ fp32 graph on all 9 clips, and
+# the q8 copy against each onnx-<lang>/q8 copy. It writes onnx-swap/ and
+# parity-swap.json.
 #
 # Each run writes android/models/third_party/mms-1b-all/onnx-<lang>/ with the
 # q8 graph, its config/tokenizer files, SHA256SUMS, SOURCE.txt and a parity
@@ -62,6 +73,9 @@ LID_REPO = 'facebook/mms-lid-126'
 LID_REV = '53da6e311f3ce48f324fe335924216187e3109a4'
 LID_WINDOW = 48000  # the first 3 s at 16 kHz, or the whole clip if shorter
 LID_DIR = 'lid-126'
+
+# --swap: one ASR graph for every language, the adapter tensors fed as inputs.
+SWAP_DIR = 'onnx-swap'
 
 
 def read_wav(path):
@@ -124,15 +138,27 @@ def main():
     mode.add_argument('--lid', action='store_true',
                       help=f'export the language-ID model {LID_REPO} instead '
                            f'(parity on all 9 clips, first 3 s of each)')
+    mode.add_argument('--swap', action='store_true',
+                      help='export one ASR graph whose adapter tensors are inputs, '
+                           f'into {SWAP_DIR}/ (parity against each onnx-<lang>/ graph)')
     ap.add_argument('--clips', default='3',
                     help='how many fixture clips for parity (3 or 9); ASR only, --lid uses all 9')
     ap.add_argument('--xenova-check', action='store_true',
                     help='eng: also compare against the existing transformers.js q8 export')
+    ap.add_argument('--requantize', action='store_true',
+                    help='--lid only: rebuild lid-126/q8 from the pinned fp32 graph, '
+                         'without re-exporting it')
     args = ap.parse_args()
+    if args.requantize and not args.lid:
+        ap.error('--requantize applies to --lid only')
+    if args.swap:
+        if args.xenova_check:
+            ap.error('--xenova-check does not apply to --swap')
+        return main_swap()
     if args.lid:
         if args.xenova_check:
             ap.error('--xenova-check is an eng ASR check; it does not apply to --lid')
-        return main_lid()
+        return requantize_lid() if args.requantize else main_lid()
     lang = args.lang
     clips = ALL_CLIPS if (args.clips == '9' or args.xenova_check) else ALL_CLIPS[:3]
 
@@ -431,75 +457,11 @@ def main_lid():
     del sess32
     gc.collect()
 
-    # 5. Quantize to q8 by the ASR recipe. The Convs stay fp32 (ConvInteger,
-    #    see the ASR mode), and so do the 16-dim adapter bottlenecks, which
-    #    mms-lid-126 has in every layer as mms-1b-all does (its config sets
-    #    adapter_attn_dim, and its checkpoint holds the adapter weights). The
-    #    head (projector, then classifier after the mean pooling) stands in for
-    #    lm_head. All three are found by name in the exported graph.
-    from optimum.onnxruntime import ORTQuantizer
-    from optimum.onnxruntime.configuration import QuantizationConfig
-    from onnxruntime.quantization import QuantFormat, QuantizationMode
-    import onnx as onnxlib
-    graph = onnxlib.load(str(fp32_dir / 'model.onnx'),
-                         load_external_data=False).graph
-    conv_nodes = [n.name for n in graph.node if n.op_type == 'Conv']
-    adapter_nodes = [n.name for n in graph.node
-                     if n.op_type == 'MatMul' and 'adapter_layer' in n.name]
-    head_nodes = [n.name for n in graph.node
-                  if n.op_type in ('MatMul', 'Gemm')
-                  and ('projector' in n.name or 'classifier' in n.name)]
-    # The dynamic quantizer first rewrites every Gemm as MatMul + Add, naming
-    # the MatMul '<gemm name>_MatMul' (onnxruntime 1.22.0,
-    # quantization/onnx_quantizer.py:67-68 and onnx_model.py:403-408), and only
-    # then matches nodes_to_exclude. The classifier is such a Gemm, so its
-    # rewritten name is excluded too, or it would be quantized after all.
-    head_exclude = head_nodes + [n.name + '_MatMul' for n in graph.node
-                                 if n.op_type == 'Gemm' and n.name in head_nodes]
-    matmuls = [n.name for n in graph.node if n.op_type == 'MatMul']
-    excluded = set(conv_nodes + adapter_nodes + head_nodes)
-    print(f'leaving fp32: {len(conv_nodes)} conv, {len(adapter_nodes)} adapter matmuls, '
-          f'{len(head_nodes)} head matmul/gemm ({", ".join(head_nodes)}; excluded as '
-          f'{", ".join(head_exclude)}); '
-          f'{sum(1 for m in matmuls if m not in excluded)} of {len(matmuls)} MatMul nodes '
-          f'to quantize')
-    assert head_nodes, 'no projector or classifier MatMul/Gemm node found by name'
-    qconfig = QuantizationConfig(
-        is_static=False, format=QuantFormat.QOperator, mode=QuantizationMode.IntegerOps,
-        per_channel=True, reduce_range=False, operators_to_quantize=['MatMul'],
-        nodes_to_exclude=conv_nodes + adapter_nodes + head_exclude)
-
+    # 5. Quantize to q8 (lid_quantize below).
     out_dir = BASE / LID_DIR
     q8_dir = out_dir / 'q8'
-    quantizer = ORTQuantizer.from_pretrained(str(fp32_dir))
-    quantizer.quantize(save_dir=str(q8_dir), quantization_config=qconfig)
-    # optimum names the output itself; normalise to the transformers.js name.
-    produced = [p for p in q8_dir.glob('*.onnx') if p.name != 'model_quantized.onnx']
-    if produced:
-        produced[0].rename(q8_dir / 'model_quantized.onnx')
-        print(f"renamed {produced[0].name} -> model_quantized.onnx")
-    del quantizer
-    gc.collect()
-
-    # Check that the exclusions took effect: every node meant to stay fp32 must
-    # still be there, under its name after the Gemm rewrite, as its fp32 op.
-    from collections import Counter
-    q8_graph = onnxlib.load(str(q8_dir / 'model_quantized.onnx'),
-                            load_external_data=False).graph
-    q8_ops = {n.name: n.op_type for n in q8_graph.node}
-    q8_op_counts = dict(sorted(Counter(q8_ops.values()).items()))
-    want_fp32 = {name: 'Conv' for name in conv_nodes}
-    want_fp32.update({name: 'MatMul' for name in adapter_nodes})
-    want_fp32.update({(n.name + '_MatMul' if n.op_type == 'Gemm' else n.name): 'MatMul'
-                      for n in graph.node if n.name in head_nodes})
-    wrong = [name for name, op in want_fp32.items() if q8_ops.get(name) != op]
-    print(f"q8 graph: {q8_op_counts.get('MatMulInteger', 0)} MatMulInteger, "
-          f"{q8_op_counts.get('MatMul', 0)} MatMul, {q8_op_counts.get('Gemm', 0)} Gemm, "
-          f"{q8_op_counts.get('Conv', 0)} Conv, {q8_op_counts.get('ConvInteger', 0)} ConvInteger; "
-          f"{len(want_fp32) - len(wrong)} of {len(want_fp32)} nodes meant to stay fp32 did")
-    assert not wrong, f'quantized although excluded: {wrong}'
-    del q8_graph, q8_ops
-    gc.collect()
+    conv_nodes, adapter_nodes, head_nodes, head_exclude, q8_op_counts = \
+        lid_quantize(fp32_dir, q8_dir)
 
     # The fp32 graph is the pinned reference; the q8 copy is kept only for the
     # size and memory tables.
@@ -535,14 +497,7 @@ def main_lid():
             lines.append(f'{sha256_file(p)}  {p.relative_to(out_dir).as_posix()}')
     (out_dir / 'SHA256SUMS').write_text('\n'.join(lines) + '\n')
     agree = sum(fp32_top[clip] == torch_top[clip] for clip in clips)
-    (out_dir / 'SOURCE.txt').write_text(
-        f'{LID_REPO} (language ID, {len(id2label)} labels)\nrevision {LID_REV}\n'
-        f'produced locally by tools/export-mms/export-mms.py --lid; no publisher checksum.\n'
-        f'The pin is the recipe: requirements.txt + this script + the pinned revision.\n'
-        f'Roles: model.onnx(+model.onnx_data) is the pinned fp32 reference — its argmax\n'
-        f'label equals the PyTorch reference on {agree} of {len(clips)} fixture clips, on the\n'
-        f'first 3 s of each (parity-lid.json). q8/model_quantized.onnx is a size\n'
-        f'experiment only: dynamic int8 of this 48-layer model; never use it for goldens.\n')
+    (out_dir / 'SOURCE.txt').write_text(lid_source_text(len(id2label), agree, len(clips)))
 
     report = {
         'lang': 'lid', 'repo': LID_REPO, 'revision': LID_REV, 'opset': OPSET, 'started': started,
@@ -555,14 +510,445 @@ def main_lid():
         'argmax_labels': {clip: {'torch': id2label[torch_top[clip]],
                                  'fp32': id2label[fp32_top[clip]],
                                  'q8': id2label[q8_top[clip]]} for clip in clips},
-        'nodes_left_fp32': {'conv': len(conv_nodes), 'adapter': len(adapter_nodes),
+        'nodes_left_fp32': {'conv': len(conv_nodes), 'adapter': 0,
                             'head': head_nodes, 'head_excluded_as': head_exclude},
+        'adapter_matmuls_quantized': len(adapter_nodes),
         'q8_op_counts': q8_op_counts,
     }
     report_path = BASE / 'parity-lid.json'
     report_path.write_text(json.dumps(report, indent=2) + '\n')
     shutil.rmtree(export_tmp, ignore_errors=True)
     print(f'== wrote {out_dir}')
+    print(f'== wrote {report_path}')
+
+
+def main_swap():
+    """--swap: one MMS-1B-all ASR graph with the adapter tensors as inputs."""
+    import torch
+    import onnx as onnxlib
+    import onnxruntime as ort
+    from safetensors.numpy import load_file
+    from transformers import Wav2Vec2FeatureExtractor, Wav2Vec2ForCTC
+
+    clips = ALL_CLIPS
+    started = datetime.now(timezone.utc).isoformat(timespec='seconds')
+    print(f'== MMS-1B-all swap export: clips={len(clips)} started {started}')
+
+    # 0. The pinned adapters, checked against adapters/SHA256SUMS first.
+    adapter_dir = BASE / 'adapters'
+    pins = dict(reversed(line.split('  ', 1))
+                for line in (adapter_dir / 'SHA256SUMS').read_text().splitlines() if line)
+    adapters = {}
+    for lang in LANGS:
+        name = f'adapter.{lang}.safetensors'
+        got = sha256_file(adapter_dir / name)
+        assert got == pins[name], f'{name}: {got} is not the pinned {pins[name]}'
+        adapters[lang] = load_file(str(adapter_dir / name))
+        print(f'pinned adapter OK: {name}, {len(adapters[lang])} tensors')
+    names = sorted(adapters['lin'])
+    for lang in LANGS:
+        assert sorted(adapters[lang]) == names, f'{lang}: adapter tensor names differ from lin'
+        assert all(a.dtype == np.float32 for a in adapters[lang].values()), f'{lang}: not float32'
+    vocab = {lang: int(adapters[lang]['lm_head.weight'].shape[0]) for lang in LANGS}
+    print(f'{len(names)} adapter tensors per language; vocabulary sizes {vocab}')
+
+    # 1. The base model at the pinned revision, with no target_lang: every one
+    #    of the 290 adapter parameters is replaced by a graph input below, so
+    #    the checkpoint's own (English) adapter does not reach the graph. Not
+    #    target_lang: transformers' load_adapter fetches adapter.<lang> from the
+    #    repository's main branch, not from the pinned revision (seen
+    #    2026-11-27); the pinned files in adapters/ are what this mode feeds.
+    model = Wav2Vec2ForCTC.from_pretrained(
+        REPO, revision=REV, cache_dir=str(CACHE), attn_implementation='eager')
+    model.eval()
+    params = dict(model.named_parameters())
+    missing = [n for n in names if n not in params]
+    assert not missing, f'adapter tensors with no model parameter: {missing[:3]}'
+    for n in names:
+        if not n.startswith('lm_head.'):  # lm_head's first dimension is the vocabulary
+            assert tuple(params[n].shape) == adapters['lin'][n].shape, f'{n}: shape differs'
+
+    class Swappable(torch.nn.Module):
+        """The model with its 290 adapter parameters removed; forward sets each
+        from a graph input as a plain tensor attribute, which nn.Linear and
+        nn.LayerNorm read as self.weight and self.bias. (torch.func's
+        functional_call cannot be traced: "The stateless API can't be used
+        with Jitted modules", torch 2.8.0.)"""
+
+        def __init__(self, inner, tensor_names):
+            super().__init__()
+            self.inner = inner
+            self.tensor_names = tensor_names
+            self.slots = []
+            for name in tensor_names:
+                path, attr = name.rsplit('.', 1)
+                module = inner.get_submodule(path)
+                del module._parameters[attr]
+                self.slots.append((module, attr))
+
+        def forward(self, input_values, *tensors):
+            for (module, attr), tensor in zip(self.slots, tensors):
+                setattr(module, attr, tensor)
+            return self.inner(input_values).logits
+
+    wrapper = Swappable(model, names).eval()
+
+    extractor = Wav2Vec2FeatureExtractor.from_pretrained(str(BASE / 'onnx-lin'))
+    features = {}
+    for clip in clips:
+        pcm = read_wav(FIXTURES / f'{clip}.wav')
+        features[clip] = extractor(pcm, sampling_rate=16000, return_tensors='np').input_values
+
+    # 2. The export: TorchScript exporter, opset 11 and eager attention, as
+    #    optimum exported the per-language graphs.
+    out_dir = BASE / SWAP_DIR
+    export_tmp = BASE / 'tmp-export-swap'
+    shutil.rmtree(export_tmp, ignore_errors=True)
+    export_tmp.mkdir(parents=True)
+    dummy = (torch.from_numpy(features['yes']),
+             *[torch.from_numpy(adapters['lin'][n]) for n in names])
+    dynamic = {'input_values': {0: 'batch_size', 1: 'sequence_length'},
+               'lm_head.weight': {0: 'vocab_size'}, 'lm_head.bias': {0: 'vocab_size'},
+               'logits': {0: 'batch_size', 1: 'frames', 2: 'vocab_size'}}
+    with torch.no_grad():
+        torch.onnx.export(wrapper, dummy, str(export_tmp / 'model.onnx'),
+                          input_names=['input_values'] + names, output_names=['logits'],
+                          dynamic_axes=dynamic, opset_version=OPSET,
+                          do_constant_folding=True, dynamo=False)
+    print(f'fp32 export done at opset {OPSET}')
+    config = model.config.to_dict()
+    del wrapper, model, params, dummy
+    gc.collect()
+
+    # One external-data file, as the per-language graphs have.
+    out_dir.mkdir(exist_ok=True)
+    proto = onnxlib.load(str(export_tmp / 'model.onnx'), load_external_data=True)
+    graph_inputs = [i.name for i in proto.graph.input]
+    assert graph_inputs == ['input_values'] + names, \
+        f'graph inputs are not input_values + the adapter tensors: {graph_inputs[:4]}...'
+    onnxlib.save(proto, str(out_dir / 'model.onnx'), save_as_external_data=True,
+                 all_tensors_to_one_file=True, location='model.onnx_data', size_threshold=1024)
+    del proto
+    gc.collect()
+    shutil.rmtree(export_tmp, ignore_errors=True)
+    config.pop('vocab_size', None)
+    (out_dir / 'config.json').write_text(json.dumps(config, indent=2, sort_keys=True) + '\n')
+    extractor.save_pretrained(str(out_dir))
+    (out_dir / 'adapter_inputs.json').write_text(json.dumps({
+        'graph_inputs': ['input_values'] + names,
+        'adapter_files': {lang: f'adapters/adapter.{lang}.safetensors' for lang in LANGS},
+        'vocab_size': vocab,
+        'tokenizers': {lang: f'onnx-{lang}/' for lang in LANGS},
+    }, indent=2) + '\n')
+
+    # 3. fp32 parity: the swap graph with each adapter fed in, against that
+    #    language's own pinned fp32 graph. One session at a time.
+    def feeds(lang, clip):
+        f = {'input_values': features[clip]}
+        f.update(adapters[lang])
+        return f
+
+    sess = ort.InferenceSession(str(out_dir / 'model.onnx'), providers=['CPUExecutionProvider'])
+    swap32 = {(lang, clip): sess.run(['logits'], feeds(lang, clip))[0][0]
+              for lang in LANGS for clip in clips}
+    del sess
+    gc.collect()
+    fp32_report = {}
+    for lang in LANGS:
+        ref = ort.InferenceSession(str(BASE / f'onnx-{lang}' / 'model.onnx'),
+                                   providers=['CPUExecutionProvider'])
+        for clip in clips:
+            want = ref.run(None, {'input_values': features[clip]})[0][0]
+            got = swap32[(lang, clip)]
+            r = {'max_abs_diff': maxdiff(got, want),
+                 'bit_identical': bool(np.array_equal(got, want)),
+                 'greedy_ids_equal': greedy(got) == greedy(want)}
+            fp32_report[f'{lang}.{clip}'] = r
+            print(f"fp32 swap vs onnx-{lang} {clip}: max|Δ|={r['max_abs_diff']:.3e} "
+                  f"bit-identical={r['bit_identical']} greedy equal={r['greedy_ids_equal']}")
+        del ref
+        gc.collect()
+
+    # 4. q8 by the ASR recipe: the Convs, the adapter MatMuls (now on graph
+    #    inputs) and lm_head stay fp32.
+    from optimum.onnxruntime import ORTQuantizer
+    from optimum.onnxruntime.configuration import QuantizationConfig
+    from onnxruntime.quantization import QuantFormat, QuantizationMode
+    graph = onnxlib.load(str(out_dir / 'model.onnx'), load_external_data=False).graph
+    conv_nodes = [n.name for n in graph.node if n.op_type == 'Conv']
+    adapter_nodes = [n.name for n in graph.node
+                     if n.op_type in ('MatMul', 'Gemm') and 'adapter_layer' in n.name]
+    lm_head_nodes = [n.name for n in graph.node
+                     if n.op_type in ('MatMul', 'Gemm') and 'lm_head' in n.name]
+    matmuls = sum(1 for n in graph.node if n.op_type == 'MatMul')
+    print(f'leaving fp32: {len(conv_nodes)} conv, {len(adapter_nodes)} adapter, '
+          f'{len(lm_head_nodes)} lm_head nodes, of {matmuls} MatMul nodes')
+    assert adapter_nodes and lm_head_nodes, 'adapter or lm_head nodes not found by name'
+    del graph
+    qconfig = QuantizationConfig(
+        is_static=False, format=QuantFormat.QOperator, mode=QuantizationMode.IntegerOps,
+        per_channel=True, reduce_range=False, operators_to_quantize=['MatMul'],
+        nodes_to_exclude=conv_nodes + adapter_nodes + lm_head_nodes)
+    q8_dir = out_dir / 'q8'
+    quantizer = ORTQuantizer.from_pretrained(str(out_dir), file_name='model.onnx')
+    quantizer.quantize(save_dir=str(q8_dir), quantization_config=qconfig)
+    produced = [p for p in q8_dir.glob('*.onnx') if p.name != 'model_quantized.onnx']
+    if produced:
+        produced[0].rename(q8_dir / 'model_quantized.onnx')
+        print(f'renamed {produced[0].name} -> model_quantized.onnx')
+    del quantizer
+    gc.collect()
+
+    # 5. q8 parity: against the fp32 swap graph, and against each onnx-<lang>/q8.
+    sess = ort.InferenceSession(str(q8_dir / 'model_quantized.onnx'),
+                                providers=['CPUExecutionProvider'])
+    swap8 = {(lang, clip): sess.run(['logits'], feeds(lang, clip))[0][0]
+             for lang in LANGS for clip in clips}
+    del sess
+    gc.collect()
+    q8_report = {}
+    for lang in LANGS:
+        ref = ort.InferenceSession(str(BASE / f'onnx-{lang}' / 'q8' / 'model_quantized.onnx'),
+                                   providers=['CPUExecutionProvider'])
+        for clip in clips:
+            want = ref.run(None, {'input_values': features[clip]})[0][0]
+            got = swap8[(lang, clip)]
+            r = {'max_abs_diff_vs_lang_q8': maxdiff(got, want),
+                 'bit_identical_lang_q8': bool(np.array_equal(got, want)),
+                 'greedy_ids_equal_lang_q8': greedy(got) == greedy(want),
+                 'greedy_ids_equal_swap_fp32': greedy(got) == greedy(swap32[(lang, clip)])}
+            q8_report[f'{lang}.{clip}'] = r
+            print(f"q8 swap vs onnx-{lang}/q8 {clip}: max|Δ|={r['max_abs_diff_vs_lang_q8']:.3e} "
+                  f"bit-identical={r['bit_identical_lang_q8']} "
+                  f"greedy equal={r['greedy_ids_equal_lang_q8']} "
+                  f"vs swap fp32={r['greedy_ids_equal_swap_fp32']}")
+        del ref
+        gc.collect()
+
+    # 6. Pins and the report.
+    (out_dir / 'SOURCE.txt').write_text(
+        f'{REPO}, every adapter as graph inputs\nrevision {REV}\n'
+        f'produced locally by tools/export-mms/export-mms.py --swap; no publisher checksum.\n'
+        f'The pin is the recipe: requirements.txt + this script + the pinned revision.\n'
+        f'Inputs: input_values, then the 290 tensors of adapters/adapter.<lang>.safetensors\n'
+        f'by name (adapter_inputs.json); logits are [batch, frames, vocab_size of the adapter].\n'
+        f'model.onnx(+model.onnx_data) is fp32; q8/model_quantized.onnx is dynamic int8 of the\n'
+        f'base MatMuls, with the Convs, adapter MatMuls and lm_head fp32 (the ASR recipe).\n'
+        f'Parity against each onnx-<lang>/ graph is in parity-swap.json. The phone runs q8\n'
+        f'(owner, 2026-11-27); never use q8 for goldens.\n')
+    lines = []
+    for p in sorted(out_dir.rglob('*')):
+        if p.is_file() and p.name != 'SHA256SUMS':
+            lines.append(f'{sha256_file(p)}  {p.relative_to(out_dir).as_posix()}')
+    (out_dir / 'SHA256SUMS').write_text('\n'.join(lines) + '\n')
+    report = {
+        'mode': 'swap', 'repo': REPO, 'revision': REV, 'opset': OPSET, 'started': started,
+        'finished': datetime.now(timezone.utc).isoformat(timespec='seconds'),
+        'versions': versions(), 'clips': clips, 'vocab_size': vocab,
+        'adapter_tensors': len(names),
+        'fp32_vs_lang_fp32': fp32_report, 'q8': q8_report,
+        'nodes_left_fp32': {'conv': len(conv_nodes), 'adapter': len(adapter_nodes),
+                            'lm_head': len(lm_head_nodes)},
+    }
+    report_path = BASE / 'parity-swap.json'
+    report_path.write_text(json.dumps(report, indent=2) + '\n')
+    print(f'== wrote {out_dir}')
+    print(f'== wrote {report_path}')
+
+
+def lid_source_text(num_labels, agree, num_clips):
+    return (
+        f'{LID_REPO} (language ID, {num_labels} labels)\nrevision {LID_REV}\n'
+        f'produced locally by tools/export-mms/export-mms.py --lid; no publisher checksum.\n'
+        f'The pin is the recipe: requirements.txt + this script + the pinned revision.\n'
+        f'Roles: model.onnx(+model.onnx_data) is the pinned fp32 reference — its argmax\n'
+        f'label equals the PyTorch reference on {agree} of {num_clips} fixture clips, on the\n'
+        f'first 3 s of each (parity-lid.json). q8/model_quantized.onnx is dynamic int8\n'
+        f'of every MatMul except the head (projector, classifier), adapters included;\n'
+        f'the Convs stay fp32. It is the graph a phone runs (owner, 2026-11-27); never\n'
+        f'use it for goldens.\n')
+
+
+def lid_quantize(fp32_dir, q8_dir):
+    """Dynamic int8 of the LID graph in fp32_dir/model.onnx, written to q8_dir.
+
+    The Convs stay fp32 (ConvInteger, see the ASR mode). So does the head
+    (projector, then classifier after the mean pooling), which stands in for
+    lm_head. The 16-dim adapter bottlenecks are quantized: Run 9 left them fp32,
+    and the owner struck that on 2026-11-27. Returns the node lists and the q8
+    op counts."""
+    from collections import Counter
+    from optimum.onnxruntime import ORTQuantizer
+    from optimum.onnxruntime.configuration import QuantizationConfig
+    from onnxruntime.quantization import QuantFormat, QuantizationMode
+    import onnx as onnxlib
+    graph = onnxlib.load(str(Path(fp32_dir) / 'model.onnx'),
+                         load_external_data=False).graph
+    conv_nodes = [n.name for n in graph.node if n.op_type == 'Conv']
+    adapter_nodes = [n.name for n in graph.node
+                     if n.op_type == 'MatMul' and 'adapter_layer' in n.name]
+    head_nodes = [n.name for n in graph.node
+                  if n.op_type in ('MatMul', 'Gemm')
+                  and ('projector' in n.name or 'classifier' in n.name)]
+    # The dynamic quantizer first rewrites every Gemm as MatMul + Add, naming
+    # the MatMul '<gemm name>_MatMul' (onnxruntime 1.22.0,
+    # quantization/onnx_quantizer.py:67-68 and onnx_model.py:403-408), and only
+    # then matches nodes_to_exclude. The classifier is such a Gemm, so its
+    # rewritten name is excluded too, or it would be quantized after all.
+    head_exclude = head_nodes + [n.name + '_MatMul' for n in graph.node
+                                 if n.op_type == 'Gemm' and n.name in head_nodes]
+    matmuls = [n.name for n in graph.node if n.op_type == 'MatMul']
+    excluded = set(conv_nodes + head_nodes)
+    print(f'leaving fp32: {len(conv_nodes)} conv, {len(head_nodes)} head matmul/gemm '
+          f'({", ".join(head_nodes)}; excluded as {", ".join(head_exclude)}); quantizing '
+          f'{len(adapter_nodes)} adapter matmuls among '
+          f'{sum(1 for m in matmuls if m not in excluded)} of {len(matmuls)} MatMul nodes')
+    assert head_nodes, 'no projector or classifier MatMul/Gemm node found by name'
+    assert adapter_nodes, 'no adapter_layer MatMul node found by name'
+    qconfig = QuantizationConfig(
+        is_static=False, format=QuantFormat.QOperator, mode=QuantizationMode.IntegerOps,
+        per_channel=True, reduce_range=False, operators_to_quantize=['MatMul'],
+        nodes_to_exclude=conv_nodes + head_exclude)
+
+    quantizer = ORTQuantizer.from_pretrained(str(fp32_dir), file_name='model.onnx')
+    quantizer.quantize(save_dir=str(q8_dir), quantization_config=qconfig)
+    # optimum names the output itself; normalise to the transformers.js name.
+    produced = [p for p in Path(q8_dir).glob('*.onnx') if p.name != 'model_quantized.onnx']
+    if produced:
+        produced[0].rename(Path(q8_dir) / 'model_quantized.onnx')
+        print(f"renamed {produced[0].name} -> model_quantized.onnx")
+    del quantizer
+    gc.collect()
+
+    # Check the result: every node meant to stay fp32 is still there, under its
+    # name after the Gemm rewrite, as its fp32 op; no adapter MatMul is left.
+    q8_graph = onnxlib.load(str(Path(q8_dir) / 'model_quantized.onnx'),
+                            load_external_data=False).graph
+    q8_ops = {n.name: n.op_type for n in q8_graph.node}
+    q8_op_counts = dict(sorted(Counter(q8_ops.values()).items()))
+    want_fp32 = {name: 'Conv' for name in conv_nodes}
+    want_fp32.update({(n.name + '_MatMul' if n.op_type == 'Gemm' else n.name): 'MatMul'
+                      for n in graph.node if n.name in head_nodes})
+    wrong = [name for name, op in want_fp32.items() if q8_ops.get(name) != op]
+    still_fp32 = [name for name in adapter_nodes if q8_ops.get(name) == 'MatMul']
+    print(f"q8 graph: {q8_op_counts.get('MatMulInteger', 0)} MatMulInteger, "
+          f"{q8_op_counts.get('MatMul', 0)} MatMul, {q8_op_counts.get('Gemm', 0)} Gemm, "
+          f"{q8_op_counts.get('Conv', 0)} Conv, {q8_op_counts.get('ConvInteger', 0)} ConvInteger; "
+          f"{len(want_fp32) - len(wrong)} of {len(want_fp32)} nodes meant to stay fp32 did; "
+          f"{len(still_fp32)} adapter matmuls left fp32")
+    assert not wrong, f'quantized although excluded: {wrong}'
+    assert not still_fp32, f'adapter matmuls not quantized: {still_fp32[:3]}...'
+    return conv_nodes, adapter_nodes, head_nodes, head_exclude, q8_op_counts
+
+
+def requantize_lid():
+    """--lid --requantize: rebuild lid-126/q8 from the pinned fp32 graph.
+
+    The fp32 graph, its config files and its parity against PyTorch are not
+    touched: the fp32 files are hashed against lid-126/SHA256SUMS first, and
+    the PyTorch labels are read from the existing parity-lid.json. The old q8/
+    is moved to superseded/lid-126-q8-adapters-fp32/, not deleted."""
+    from transformers import AutoFeatureExtractor
+    import onnxruntime as ort
+
+    clips = ALL_CLIPS
+    out_dir = BASE / LID_DIR
+    started = datetime.now(timezone.utc).isoformat(timespec='seconds')
+    print(f'== MMS-LID-126 requantize: {out_dir} started {started}')
+
+    pins = {}
+    for line in (out_dir / 'SHA256SUMS').read_text().splitlines():
+        digest, name = line.split('  ', 1)
+        pins[name] = digest
+    for name in ('model.onnx', 'model.onnx_data', 'config.json', 'preprocessor_config.json'):
+        got = sha256_file(out_dir / name)
+        assert got == pins[name], f'{name}: {got} is not the pinned {pins[name]}'
+        print(f'pinned fp32 file OK: {name}')
+
+    old_report = json.loads((BASE / 'parity-lid.json').read_text())
+    torch_labels = {clip: old_report['argmax_labels'][clip]['torch'] for clip in clips}
+    cfg = json.loads((out_dir / 'config.json').read_text())
+    id2label = {int(i): name for i, name in cfg['id2label'].items()}
+
+    extractor = AutoFeatureExtractor.from_pretrained(str(out_dir))
+    features = {}
+    for clip in clips:
+        pcm = read_wav(FIXTURES / f'{clip}.wav')[:LID_WINDOW]
+        features[clip] = extractor(pcm, sampling_rate=16000, return_tensors='np').input_values
+
+    sess32 = ort.InferenceSession(str(out_dir / 'model.onnx'), providers=['CPUExecutionProvider'])
+    ort32 = {clip: sess32.run(['logits'], {'input_values': features[clip]})[0][0] for clip in clips}
+    fp32_top = {clip: int(np.argmax(ort32[clip])) for clip in clips}
+    for clip in clips:
+        assert id2label[fp32_top[clip]] == old_report['argmax_labels'][clip]['fp32'], \
+            f'{clip}: the pinned fp32 graph no longer gives its recorded label'
+    print('fp32 labels equal the recorded ones on all clips')
+    del sess32
+    gc.collect()
+
+    new_q8 = out_dir / 'q8.new'
+    shutil.rmtree(new_q8, ignore_errors=True)
+    conv_nodes, adapter_nodes, head_nodes, head_exclude, q8_op_counts = \
+        lid_quantize(out_dir, new_q8)
+
+    sess = ort.InferenceSession(str(new_q8 / 'model_quantized.onnx'),
+                                providers=['CPUExecutionProvider'])
+    q8_report, q8_top = {}, {}
+    for clip in clips:
+        q8_logits = sess.run(['logits'], {'input_values': features[clip]})[0][0]
+        q8_top[clip] = int(np.argmax(q8_logits))
+        q8_report[clip] = {
+            'max_abs_diff_vs_fp32': maxdiff(q8_logits, ort32[clip]),
+            'argmax_label_equal_fp32': q8_top[clip] == fp32_top[clip],
+            'argmax_label_equal_torch': id2label[q8_top[clip]] == torch_labels[clip],
+        }
+        print(f"q8 {clip}: max|Δ| vs fp32={q8_report[clip]['max_abs_diff_vs_fp32']:.3e} "
+              f"label q8={id2label[q8_top[clip]]} "
+              f"equal fp32={q8_report[clip]['argmax_label_equal_fp32']} "
+              f"torch={q8_report[clip]['argmax_label_equal_torch']}")
+    del sess
+    gc.collect()
+
+    superseded = BASE / 'superseded' / 'lid-126-q8-adapters-fp32'
+    superseded.parent.mkdir(exist_ok=True)
+    assert not superseded.exists(), f'{superseded} exists; move it away first'
+    (out_dir / 'q8').rename(superseded)
+    new_q8.rename(out_dir / 'q8')
+    print(f'moved the old q8/ to {superseded}')
+
+    agree = sum(id2label[fp32_top[clip]] == torch_labels[clip] for clip in clips)
+    (out_dir / 'SOURCE.txt').write_text(lid_source_text(len(id2label), agree, len(clips)))
+    lines = []
+    for p in sorted(out_dir.rglob('*')):
+        if p.is_file() and p.name != 'SHA256SUMS':
+            lines.append(f'{sha256_file(p)}  {p.relative_to(out_dir).as_posix()}')
+    (out_dir / 'SHA256SUMS').write_text('\n'.join(lines) + '\n')
+
+    report = dict(old_report)
+    report['superseded_q8'] = {
+        'recipe': 'Run 9: Convs, the 96 adapter MatMuls and the head left fp32',
+        'moved_to': str(superseded.relative_to(BASE)),
+        'q8_vs_fp32': old_report['q8_vs_fp32'],
+        'nodes_left_fp32': old_report.get('nodes_left_fp32'),
+        'q8_op_counts': old_report.get('q8_op_counts'),
+        'argmax_labels_q8': {c: old_report['argmax_labels'][c]['q8'] for c in clips},
+    }
+    report['requantized'] = {
+        'started': started, 'finished': datetime.now(timezone.utc).isoformat(timespec='seconds'),
+        'versions': versions(),
+        'recipe': 'every MatMul except the head quantized, adapters included; Convs fp32 '
+                  '(owner, 2026-11-27)',
+    }
+    report['q8_vs_fp32'] = q8_report
+    report['nodes_left_fp32'] = {'conv': len(conv_nodes), 'adapter': 0,
+                                 'head': head_nodes, 'head_excluded_as': head_exclude}
+    report['adapter_matmuls_quantized'] = len(adapter_nodes)
+    report['q8_op_counts'] = q8_op_counts
+    for clip in clips:
+        report['argmax_labels'][clip]['q8'] = id2label[q8_top[clip]]
+    report_path = BASE / 'parity-lid.json'
+    report_path.write_text(json.dumps(report, indent=2) + '\n')
+    print(f'== wrote {out_dir}/q8, SHA256SUMS and SOURCE.txt')
     print(f'== wrote {report_path}')
 
 

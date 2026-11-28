@@ -1,22 +1,24 @@
 # SHA-256 pins for the MMS files of spike 3b (Run 9): the facebook/mms-1b-all adapters
 # (adapters/), the Xenova/mms-1b-all export (onnx/), the per-language ASR exports
 # (onnx-eng/, onnx-fra/, onnx-lin/), the facebook/mms-lid-126 language-ID export (lid-126/)
-# and its config files (lid-source/), fp32 and q8.
+# and its config files (lid-source/), and the single ASR graph with the adapters as inputs
+# (onnx-swap/, export-mms.py --swap, 2026-11-27), fp32 and q8.
 # Paths are relative to android/models/third_party/mms-1b-all/ (git-ignored).
-# The locally produced graphs (onnx-*/ and lid-126/) have no publisher checksum: their pin
+# The locally produced graphs (onnx-*/, onnx-swap/ and lid-126/) have no publisher checksum: their pin
 # is the recipe in tools/export-mms/ plus these hashes.
 # Check with: node tools/fetch-model.mjs --verify mms
 ee172ef39a0e40c55403fb811fa0f56c6198c7ed21a2bdf5bd0e72e52c07a41c  adapters/config.json
 1b548bc0eda31e001cdc6202c03d3a8fc70ff774cef6546f497db03492251d39  adapters/adapter.lin.safetensors
 4b09a27a25bdff7062004bf5b2ef8d219e89ebcf272d34d275e3ae0dcd8c3f0b  adapters/adapter.fra.safetensors
 4347384ac33c808dc7821bca6e4baaf1408b03b585e7caf81267b9d0ef8cca29  adapters/adapter.eng.safetensors
+d957d951abef3888c40fe81d0958224fbddc6015ed5b9c00b604a8f56210e879  lid-126/SOURCE.txt
 ebbc7599cba7bb572066c839ba43152a7e262cc55599d0af5af35a2c38194844  lid-126/config.json
 e6577a777f3afab7b848dcd159de43acac00920d94cbccc87eb286a6a4a5476c  lid-126/model.onnx
 40884ebe045b5ce285fed3c8afaaad571a89070dccfc96cb873cfaaefe480f0e  lid-126/model.onnx_data
 a2254a5b58f72cd4de3632f8eee64f3f098b7c1402128d2f419e7d00ae13e335  lid-126/preprocessor_config.json
 ebbc7599cba7bb572066c839ba43152a7e262cc55599d0af5af35a2c38194844  lid-126/q8/config.json
-163ee314fb97f1325aecad0bb7df957483373037218963b760657911710a78d8  lid-126/q8/model_quantized.onnx
-3055d0ffe353f6f19643dac0df591b3fd49557e14c39f08934d3b4e74d7e2b6f  lid-126/q8/ort_config.json
+6356a9af9d76c3af6bc6bd44d1656c457a32594da2bb98b6b8de493ef24f85f8  lid-126/q8/model_quantized.onnx
+83324b64ebc1c7a5937a3518bb8bc48d1f5058982c9a7d4c13f224d0582813f9  lid-126/q8/ort_config.json
 a2254a5b58f72cd4de3632f8eee64f3f098b7c1402128d2f419e7d00ae13e335  lid-126/q8/preprocessor_config.json
 f5f50a99828c0334299ca9180c026518ca69b6b2a41dd3bbede74eea762e4ba3  lid-source/config.json
 a2254a5b58f72cd4de3632f8eee64f3f098b7c1402128d2f419e7d00ae13e335  lid-source/preprocessor_config.json
@@ -70,3 +72,13 @@ f9562779623742b0cf29dd06839dae511dabd438459dcfb1e6f6314e0972a895  onnx-lin/q8/sp
 9046da57c270c8e74d0f38832b4adce269c9d914ef21d2a0925e7772152dd793  onnx-lin/special_tokens_map.json
 79b71619f7aeb88e4d3017c9d52c8724a6068458741170e0b33866eddfd6f257  onnx-lin/tokenizer_config.json
 31dcd5c4361451991bd8241eb99bdc822d2ef2d8a4906404884c2196aa8f3a41  onnx-lin/vocab.json
+2574e5672edebe83d39d31560aa27a4c86c4f344bb0792b7987b390e253280e0  onnx-swap/SOURCE.txt
+ffe2c50292dd68de5184173e0e8092569c6c9aff11e97cee6d508b0ed87b4c3d  onnx-swap/adapter_inputs.json
+b32d88f812f3d9ead65a02a7737c4ff7010acdbb7c142ecceded7f8e8c3e600f  onnx-swap/config.json
+0066d2a3569a8d2f0927511ffa550b90ce84e9e815162cfea7483c16f40c2c2e  onnx-swap/model.onnx
+5daca76b950d21b5cabfb84111e381b8e84aee2db340fb8b9ed56c97fdb8b69a  onnx-swap/model.onnx_data
+f724fdad65341e79bd9741888fe4e8ce1bb2e7b44fc8216c28c591afb1e202f4  onnx-swap/preprocessor_config.json
+e72ce830fdbe9b87f9f7a98bbf7cb3feedc533dc0c8c570f3bc5e60103bb3c1b  onnx-swap/q8/config.json
+fec3f2530ca94dfd3ae46207ea54f4ce544e4205c9f9873118800ce056012301  onnx-swap/q8/model_quantized.onnx
+d699b094721c701374ada940fdbcdc92832428301bef511458c322599685f9ac  onnx-swap/q8/ort_config.json
+f724fdad65341e79bd9741888fe4e8ce1bb2e7b44fc8216c28c591afb1e202f4  onnx-swap/q8/preprocessor_config.json

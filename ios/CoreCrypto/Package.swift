@@ -54,6 +54,23 @@ import PackageDescription
 //
 // `node tests/ios-audit.js` runs the clean set and the canary when the
 // products are built.
+//
+// On a phone. The tests read the repository's files from the source tree on
+// the simulator and the host. A phone cannot see the Mac's disk, so stage a
+// copy into the test bundles first (`RepoFixtures`, test-only, in no product).
+// The phone needs Developer Mode on and an Apple ID signed in to Xcode
+// (Settings > Accounts). From the repository root:
+//
+//   ios/tools/stage-device-fixtures.sh
+//
+// then, from this directory, with the phone's UDID and the team id:
+//
+//   xcodebuild test -scheme CoreCrypto-Package \
+//     -destination 'platform=iOS,id=<UDID>' \
+//     -allowProvisioningUpdates DEVELOPMENT_TEAM=<team id>
+//
+// `TEST_RUNNER_SSA_FIXTURES=bundle` before a simulator run makes it read the
+// staged copy, to try the phone path without a phone.
 let package = Package(
     name: "CoreCrypto",
     platforms: [.iOS(.v17)],
@@ -65,10 +82,11 @@ let package = Package(
     targets: [
         .binaryTarget(name: "SsaCore", path: "debug/SsaCore.xcframework"),
         .target(name: "CoreCrypto", dependencies: ["SsaCore"]),
-        .testTarget(name: "CoreCryptoTests", dependencies: ["CoreCrypto"]),
+        .target(name: "RepoFixtures", resources: [.copy("repo")]),
+        .testTarget(name: "CoreCryptoTests", dependencies: ["CoreCrypto", "RepoFixtures"]),
         .target(name: "SsaPdf", dependencies: ["SsaCore"]),
-        .testTarget(name: "SsaPdfTests", dependencies: ["SsaPdf", "SsaCore"]),
+        .testTarget(name: "SsaPdfTests", dependencies: ["SsaPdf", "SsaCore", "RepoFixtures"]),
         .target(name: "NetCanary"),
-        .testTarget(name: "NetworkGuardTests", dependencies: ["SsaPdf", "CoreCrypto", "SsaCore"]),
+        .testTarget(name: "NetworkGuardTests", dependencies: ["SsaPdf", "CoreCrypto", "SsaCore", "RepoFixtures"]),
     ]
 )

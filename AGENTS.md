@@ -93,6 +93,18 @@ TZ=UTC ./gradlew :core:compileCommonMainKotlinMetadata
 SIMCTL_CHILD_GOLDEN_DIR=$PWD/core/build/ios-test-resources ./gradlew :core:iosSimulatorArm64Test
 TZ=UTC ./gradlew :core-device:connectedDebugAndroidTest    # needs the ssa35 emulator booted
 ./tools/run-pdf-spike.sh ssa35
+# MMS (spike 3b part 2). Needs android/models/third_party/mms-1b-all/ (about 27 GB, git-ignored).
+# Run one model process at a time: an fp32 graph is 3.86 GB.
+# from the repository root
+node tools/fetch-model.mjs --verify mms
+android/models/third_party/mms-1b-all/.venv/bin/python tools/golden/mms.py --check   # owner's Mac only
+# from android/ (on the JVM, MMS_DIR defaults to models/third_party/mms-1b-all)
+TZ=UTC ./gradlew :models:jvmTest
+SIMCTL_CHILD_GOLDEN_DIR=$PWD/models/build/ios-test-resources SIMCTL_CHILD_MODEL_DIR=$PWD/../models/whisper-base.en SIMCTL_CHILD_MMS_DIR=$PWD/models/third_party/mms-1b-all SIMCTL_CHILD_MMS_GRAPH=fp32 ./gradlew :models:iosSimulatorArm64Test   # then MMS_GRAPH=q8
+# ssa35 runs q8 (4 GB RAM). First push, for each graph folder (onnx-lin, ..., lid-126), its SHA256SUMS,
+# config.json, preprocessor_config.json, q8/model_quantized.onnx and, for ASR, tokenizer_config.json and
+# vocab.json to /data/local/tmp/mms/<folder>/ (chmod 755); /data holds only two q8 graphs at once.
+TZ=UTC ./gradlew :speech:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.MMS_DIR=/data/local/tmp/mms -Pandroid.testInstrumentationRunnerArguments.MMS_GRAPHS=lin,lid
 # from ios/CoreCrypto/
 xcodebuild test -scheme CoreCrypto-Package -destination 'platform=iOS Simulator,name=iPhone 18 Pro'
 ```
