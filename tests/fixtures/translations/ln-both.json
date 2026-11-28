@@ -1,11 +1,15 @@
 {
-  "description": "A fixed translation overlay for plan B (Step 2 item 5). Lingala answers laid over tests/fixtures/answers/both.json, with the language each was given in and the English an NLLB run might give. The English is written by hand, not by a model, so the goldens never move with one. It covers: machine translations on top-level and loop fields; a translation a person edited (no [MT] mark); a stale translation whose source changed (not used); a Lingala answer with no translation yet (kept as given); and an answer given in English (never translated).",
+  "description": "A fixed translation overlay for plan B (Step 2 item 5). Lingala answers laid over tests/fixtures/answers/both.json, with the language each was given in and the English an NLLB run might give. The English is written by hand, not by a model, so the goldens never move with one. It covers: machine translations on top-level and loop fields; a translation a person edited (no [MT] mark); a stale translation whose source changed (not used); a Lingala answer with no translation yet (kept as given); an answer given in English (never translated); a condition name, translated under D12; and a first name given in Lingala, which is verbatim (D12), so its translation is never used.",
   "answers": {
     "medication_allergies": "Nazali na allergie ya pénicilline",
     "living_arrangement": "Nafandi na libota na ngai",
     "eating_explain": "Basalisaka ngai na kolya mokolo nyonso",
     "dietary_restrictions": "Nalyaka mbuma te",
     "volunteer_experience": "Nasalisaka na lingomba mokolo ya poso",
+    "first_name": "Ada",
+    "conditions": {
+      "0": { "name": "Maladi ya sukali" }
+    },
     "medications": {
       "0": { "reason": "Mpo na motó ekobɛta" },
       "1": { "reason": "Mpo na makila makasi" }
@@ -19,7 +23,9 @@
     { "id": "volunteer_experience", "lang": "ln" },
     { "id": "food_allergies", "lang": "en" },
     { "id": "reason", "loopId": "medications", "loopIndex": 0, "lang": "ln" },
-    { "id": "reason", "loopId": "medications", "loopIndex": 1, "lang": "ln" }
+    { "id": "reason", "loopId": "medications", "loopIndex": 1, "lang": "ln" },
+    { "id": "first_name", "lang": "ln" },
+    { "id": "name", "loopId": "conditions", "loopIndex": 0, "lang": "ln" }
   ],
   "translations": [
     { "id": "medication_allergies", "source": "Nazali na allergie ya pénicilline", "text": "I am allergic to penicillin", "by": "mt" },
@@ -28,6 +34,8 @@
     { "id": "dietary_restrictions", "source": "Nalyaka mbuma te mpe mungwa", "text": "I do not eat fruit or salt", "by": "mt" },
     { "id": "food_allergies", "source": "Peanuts", "text": "Peanuts", "by": "mt" },
     { "id": "reason", "loopId": "medications", "loopIndex": 0, "source": "Mpo na motó ekobɛta", "text": "For headaches", "by": "mt" },
-    { "id": "reason", "loopId": "medications", "loopIndex": 1, "source": "Mpo na makila makasi", "text": "For high blood pressure", "by": "person" }
+    { "id": "reason", "loopId": "medications", "loopIndex": 1, "source": "Mpo na makila makasi", "text": "For high blood pressure", "by": "person" },
+    { "id": "first_name", "source": "Ada", "text": "Adah", "by": "mt" },
+    { "id": "name", "loopId": "conditions", "loopIndex": 0, "source": "Maladi ya sukali", "text": "Diabetes", "by": "mt" }
   ]
 }

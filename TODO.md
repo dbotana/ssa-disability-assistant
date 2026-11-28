@@ -305,8 +305,8 @@ output. In short:
       - the package tests on the phone (`ios/tools/stage-device-fixtures.sh`,
         then the package's device `xcodebuild test`) against the `SsaKit` and
         ORT changes;
-      - `:core-device:connectedDebugAndroidTest` on `ssa35` after the Kotlin
-        upgrade.
+      - ~~`:core-device:connectedDebugAndroidTest` on `ssa35` after the Kotlin
+        upgrade~~: done 2026-11-28, 123 tests pass.
 - [ ] **AGENTS.md's "Common checks" need the app's commands.** Add
       `:ui:assembleSsaCoreDebugXCFramework` in place of `:core`'s old task,
       and the app's `xcodebuild test … -derivedDataPath build` from `ios/App/`,
@@ -1261,7 +1261,7 @@ written that day. It resumed on 2026-11-24 with ORT 1.22.0 and finished on 2026-
       were updated.
 - [x] **M1b's whisper.cpp half** is marked as replaced by D6 and 3b in the M1b item above. The
       llama.cpp half stands. Checked again in Steps 7 to 9; no change was needed.
-- [ ] **Owner: confirm or remove the `test.kexe _dlsym` allowlist entry.** Its third caller is
+- [x] **Owner: confirm or remove the `test.kexe _dlsym` allowlist entry.** Confirmed by the owner, 2026-11-28. Its third caller is
       clang compiler-rt's `__initializeAvailabilityCheck`, which the run plan did not expect; the
       Step 6c.4 stop rule applied. The entry is one of the 77 entries in
       `ios/tools/audit-binary.allowlist`.
@@ -1283,13 +1283,13 @@ written that day. It resumed on 2026-11-24 with ORT 1.22.0 and finished on 2026-
   ios/tools/audit-binary.sh android/models/build/onnxruntime-ios/onnxruntime.xcframework
   ```
 
-- [ ] **Owner: delete the scratch files in `android/build/`.** The Steps 5–6 files are
+- [x] **Owner: delete the scratch files in `android/build/`.** Deleted on 2026-11-28, on the owner's say-so. The Steps 5–6 files are
       `audit-binary.before.allowlist`, `audit-kexe-after.txt`, `audit-kexe-before.txt`,
       `audit-ort-after.txt`, `compile-debug-log.txt`, `compile-debug-log2.txt`,
       `models-test-kexe.nm-m.txt` and `models-test-kexe.otool.txt`. Steps 7 to 9 added
       `android/build/run8-saved-results/` with seven copies of the saved Step 5–6 results; no
       `run8-*.log` was created.
-- [ ] **Owner: decide on removing the whisper.cpp probe and `stt_pack` (D6).**
+- [x] **Owner: decide on removing the whisper.cpp probe and `stt_pack` (D6).** Removed on 2026-11-28 (mirror plan Progress, "The owner's follow-up decisions, carried out").
 
 **Still not verified:**
 
@@ -1394,3 +1394,38 @@ committed yet.
 - [x] The answer field's keyboard shows no prediction bar, and its Dictate
       key is disabled, on the simulator and on the phone.
 
+
+## Mirror: items 1 to 3 and the owner's answers (2026-11-28)
+
+Details, commands and results are in the mirror plan's Progress entry "Items 1 to 3 and the
+owner's answers". Not committed yet.
+
+- [x] `check.mjs` reports "goldens fresh" (`appstate.json` is committed in `ee041e13`).
+- [x] The `.app` audit passes. The owner decided to allowlist the traced dynamic-lookup imports
+      from Compose, Skia, the Kotlin runtime, ONNX Runtime, compiler-rt and Xcode's debug
+      launcher. `tests/ios-audit.js` audits the app without `PlugIns/`, pins the callers in each
+      linked image with `otool -tvV`, and requires the app's test bundle to fail, naming
+      `NSURLSession`. All 28 web test files pass.
+- [x] `:core-device:connectedDebugAndroidTest` passes 123 tests on `ssa35`.
+- [ ] Audit a device (`iphoneos`) build of the app; only the simulator build was audited.
+- [x] Removed the `libstdlib-cache.a.o _dlsym` allowlist entry (owner, 2026-11-28). It had not
+      matched anything since Kotlin 2.4.21.
+- [x] D12, built 2026-11-28: every free-text answer is translated except names, dates and
+      addresses. The `translate` flag is gone; 43 `text` questions are `verbatim` (`name`,
+      `place` or `identifier`) and 46 are translated. JS first, `fillplans.json` regenerated,
+      `FormVersions.kt` ported, the iOS schema pin updated. `:core:jvmTest` (123) and
+      `:core:iosSimulatorArm64Test` (104) pass.
+- [ ] **Owner: confirm `verbatim: 'identifier'`** on the MaineCare number and the workers'
+      compensation claim number. The rule named only names, dates and addresses; these two are
+      text answers holding numbers, so Claude kept them as given.
+- [ ] Commit the new `fillplans.json`, then run `check.mjs` (it compares against `HEAD`).
+- [ ] Rebuild the framework (`:ui:assembleSsaCoreDebugXCFramework`) and re-run the iOS app's
+      `xcodebuild test`, and `:speech:connectedDebugAndroidTest` on `ssa35`; not re-run after
+      these changes.
+- [x] D13: losing a saved session on an iOS 7-day reinstall is acceptable. Still check whether it
+      happens, so the README says which.
+- [x] D14: no outside organisations yet. One Lingala speaker (a friend of the owner's mother) is
+      available, enough for the catalogue review, a Simba listening check and translation
+      ratings, but not for a multi-speaker evaluation set (X5) or blind testers (X8). That review
+      alone is enough to set `reviewedByNativeSpeaker: true` once it is imported (owner,
+      2026-11-28); until then it stays `false`.

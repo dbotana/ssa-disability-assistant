@@ -250,7 +250,6 @@ function ratingSection(group) {
       id: `${act.key}_explain`,
       prompt: `Briefly, what help is needed with ${act.short}?`,
       type: 'text',
-      translate: true,
       askIf: { and: [{ present: level }, { ne: [level, 'A'] }] },
       hint: 'For example, who helps, and how often. You can say skip.'
     });
@@ -325,13 +324,13 @@ export const SECTIONS = [
       {
         id: 'helper_name',
         prompt: 'What is your name, or the name of your agency?',
-        type: 'text',
+        type: 'text', verbatim: 'name',
         askIf: { eq: ['for_self', false] },
         warn: 'Thank you for helping. From here on, every question is about the person applying, even when I say you. First, a few details about you.'
       },
-      { id: 'helper_address', prompt: 'What is your mailing address? Just the street or post office box for now.', type: 'text', askIf: { eq: ['for_self', false] } },
-      { id: 'helper_city', prompt: 'What town or city is that in?', type: 'text', askIf: { eq: ['for_self', false] }, hint: 'If it is outside Maine, include the state too.' },
-      { id: 'helper_county', prompt: 'What county is that in?', type: 'text', askIf: { eq: ['for_self', false] } },
+      { id: 'helper_address', prompt: 'What is your mailing address? Just the street or post office box for now.', type: 'text', verbatim: 'place', askIf: { eq: ['for_self', false] } },
+      { id: 'helper_city', prompt: 'What town or city is that in?', type: 'text', verbatim: 'place', askIf: { eq: ['for_self', false] }, hint: 'If it is outside Maine, include the state too.' },
+      { id: 'helper_county', prompt: 'What county is that in?', type: 'text', verbatim: 'place', askIf: { eq: ['for_self', false] } },
       { id: 'helper_zip', prompt: 'What is the zip code?', type: 'zip', askIf: { eq: ['for_self', false] } },
       { id: 'helper_phone', prompt: 'What is your phone number?', type: 'phone', askIf: { eq: ['for_self', false] } },
       { id: 'helper_fax', prompt: 'What is your fax number? Say skip if you do not have one.', type: 'phone', askIf: { eq: ['for_self', false] } },
@@ -345,8 +344,8 @@ export const SECTIONS = [
     title: 'Basic information about you',
     forms: ['ssa', 'ds'],
     questions: [
-      { id: 'first_name', prompt: 'What is your legal first name?', type: 'text', required: true },
-      { id: 'last_name', prompt: 'What is your legal last name?', type: 'text', required: true },
+      { id: 'first_name', prompt: 'What is your legal first name?', type: 'text', verbatim: 'name', required: true },
+      { id: 'last_name', prompt: 'What is your legal last name?', type: 'text', verbatim: 'name', required: true },
       {
         id: 'date_of_birth',
         // The order is in the prompt, not only the hint: this is the first
@@ -357,9 +356,9 @@ export const SECTIONS = [
         required: true,
         confirm: true
       },
-      { id: 'birth_city', prompt: 'What city were you born in?', type: 'text', required: true },
-      { id: 'birth_state', prompt: 'What state or province were you born in?', type: 'text', required: true },
-      { id: 'birth_country', prompt: 'What country were you born in?', type: 'text', required: true },
+      { id: 'birth_city', prompt: 'What city were you born in?', type: 'text', verbatim: 'place', required: true },
+      { id: 'birth_state', prompt: 'What state or province were you born in?', type: 'text', verbatim: 'place', required: true },
+      { id: 'birth_country', prompt: 'What country were you born in?', type: 'text', verbatim: 'place', required: true },
       {
         id: 'ssn',
         prompt: 'What is your Social Security number?',
@@ -377,12 +376,12 @@ export const SECTIONS = [
     title: 'Your address and background',
     forms: ['ds'],
     questions: [
-      { id: 'home_street', prompt: 'What is your street address?', type: 'text', hint: 'Just the number and street. I will ask for the town next.' },
-      { id: 'home_town', prompt: 'What town or city do you live in?', type: 'text' },
-      { id: 'home_state', prompt: 'What state do you live in?', type: 'text' },
+      { id: 'home_street', prompt: 'What is your street address?', type: 'text', verbatim: 'place', hint: 'Just the number and street. I will ask for the town next.' },
+      { id: 'home_town', prompt: 'What town or city do you live in?', type: 'text', verbatim: 'place' },
+      { id: 'home_state', prompt: 'What state do you live in?', type: 'text', verbatim: 'place' },
       { id: 'home_zip', prompt: 'What is your zip code?', type: 'zip' },
       { id: 'mailing_different', prompt: 'Is your mailing address different from your street address?', type: 'yesno' },
-      { id: 'mailing_address', prompt: 'What is your full mailing address, including the town, state, and zip code?', type: 'text', askIf: { eq: ['mailing_different', true] } },
+      { id: 'mailing_address', prompt: 'What is your full mailing address, including the town, state, and zip code?', type: 'text', verbatim: 'place', askIf: { eq: ['mailing_different', true] } },
       { id: 'applicant_phone', prompt: 'What is your phone number?', type: 'phone' },
       { id: 'applicant_email', prompt: 'What is your email address? Say skip if you do not have one.', type: 'email',
         hint: 'You can say it like john dot smith at gmail dot com.' },
@@ -395,7 +394,7 @@ export const SECTIONS = [
         options: GENDER_OPTIONS,
         hint: 'Say male or female, or say skip to leave it blank.'
       },
-      { id: 'mainecare_number', prompt: 'What is your MaineCare number? Say skip if you do not have one.', type: 'text' },
+      { id: 'mainecare_number', prompt: 'What is your MaineCare number? Say skip if you do not have one.', type: 'text', verbatim: 'identifier' },
       {
         id: 'marital_status',
         prompt: 'What is your marital status: never married, married, separated, divorced, or widowed?',
@@ -416,15 +415,15 @@ export const SECTIONS = [
       {
         id: 'guardian_name',
         prompt: 'What is their full name?',
-        type: 'text',
+        type: 'text', verbatim: 'name',
         askIf: { eq: ['has_guardian', true] },
         warn: 'Maine asks for a copy of the guardianship or power of attorney paperwork to be sent with this application.'
       },
       { id: 'guardian_relationship', prompt: 'How are they related to you?', type: 'text', askIf: { eq: ['has_guardian', true] },
         hint: 'For example, parent, sister, or professional guardian.' },
-      { id: 'guardian_address', prompt: 'What is their mailing address? Just the street or post office box for now.', type: 'text', askIf: { eq: ['has_guardian', true] } },
-      { id: 'guardian_city', prompt: 'What town or city is that in?', type: 'text', askIf: { eq: ['has_guardian', true] }, hint: 'If it is outside Maine, include the state too.' },
-      { id: 'guardian_county', prompt: 'What county is that in?', type: 'text', askIf: { eq: ['has_guardian', true] } },
+      { id: 'guardian_address', prompt: 'What is their mailing address? Just the street or post office box for now.', type: 'text', verbatim: 'place', askIf: { eq: ['has_guardian', true] } },
+      { id: 'guardian_city', prompt: 'What town or city is that in?', type: 'text', verbatim: 'place', askIf: { eq: ['has_guardian', true] }, hint: 'If it is outside Maine, include the state too.' },
+      { id: 'guardian_county', prompt: 'What county is that in?', type: 'text', verbatim: 'place', askIf: { eq: ['has_guardian', true] } },
       { id: 'guardian_zip', prompt: 'What is the zip code?', type: 'zip', askIf: { eq: ['has_guardian', true] } },
       { id: 'guardian_phone', prompt: 'What is their phone number?', type: 'phone', askIf: { eq: ['has_guardian', true] } },
       { id: 'guardian_email', prompt: 'What is their email address? Say skip if you do not know it.', type: 'email', askIf: { eq: ['has_guardian', true] } }
@@ -440,14 +439,14 @@ export const SECTIONS = [
       {
         id: 'ec_name',
         prompt: 'Who should be contacted in an emergency? Tell me their full name.',
-        type: 'text',
+        type: 'text', verbatim: 'name',
         askIf: NEEDS_EMERGENCY_CONTACT,
         hint: 'Usually a guardian or your closest family member. Say skip to leave this blank.'
       },
       { id: 'ec_relationship', prompt: 'How are they related to you?', type: 'text', askIf: HAS_EMERGENCY_CONTACT },
-      { id: 'ec_address', prompt: 'What is their street address?', type: 'text', askIf: HAS_EMERGENCY_CONTACT },
-      { id: 'ec_city', prompt: 'What town or city is that in?', type: 'text', askIf: HAS_EMERGENCY_CONTACT, hint: 'If it is outside Maine, include the state too.' },
-      { id: 'ec_county', prompt: 'What county is that in?', type: 'text', askIf: HAS_EMERGENCY_CONTACT },
+      { id: 'ec_address', prompt: 'What is their street address?', type: 'text', verbatim: 'place', askIf: HAS_EMERGENCY_CONTACT },
+      { id: 'ec_city', prompt: 'What town or city is that in?', type: 'text', verbatim: 'place', askIf: HAS_EMERGENCY_CONTACT, hint: 'If it is outside Maine, include the state too.' },
+      { id: 'ec_county', prompt: 'What county is that in?', type: 'text', verbatim: 'place', askIf: HAS_EMERGENCY_CONTACT },
       { id: 'ec_zip', prompt: 'What is the zip code?', type: 'zip', askIf: HAS_EMERGENCY_CONTACT },
       { id: 'ec_phone', prompt: 'What is their phone number?', type: 'phone', askIf: HAS_EMERGENCY_CONTACT },
       { id: 'ec_email', prompt: 'What is their email address? Say skip if you do not know it.', type: 'email', askIf: HAS_EMERGENCY_CONTACT }
@@ -500,10 +499,10 @@ export const SECTIONS = [
     title: 'Allergies, diet, and developmental diagnosis',
     forms: ['ds'],
     questions: [
-      { id: 'medication_allergies', prompt: 'Do you have any medication allergies? Tell me what they are, or say none.', type: 'text', translate: true },
-      { id: 'food_allergies', prompt: 'Any food allergies? Tell me what they are, or say none.', type: 'text', translate: true },
-      { id: 'environmental_allergies', prompt: 'Any environmental allergies, such as pollen, dust, or animals? Tell me what they are, or say none.', type: 'text', translate: true },
-      { id: 'dietary_restrictions', prompt: 'Do you have any dietary restrictions? Tell me what they are, or say none.', type: 'text', translate: true },
+      { id: 'medication_allergies', prompt: 'Do you have any medication allergies? Tell me what they are, or say none.', type: 'text' },
+      { id: 'food_allergies', prompt: 'Any food allergies? Tell me what they are, or say none.', type: 'text' },
+      { id: 'environmental_allergies', prompt: 'Any environmental allergies, such as pollen, dust, or animals? Tell me what they are, or say none.', type: 'text' },
+      { id: 'dietary_restrictions', prompt: 'Do you have any dietary restrictions? Tell me what they are, or say none.', type: 'text' },
       { id: 'has_idd_dx', prompt: 'Have you been diagnosed with an intellectual disability, a developmental disability, or autism?', type: 'yesno' },
       { id: 'idd_dx_date', prompt: 'About when were you diagnosed? A month and year is fine.', type: 'monthyear', askIf: { eq: ['has_idd_dx', true] },
         hint: 'If you do not know, say skip.' },
@@ -534,8 +533,8 @@ export const SECTIONS = [
         repeatPrompt: 'Do you have another doctor, hospital, or clinic to add?',
         itemLabel: 'provider',
         fields: [
-          { id: 'name', prompt: 'What is the name of this provider or facility?', type: 'text', required: true },
-          { id: 'address', prompt: 'What is the address for this provider or facility?', type: 'text', hint: 'Street, city, and state is enough. You can say skip if you do not have it.' },
+          { id: 'name', prompt: 'What is the name of this provider or facility?', type: 'text', verbatim: 'name', required: true },
+          { id: 'address', prompt: 'What is the address for this provider or facility?', type: 'text', verbatim: 'place', hint: 'Street, city, and state is enough. You can say skip if you do not have it.' },
           { id: 'phone', prompt: 'What is the phone number for this provider or facility?', type: 'phone' },
           { id: 'first_seen', prompt: 'What date did you first see this provider? If this was a hospital stay, give me the admission date.', type: 'monthyear' },
           { id: 'last_seen', prompt: 'What date did you last see this provider? If this was a hospital stay, give me the discharge date. You can say still seeing them.', type: 'monthyear' }
@@ -558,7 +557,7 @@ export const SECTIONS = [
         fields: [
           { id: 'name', prompt: 'What is the name of this test?', type: 'text', required: true },
           { id: 'date', prompt: 'What date was, or will, this test be performed?', type: 'date', allowFuture: true },
-          { id: 'ordered_by', prompt: 'Who ordered this test?', type: 'text' }
+          { id: 'ordered_by', prompt: 'Who ordered this test?', type: 'text', verbatim: 'name' }
         ]
       }
     ]
@@ -576,9 +575,9 @@ export const SECTIONS = [
         repeatPrompt: 'Do you have another medication to add?',
         itemLabel: 'medication',
         fields: [
-          { id: 'name', prompt: 'What is the name of this medication?', type: 'text', required: true },
-          { id: 'reason', prompt: 'Why do you take it?', type: 'text', translate: true, hint: 'If you are not sure, you can say skip.' },
-          { id: 'prescribed_by', prompt: 'Which provider prescribed it?', type: 'text' }
+          { id: 'name', prompt: 'What is the name of this medication?', type: 'text', verbatim: 'name', required: true },
+          { id: 'reason', prompt: 'Why do you take it?', type: 'text', hint: 'If you are not sure, you can say skip.' },
+          { id: 'prescribed_by', prompt: 'Which provider prescribed it?', type: 'text', verbatim: 'name' }
         ]
       }
     ]
@@ -591,7 +590,7 @@ export const SECTIONS = [
     questions: [
       { id: 'wc_receives', prompt: "Do you receive workers' compensation or another disability benefit?", type: 'yesno', required: true },
       { id: 'wc_injury_date', prompt: 'What is the date of injury?', type: 'date', askIf: { eq: ['wc_receives', true] } },
-      { id: 'wc_claim_number', prompt: 'What is the claim number?', type: 'text', askIf: { eq: ['wc_receives', true] } },
+      { id: 'wc_claim_number', prompt: 'What is the claim number?', type: 'text', verbatim: 'identifier', askIf: { eq: ['wc_receives', true] } },
       { id: 'wc_settlement', prompt: 'Is there a settlement agreement?', type: 'yesno', askIf: { eq: ['wc_receives', true] } },
       { id: 'wc_source', prompt: 'What is the source of the payment?', type: 'text', askIf: { eq: ['wc_receives', true] } },
       { id: 'wc_amount', prompt: 'What is the payment amount?', type: 'money', askIf: { eq: ['wc_receives', true] } }
@@ -617,9 +616,9 @@ export const SECTIONS = [
     title: 'People who know about your condition',
     forms: ['ssa'],
     questions: [
-      { id: 'ref1_name', prompt: 'Can you give me the name of one person, other than a medical provider, who knows about your condition?', type: 'text' },
+      { id: 'ref1_name', prompt: 'Can you give me the name of one person, other than a medical provider, who knows about your condition?', type: 'text', verbatim: 'name' },
       { id: 'ref1_phone', prompt: "What is that person's phone number?", type: 'phone', askIf: { truthy: 'ref1_name' } },
-      { id: 'ref2_name', prompt: 'Can you give me the name of a second such person? This one is optional.', type: 'text', askIf: { truthy: 'ref1_name' } },
+      { id: 'ref2_name', prompt: 'Can you give me the name of a second such person? This one is optional.', type: 'text', verbatim: 'name', askIf: { truthy: 'ref1_name' } },
       { id: 'ref2_phone', prompt: "What is that person's phone number?", type: 'phone', askIf: { truthy: 'ref2_name' } }
     ]
   },
@@ -646,7 +645,7 @@ export const SECTIONS = [
         repeatPrompt: 'Did you work another job in that 5 year period?',
         itemLabel: 'job',
         fields: [
-          { id: 'employer', prompt: "What was the employer's name?", type: 'text', required: true },
+          { id: 'employer', prompt: "What was the employer's name?", type: 'text', verbatim: 'name', required: true },
           { id: 'job_title', prompt: 'What was your job title?', type: 'text', hint: 'For example, cook.' },
           { id: 'business_type', prompt: 'What type of business was this?', type: 'text', hint: 'For example, restaurant.' },
           { id: 'start', prompt: 'What month and year did you start this job?', type: 'monthyear' },
@@ -680,14 +679,14 @@ export const SECTIONS = [
         repeatPrompt: 'Have you had another job?',
         itemLabel: 'job',
         fields: [
-          { id: 'employer', prompt: 'Where did you work?', type: 'text', required: true },
+          { id: 'employer', prompt: 'Where did you work?', type: 'text', verbatim: 'name', required: true },
           { id: 'job_title', prompt: 'What was your job there?', type: 'text', hint: 'For example, stocking shelves.' },
           { id: 'start', prompt: 'What month and year did you start?', type: 'monthyear' },
           { id: 'end', prompt: 'What month and year did it end? You can say still working.', type: 'monthyear' }
         ]
       },
-      { id: 'vr_involvement', prompt: 'Have you worked with Vocational Rehabilitation? If so, tell me briefly what they helped with. If not, say no.', type: 'text', translate: true, forms: ['ds'] },
-      { id: 'volunteer_experience', prompt: 'Have you done any volunteer work? If so, tell me about it, or say none.', type: 'text', translate: true, forms: ['ds'] }
+      { id: 'vr_involvement', prompt: 'Have you worked with Vocational Rehabilitation? If so, tell me briefly what they helped with. If not, say no.', type: 'text', forms: ['ds'] },
+      { id: 'volunteer_experience', prompt: 'Have you done any volunteer work? If so, tell me about it, or say none.', type: 'text', forms: ['ds'] }
     ]
   },
 
@@ -701,9 +700,9 @@ export const SECTIONS = [
         forms: ['ds'], askIf: { eq: ['in_school', true] } },
       { id: 'education_level', prompt: 'What is the highest level of education you completed?', type: 'text' },
       { id: 'education_year', prompt: 'What year did you complete it?', type: 'number', kind: 'year', forms: ['ssa'] },
-      { id: 'education_school', prompt: 'What school or institution did you complete it at?', type: 'text' },
+      { id: 'education_school', prompt: 'What school or institution did you complete it at?', type: 'text', verbatim: 'name' },
       { id: 'special_ed', prompt: 'Did you receive special education services?', type: 'yesno' },
-      { id: 'special_ed_where', prompt: 'Where did you receive special education services?', type: 'text', forms: ['ssa'], askIf: { eq: ['special_ed', true] } },
+      { id: 'special_ed_where', prompt: 'Where did you receive special education services?', type: 'text', verbatim: 'place', forms: ['ssa'], askIf: { eq: ['special_ed', true] } },
       { id: 'special_ed_year', prompt: 'What year did you complete special education services?', type: 'number', kind: 'year', forms: ['ssa'], askIf: { eq: ['special_ed', true] } },
       { id: 'has_504_plan', prompt: 'Have you ever had a 504 plan at school?', type: 'yesno', forms: ['ds'] },
       { id: 'psychoed_eval', prompt: 'Have you had a psychoeducational evaluation?', type: 'yesno', forms: ['ds'],
@@ -723,7 +722,7 @@ export const SECTIONS = [
         repeatPrompt: 'Do you have another training program to add?',
         itemLabel: 'training program',
         fields: [
-          { id: 'name', prompt: 'What was the name of this training program?', type: 'text', required: true },
+          { id: 'name', prompt: 'What was the name of this training program?', type: 'text', verbatim: 'name', required: true },
           { id: 'completed', prompt: 'What date did you complete it?', type: 'monthyear' }
         ]
       }
@@ -742,12 +741,12 @@ export const SECTIONS = [
         repeatPrompt: 'Do you have another marriage to add?',
         itemLabel: 'marriage',
         fields: [
-          { id: 'spouse_name', prompt: "What is your spouse's or former spouse's full name?", type: 'text', required: true },
+          { id: 'spouse_name', prompt: "What is your spouse's or former spouse's full name?", type: 'text', verbatim: 'name', required: true },
           { id: 'spouse_ssn', prompt: "What is your spouse's or former spouse's Social Security number?", type: 'ssn', confirm: true },
           { id: 'spouse_dob', prompt: "What is your spouse's or former spouse's date of birth?", type: 'date' },
-          { id: 'marriage_city', prompt: 'What city did you get married in?', type: 'text' },
-          { id: 'marriage_state', prompt: 'What state did you get married in?', type: 'text' },
-          { id: 'marriage_country', prompt: 'What country did you get married in?', type: 'text' },
+          { id: 'marriage_city', prompt: 'What city did you get married in?', type: 'text', verbatim: 'place' },
+          { id: 'marriage_state', prompt: 'What state did you get married in?', type: 'text', verbatim: 'place' },
+          { id: 'marriage_country', prompt: 'What country did you get married in?', type: 'text', verbatim: 'place' },
           { id: 'marriage_date', prompt: 'What date did you get married?', type: 'date', confirm: true },
           { id: 'still_active', prompt: 'Is this marriage still active?', type: 'yesno', required: true },
           { id: 'divorce_date', prompt: 'What date did you get divorced?', type: 'date', askIf: { eq: ['still_active', false] } },
@@ -770,8 +769,8 @@ export const SECTIONS = [
         repeatPrompt: 'Do you have another child to add?',
         itemLabel: 'child',
         fields: [
-          { id: 'first_name', prompt: "What is this child's first name?", type: 'text', required: true },
-          { id: 'last_name', prompt: "What is this child's last name?", type: 'text' }
+          { id: 'first_name', prompt: "What is this child's first name?", type: 'text', verbatim: 'name', required: true },
+          { id: 'last_name', prompt: "What is this child's last name?", type: 'text', verbatim: 'name' }
         ]
       }
     ]
@@ -786,7 +785,6 @@ export const SECTIONS = [
         id: 'living_arrangement',
         prompt: 'What is your current living arrangement? For example, living with family, in your own apartment, or in a group home.',
         type: 'text',
-        translate: true,
         forms: ['ds']
       },
       {
@@ -796,7 +794,7 @@ export const SECTIONS = [
         repeatPrompt: 'Do you have another household member to add?',
         itemLabel: 'household member',
         fields: [
-          { id: 'name', prompt: "What is this person's name?", type: 'text', required: true },
+          { id: 'name', prompt: "What is this person's name?", type: 'text', verbatim: 'name', required: true },
           { id: 'dob', prompt: "What is this person's date of birth?", type: 'date' }
         ]
       }
@@ -809,7 +807,7 @@ export const SECTIONS = [
     forms: ['ssa'],
     questions: [
       { id: 'rents', prompt: 'Do you rent your home?', type: 'yesno' },
-      { id: 'landlord_name', prompt: "What is your landlord's name?", type: 'text', askIf: { eq: ['rents', true] } },
+      { id: 'landlord_name', prompt: "What is your landlord's name?", type: 'text', verbatim: 'name', askIf: { eq: ['rents', true] } },
       { id: 'landlord_phone', prompt: "What is your landlord's phone number?", type: 'phone', askIf: { eq: ['rents', true] } },
       { id: 'has_rental_contract', prompt: 'Do you have a rental contract on file?', type: 'yesno', askIf: { eq: ['rents', true] } },
       { id: 'has_admission_agreement', prompt: 'Do you have an admission agreement on file?', type: 'yesno' },
@@ -982,19 +980,19 @@ export const DIGIT_TYPES = new Set(['ssn', 'phone', 'routing', 'account', 'zip']
 export const SENSITIVE_TYPES = new Set(['ssn', 'routing', 'account']);
 
 /**
- * The `translate: true` flag (plan 4.8) marks the narrative text questions
- * whose Lingala answers version B translates to English. Which questions get
- * it is the owner's decision (ios-android-mirror-plan.md, "Open questions for
- * the owner", 1). The list in SECTIONS is a proposal, narrative answers only,
- * and stays marked as awaiting the owner until they decide.
- * tests/schema-data.js lints the flag.
+ * Which answers version B translates (plan 4.8, decision D12, owner,
+ * 2026-11-28): every free-text answer given in Lingala, except names, dates
+ * and addresses. Dates are never free text (they are `date` and `monthyear`
+ * answers), so a `text` question is translated unless it carries
+ * `verbatim: <kind>`, which keeps its answer exactly as given in both
+ * versions. The kinds:
+ *   name        a person's, organisation's, school's, program's or
+ *               medication's name
+ *   place       an address, or part of one, and places of birth or marriage
+ *   identifier  a number kept in a text answer (MaineCare, a claim number)
+ * There is no `translate` flag. tests/schema-data.js lints `verbatim`.
  */
-export const TRANSLATE_FLAG = {
-  status: 'proposed',
-  awaitingOwner: true,
-  scope: 'narrative text questions only; never names, addresses, phone numbers, emails or identifiers',
-  decision: 'ios-android-mirror-plan.md, Open questions for the owner, 1'
-};
+export const VERBATIM_KINDS = new Set(['name', 'place', 'identifier']);
 
 /** Section id -> title, for progress announcements. */
 export const SECTION_TITLES = Object.fromEntries(SECTIONS.map(s => [s.id, s.title]));

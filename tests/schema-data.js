@@ -10,7 +10,8 @@
 //
 // Makes no network requests.
 
-import { SECTIONS, RATING_OPTIONS, RATING_GROUPS, RULE_OPERATORS, evalRule, SENSITIVE_TYPES, TRANSLATE_FLAG } from '../src/schema.js';
+import { SECTIONS, RATING_OPTIONS, RATING_GROUPS, RULE_OPERATORS, evalRule, SENSITIVE_TYPES, VERBATIM_KINDS } from '../src/schema.js';
+import { translates } from '../src/versions.js';
 
 let failures = 0;
 const check = (name, cond, detail = '') => {
@@ -194,39 +195,50 @@ function lintRule(rule, where, scope, keys, problems = []) {
     evalRule(pay.askIf, { answers: {}, item: {} }) === false);
 }
 
-// -- the translate flag names narrative answers only --------------------------
+// -- which answers version B translates (D12) ---------------------------------
 //
-// Step 4.8: `translate: true` marks the free-text answers NLLB may translate
-// for version B. A name, an address or an identifier must never carry it, or
-// version B would rewrite something that has to stay exactly as given.
+// Decision D12 (owner, 2026-11-28): every free-text answer given in Lingala is
+// translated for version B, except names, dates and addresses. Dates are never
+// free text, so a `text` question is translated unless it is `verbatim`. A
+// name, an address or an identifier must be `verbatim`, or version B would
+// rewrite something that has to stay exactly as given.
 
 {
-  const IDENTIFIER = /(^|_)(name|first_name|last_name|address|city|town|county|state|country|zip|phone|fax|email|ssn|number|title|employer|school|provider|prescribed_by|ordered_by|relationship|source|kind)($|_)/;
-  const marked = [];
+  const NAME_OR_PLACE = /(^|_)(name|first_name|last_name|address|street|city|town|county|state|country|number|employer|school|prescribed_by|ordered_by|where)($|_)/;
+  // Fields whose id says "name" but whose answer is a description, not a proper
+  // name: a condition, a diagnosis or a test is translated (D12).
+  const DESCRIBED = new Set(['conditions.name', 'diagnoses.name', 'idd_diagnoses.name', 'tests.name']);
+  const translated = [];
   const problems = [];
   for (const section of SECTIONS) {
     for (const q of section.questions) {
-      const fields = q.type === 'loop' ? q.fields : [q];
-      for (const f of fields) {
-        if (!f.translate) continue;
-        marked.push(f.id);
-        if (f.type !== 'text') problems.push(`${f.id}: translate on a ${f.type}`);
-        if (SENSITIVE_TYPES.has(f.type)) problems.push(`${f.id}: translate on a sensitive type`);
-        if (IDENTIFIER.test(f.id)) problems.push(`${f.id}: translate on an identifier-shaped field`);
+      if ('translate' in q) problems.push(`${q.id}: the translate flag was dropped (D12)`);
+      const fields = q.type === 'loop' ? q.fields.map(f => [`${q.id}.${f.id}`, f]) : [[q.id, q]];
+      for (const [path, f] of fields) {
+        if (q.type === 'loop' && 'translate' in f) problems.push(`${path}: the translate flag was dropped (D12)`);
+        if ('verbatim' in f) {
+          if (f.type !== 'text') problems.push(`${path}: verbatim on a ${f.type}`);
+          if (!VERBATIM_KINDS.has(f.verbatim)) problems.push(`${path}: unknown verbatim kind ${f.verbatim}`);
+        }
+        if (translates(f)) translated.push(path);
+        if (f.type === 'text' && !f.verbatim && NAME_OR_PLACE.test(f.id) && !DESCRIBED.has(path)) {
+          problems.push(`${path}: a name, place or identifier that version B would translate`);
+        }
       }
     }
   }
   const required = ['medication_allergies', 'food_allergies', 'environmental_allergies',
-    'dietary_restrictions', 'reason', 'vr_involvement', 'volunteer_experience',
-    'living_arrangement', 'eating_explain', 'cooking_explain', 'expressive_explain'];
-  check('the schema marks narrative answers for translation', marked.length >= 25, String(marked.length));
-  check('the questions 4.8 names are marked', required.every(id => marked.includes(id)),
-    required.filter(id => !marked.includes(id)).join(', '));
-  check('translate is never set on an identifier or a non-text answer', problems.length === 0,
+    'dietary_restrictions', 'medications.reason', 'vr_involvement', 'volunteer_experience',
+    'living_arrangement', 'eating_explain', 'cooking_explain', 'expressive_explain',
+    'conditions.name', 'jobs.job_title', 'guardian_relationship'];
+  const kept = ['first_name', 'last_name', 'home_street', 'mailing_address', 'medications.name',
+    'providers.address', 'birth_city', 'mainecare_number'];
+  check('every narrative and descriptive free-text answer is translated',
+    required.every(id => translated.includes(id)), required.filter(id => !translated.includes(id)).join(', '));
+  check('names, places and identifiers are kept as given', kept.every(id => !translated.includes(id)),
+    kept.filter(id => translated.includes(id)).join(', '));
+  check('verbatim is only on names, places and identifiers in text answers', problems.length === 0,
     problems.slice(0, 8).join('\n     '));
-  // The list is a proposal until the owner decides (plan, Open questions 1).
-  check('the translate flag is marked as awaiting the owner',
-    TRANSLATE_FLAG?.status === 'proposed' && TRANSLATE_FLAG.awaitingOwner === true, JSON.stringify(TRANSLATE_FLAG));
 }
 
 console.log(failures === 0 ? 'schema-data: all checks passed' : `schema-data: ${failures} failure(s)`);

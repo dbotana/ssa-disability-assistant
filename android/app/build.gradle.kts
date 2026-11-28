@@ -93,12 +93,13 @@ android {
         deviceTargetingConfig = file("device_targeting_config.xml")
     }
 
-    // stt_pack only. llm_pack is not bundled yet: delivering it to the
-    // >= 6 GB group alone needs device-group targeting, which a plain asset
-    // pack cannot do — bundletool 1.17 rejects a "#group_" asset folder
+    // No asset packs. stt_pack (the whisper.cpp model) was removed on
+    // 2026-11-28 (mirror plan D6: speech runs on ONNX Runtime, and no model
+    // file goes into the APK). llm_pack is not bundled yet: delivering it to
+    // the >= 6 GB group alone needs device-group targeting, which a plain
+    // asset pack cannot do — bundletool 1.17 rejects a "#group_" asset folder
     // ("unsupported key 'group'"). It lands with the AI-pack plugin (M6/M7);
     // see llm_pack/build.gradle.kts and TODO.md.
-    assetPacks += listOf(":stt_pack")
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

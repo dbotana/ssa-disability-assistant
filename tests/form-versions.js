@@ -39,7 +39,7 @@ for (const [k, v] of Object.entries(ln.answers)) {
 }
 const overlay = { inputLangs: ln.inputLangs, translations: ln.translations };
 
-// -- the flag ------------------------------------------------------------------
+// -- which answers are translated (D12) -----------------------------------------
 check('translatable fields are all text', translatableFields().length >= 25);
 
 // -- the overlay ---------------------------------------------------------------
@@ -58,7 +58,10 @@ check('translatable fields are all text', translatableFields().length >= 25);
   check('an answer with no translation stays as given', b.volunteer_experience === answers.volunteer_experience);
   check('names are never translated', b.first_name === answers.first_name && b.medications[0].name === answers.medications[0].name);
   check('the input answers are not changed', answers.medication_allergies === ln.answers.medication_allergies);
-  check('five answers are translated', translated.length === 5, String(translated.length));
+  check('a condition name is translated (D12)', b.conditions[0].name === `${MT_MARK} Diabetes`, b.conditions[0].name);
+  check('a verbatim name given in Lingala keeps its words, translation or not (D12)',
+    b.first_name === 'Ada' && !lingala.includes('first_name'), b.first_name);
+  check('six answers are translated', translated.length === 6, String(translated.length));
 }
 
 // -- both plans ----------------------------------------------------------------

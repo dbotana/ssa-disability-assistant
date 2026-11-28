@@ -2,9 +2,9 @@
 //
 //   A, as given:            every answer exactly as the applicant gave it.
 //   B, English translation: the same form, with each Lingala free-text answer
-//                           on a `translate: true` question replaced by its
-//                           English translation and marked [MT]. Its own
-//                           words follow in an appendix.
+//                           replaced by its English translation and marked
+//                           [MT], except on `verbatim` questions (names and
+//                           places, D12). Its own words follow in an appendix.
 //
 // Both versions go through the same form mapping and the same planFill(), so
 // B differs from A only where a translation changed a value. B exists only
@@ -39,16 +39,19 @@ export const VERSION_NOTES = {
 
 export const APPENDIX_TITLE = 'Answers in the applicant\'s own words (Lingala)';
 
-/** Every question marked `translate: true`, as { id, loopId, prompt, itemLabel }. */
+/** A free-text question whose answer version B translates (D12): `text`, and not `verbatim`. */
+export const translates = q => q.type === 'text' && !q.verbatim;
+
+/** Every question version B translates, as { id, loopId, prompt, itemLabel }. */
 export function translatableFields(sections = SECTIONS) {
   const out = [];
   for (const section of sections) {
     for (const q of section.questions) {
       if (q.type === 'loop') {
         for (const f of q.fields) {
-          if (f.translate) out.push({ id: f.id, loopId: q.id, prompt: f.prompt, itemLabel: q.itemLabel ?? q.id });
+          if (translates(f)) out.push({ id: f.id, loopId: q.id, prompt: f.prompt, itemLabel: q.itemLabel ?? q.id });
         }
-      } else if (q.translate) {
+      } else if (translates(q)) {
         out.push({ id: q.id, loopId: null, prompt: q.prompt, itemLabel: null });
       }
     }

@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 
 import {
   SECTIONS, SCHEMA_VERSION, FORM_IDS, FORM_TITLES,
-  RATING_OPTIONS, RATING_GROUPS, DIGIT_TYPES, SENSITIVE_TYPES, TRANSLATE_FLAG
+  RATING_OPTIONS, RATING_GROUPS, DIGIT_TYPES, SENSITIVE_TYPES, VERBATIM_KINDS
 } from '../src/schema.js';
 import { ALIASES, LOOP_WORDS, ORDINALS, STOP, ratingAliases, MAX_LOOP_ITEMS } from '../src/correct.js';
 import { LABELS } from '../src/summary.js';
@@ -46,8 +46,8 @@ const out = {
   ratingGroups: RATING_GROUPS,
   digitTypes: [...DIGIT_TYPES],
   sensitiveTypes: [...SENSITIVE_TYPES],
-  // The translate flag's status: a proposal awaiting the owner (plan 4.8).
-  translateFlag: TRANSLATE_FLAG,
+  // The kinds of `verbatim` text answers, which version B never translates (plan 4.8, D12).
+  verbatimKinds: [...VERBATIM_KINDS],
   correct: {
     aliases: ALIASES,
     ratingAliases: ratingAliases(),

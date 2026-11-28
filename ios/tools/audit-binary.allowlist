@@ -101,20 +101,44 @@ SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.
 SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.CoreFoundation-cache.a.o) _CFStreamCreatePairWithSocketToHost Kotlin/Native prebuilt platform.CoreFoundation interop cache defines the binding _platform_CoreFoundation_CFStreamCreatePairWithSocketToHost_wrapper531; our Kotlin (SsaCore.framework.o) references no such binding
 SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(liborg.jetbrains.kotlin.native.platform.Foundation-cache.a.o) _NSClassFromString Kotlin/Native prebuilt platform.Foundation interop cache defines the binding _platform_Foundation_NSClassFromString_wrapper3; our Kotlin (SsaCore.framework.o) references no such binding
 
-# -- SsaCore.xcframework: Kotlin/Native stdlib cache, simulator slice only (audit a)
-# `xcrun objdump --reloc` puts all 11 _dlsym call sites of this member (offsets
-# 0x76a320-0x76a528) inside _Kotlin_getSourceInfo_core_symbolication
-# (0x76a1b8-0x76a900), the runtime's stack-trace symbolicator; the archive
-# holds the strings CoreSymbolication.framework/CoreSymbolication and
-# CSSymbolicatorCreateWithPid. The device slice does not define that function.
-SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(libstdlib-cache.a.o) _dlsym Kotlin/Native stdlib: all 11 call sites are in _Kotlin_getSourceInfo_core_symbolication (stack-trace symbolication via CoreSymbolication), simulator slice only
+# -- SsaCore.xcframework built by :ui: Compose, Skia and Kotlin 2.4.21 (audit a) -
+# Owner decision, 2026-11-28 (the iOS MVP's D1). Since the iOS MVP, :ui builds this framework
+# with Compose Multiplatform 1.12.2 (Skiko) and Kotlin 2.4.21 inside it. Traced on each member
+# with `ar -x`, then `xcrun objdump -d -r` for the calling function and `strings` for what it
+# looks up. None of these members names a networking framework, class or symbol:
+# - CMPLayoutRegion.o (Compose): -[CMPLayoutRegion edgeInsetsForLayoutRegionInView:] calls
+#   NSClassFromString("UIViewLayoutRegion"), a UIKit class that only newer iOS versions have;
+# - libskia.SkCTFont.o: SkCTFontGetNSFontWeightMapping looks up the nine UIFontWeight* constants;
+# - fontmgr_mac_ct.SkFontMgr_mac_ct.o: the SkFontMgr_Mac constructor looks up
+#   CTFontManagerCopyAvailableFontFamilyNames;
+# - fontmgr_mac_ct.SkTypeface_mac_ct.o: SkTypeface_Mac::onGetVariationDesignParameters looks up
+#   kCTFontVariationAxisHiddenKey;
+# - libskia_ganesh_ext.GrGLMakeNativeInterface_iOS.o: GrGLInterfaces::MakeIOS dlopens the system
+#   GL library and looks up OpenGL ES functions in it;
+# - libkotlin.native.internal.4fyzlt.a.o, simulator slice only: the Kotlin runtime's
+#   TryInitializeCoreSymbolication (12 call sites), stack-trace symbolication through
+#   CoreSymbolication.framework. With Kotlin 2.4.21 this replaces the Kotlin 2.0.21 entry for
+#   libstdlib-cache.a.o (_Kotlin_getSourceInfo_core_symbolication, 11 call sites), which matched
+#   nothing after the upgrade and was removed by owner decision on 2026-11-28. The member name
+#   carries a hash and may change with Kotlin.
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(CMPLayoutRegion.o) _NSClassFromString Compose Multiplatform: -[CMPLayoutRegion edgeInsetsForLayoutRegionInView:] looks up the UIKit class UIViewLayoutRegion; not our code
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(libskia.SkCTFont.o) _dlsym Skia (Skiko): SkCTFontGetNSFontWeightMapping looks up the UIFontWeight* constants; not our code
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(fontmgr_mac_ct.SkFontMgr_mac_ct.o) _dlsym Skia (Skiko): the SkFontMgr_Mac constructor looks up CTFontManagerCopyAvailableFontFamilyNames; not our code
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(fontmgr_mac_ct.SkTypeface_mac_ct.o) _dlsym Skia (Skiko): SkTypeface_Mac::onGetVariationDesignParameters looks up kCTFontVariationAxisHiddenKey; not our code
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(libskia_ganesh_ext.GrGLMakeNativeInterface_iOS.o) _dlsym Skia (Skiko): GrGLInterfaces::MakeIOS looks up OpenGL ES functions in the dlopened system GL library; not our code
+SsaCore.xcframework/ios-arm64-simulator/SsaCore.framework/SsaCore(libkotlin.native.internal.4fyzlt.a.o) _dlsym Kotlin/Native 2.4.21 runtime: all 12 call sites are in TryInitializeCoreSymbolication (stack-trace symbolication via CoreSymbolication), simulator slice only
+SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(CMPLayoutRegion.o) _NSClassFromString Compose Multiplatform: -[CMPLayoutRegion edgeInsetsForLayoutRegionInView:] looks up the UIKit class UIViewLayoutRegion; not our code
+SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(libskia.SkCTFont.o) _dlsym Skia (Skiko): SkCTFontGetNSFontWeightMapping looks up the UIFontWeight* constants; not our code
+SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(fontmgr_mac_ct.SkFontMgr_mac_ct.o) _dlsym Skia (Skiko): the SkFontMgr_Mac constructor looks up CTFontManagerCopyAvailableFontFamilyNames; not our code
+SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(fontmgr_mac_ct.SkTypeface_mac_ct.o) _dlsym Skia (Skiko): SkTypeface_Mac::onGetVariationDesignParameters looks up kCTFontVariationAxisHiddenKey; not our code
+SsaCore.xcframework/ios-arm64/SsaCore.framework/SsaCore(libskia_ganesh_ext.GrGLMakeNativeInterface_iOS.o) _dlsym Skia (Skiko): GrGLInterfaces::MakeIOS looks up OpenGL ES functions in the dlopened system GL library; not our code
 
 # -- Test bundles that link SsaCore statically (audit c) -----------------------
-# Each bundle defines _Kotlin_getSourceInfo_core_symbolication, the stdlib
-# function above, and no longer contains _platform_posix_dlsym_wrapper50 (the
-# linker dropped it). The other static inputs on each link line import no
-# _dlsym: the test target's own object (CoreCryptoTests.o, PdfSpikeTests.o),
-# CoreCrypto.o or SsaPdf.o (audit b), and the clang profile runtime that
+# Each bundle defines _Kotlin_getSourceInfo_core_symbolication, Kotlin 2.0.21's
+# stdlib symbolicator (its libstdlib-cache.a.o entry was removed on 2026-11-28),
+# and no longer contains _platform_posix_dlsym_wrapper50 (the linker dropped it).
+# The other static inputs on each link line import no _dlsym: the test target's
+# own object (CoreCryptoTests.o, PdfSpikeTests.o), CoreCrypto.o or SsaPdf.o (audit b), and the clang profile runtime that
 # -profile-generate (code coverage) adds, libclang_rt.profile_iossim.a.
 # XCTestSwiftSupport is a dylib. NetworkGuardTests.xctest gets no entry.
 CoreCryptoTests.xctest/CoreCryptoTests _dlsym from libSystem; caller is the statically linked Kotlin/Native _Kotlin_getSourceInfo_core_symbolication, not our Swift
@@ -137,4 +161,31 @@ onnxruntime.xcframework/ios-arm64_x86_64-maccatalyst/onnxruntime.framework/Versi
 # _Kotlin_getSourceInfo_core_symbolication (11), and clang compiler-rt's availability check
 # __initializeAvailabilityCheck (10: dlsym(RTLD_DEFAULT, ...) of CoreFoundation functions),
 # linked in for ___isPlatformVersionAtLeast, which ONNX Runtime's prelinked_objects.o imports.
+# The compiler-rt caller was not expected by the Run 8 plan; the owner confirmed the entry on
+# 2026-11-28. The same compiler-rt function is the caller allowlisted in the iOS app's images.
 test.kexe _dlsym from libSystem; callers in the linked :models test executable are ONNX Runtime 1.22.0's onnxruntime::(anonymous)::PosixEnv::GetSymbolFromLibrary, Kotlin/Native's _Kotlin_getSourceInfo_core_symbolication, and clang compiler-rt's __initializeAvailabilityCheck (pulled in by ONNX Runtime's ___isPlatformVersionAtLeast references), traced with otool -tvV; not our Kotlin
+
+# -- The iOS app, SsaAssistant.app (the iOS MVP's D1) ----------------------------
+# Owner decision, 2026-11-28. tests/ios-audit.js audits every top-level entry of the built
+# SsaAssistant.app except PlugIns/, so these labels are paths inside the .app. PlugIns/ holds
+# the test bundle that `xcodebuild test` embeds; an installed app has none. That bundle,
+# SsaAssistantTests.xctest, gets no entry: its NetworkTrapTests calls URLSession on purpose,
+# and tests/ios-audit.js checks that it FAILS the audit, naming NSURLSession.
+# These are linked images, so one entry covers every caller of the symbol in the image.
+# tests/ios-audit.js therefore also checks, with `xcrun otool -tvV`, that the functions
+# referencing _dlsym and _NSClassFromString in each image are exactly the ones named below:
+# a new caller, ours or a library's, fails the test until it is traced and added here.
+# - SsaAssistant: Xcode's debug-dylib launcher stub (ENABLE_DEBUG_DYLIB, Debug builds only);
+#   _getDebugDylibEntryPoint and its _OUTLINED_FUNCTION_34 look up the app's entry point in
+#   SsaAssistant.debug.dylib. Our Swift is not in this file.
+# - SsaAssistant.debug.dylib (our Swift shell): the only caller is clang compiler-rt's
+#   __initializeAvailabilityCheck (10 call sites), linked in for Swift's #available checks.
+# - SsaKit_1BC8669A2A8895_PackageProduct (the package's one product, with SsaCore, Compose,
+#   Skia and ONNX Runtime linked in): the Compose, Skia and Kotlin callers traced in the
+#   SsaCore section above, ONNX Runtime's PosixEnv::GetSymbolFromLibrary (see its section),
+#   and compiler-rt's __initializeAvailabilityCheck. The hash in the name comes from Xcode;
+#   if it changes, these labels must follow it.
+SsaAssistant _dlsym from libSystem; Xcode's debug-dylib launcher stub (_getDebugDylibEntryPoint) looks up the entry point in SsaAssistant.debug.dylib; Debug builds only; not our code
+SsaAssistant.debug.dylib _dlsym from libSystem; the only caller is clang compiler-rt's __initializeAvailabilityCheck (Swift #available), traced with otool -tvV; not our Swift
+Frameworks/SsaKit_1BC8669A2A8895_PackageProduct.framework/SsaKit_1BC8669A2A8895_PackageProduct _dlsym from libSystem; callers are Skia's font and GL setup, Kotlin/Native's TryInitializeCoreSymbolication, ONNX Runtime's PosixEnv::GetSymbolFromLibrary and compiler-rt's __initializeAvailabilityCheck, traced with otool -tvV and pinned by tests/ios-audit.js; not our code
+Frameworks/SsaKit_1BC8669A2A8895_PackageProduct.framework/SsaKit_1BC8669A2A8895_PackageProduct _NSClassFromString from Foundation; the only caller is Compose's -[CMPLayoutRegion edgeInsetsForLayoutRegionInView:] (UIViewLayoutRegion), traced with otool -tvV and pinned by tests/ios-audit.js; not our code

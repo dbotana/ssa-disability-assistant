@@ -1,17 +1,13 @@
-// Speech: on-device capture and transcription (whisper.cpp through JNI) and
-// offline playback. See the plan: "Speech, UI and privacy".
+// Speech: on-device capture and transcription, and offline playback. See the plan: "Speech, UI
+// and privacy".
 //
-// The C++ side lives in src/main/cpp/: for now a probe library, built with
-// -fvisibility=hidden, a version script exporting only the JNI symbols, and
-// 16 KB page alignment (NDK r28+), all checked on the built artifacts by
-// tools/audit-native.sh. whisper.cpp, and ggml with it, is linked in
-// statically when it is vendored (M1b); :llm will be built the same way.
-//
-// Transcription moves to ONNX Runtime (mirror plan D6, spike 3b): the shared Whisper code is
-// :models, and this module supplies ORT on Android through the pinned AAR
+// Transcription runs on ONNX Runtime (mirror plan D6, spike 3b): the shared Whisper and MMS code
+// is :models, and this module supplies ORT on Android through the pinned AAR
 // (com.microsoft.onnxruntime:onnxruntime-android 1.22.0, checked against
-// models/onnxruntime.SHA256SUMS by :verifyOnnxRuntimeJava before every build). The whisper.cpp
-// probe in src/main/cpp/ (WhisperNative.kt) stays until the owner removes it.
+// models/onnxruntime.SHA256SUMS by :verifyOnnxRuntimeJava before every build). ORT's libraries
+// are checked for 16 KB alignment by tools/audit-native.sh. The whisper.cpp JNI probe
+// (src/main/cpp/, WhisperNative.kt) was removed by owner decision on 2026-11-28, so this
+// module builds no native code of its own.
 //
 // `./gradlew :speech:connectedDebugAndroidTest` runs :models' common tests on a device, as
 // :core-device does for :core: their sources are compiled into this module's instrumented test
@@ -32,26 +28,9 @@ android {
         minSdk = 29
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        externalNativeBuild {
-            cmake {
-                cppFlags += listOf("-std=c++17")
-                // The C++ runtime linked in, not shipped beside the library as
-                // a 9 MB libc++_shared.so, so each native library is
-                // self-contained (the plan links ggml the same way).
-                arguments += listOf(
-                    "-DANDROID_STL=c++_static"
-                )
-            }
-        }
+        // Keeps ORT's native libraries to these two ABIs.
         ndk {
             abiFilters += listOf("arm64-v8a", "x86_64")
-        }
-    }
-
-    externalNativeBuild {
-        cmake {
-            path = file("src/main/cpp/CMakeLists.txt")
-            version = "3.22.1"
         }
     }
 

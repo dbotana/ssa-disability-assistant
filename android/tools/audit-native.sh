@@ -23,8 +23,9 @@ set -euo pipefail
 # ONNX Runtime's libraries (libonnxruntime.so and libonnxruntime4j_jni.so, from the pinned
 # AAR that :speech adds) are not in OWN_LIBS: they export ORT's C API and its Java binding's
 # JNI functions, which are Microsoft's to define, not ours to restrict. Checks 1 and 2
-# (16 KB ELF alignment, zipalign) still apply to them.
-OWN_LIBS="${OWN_LIBS:-libwhisper_jni.so libllama_jni.so}"
+# (16 KB ELF alignment, zipalign) still apply to them. libwhisper_jni.so left the list when the
+# whisper.cpp probe was removed (2026-11-28); libllama_jni.so is :llm's, not built yet.
+OWN_LIBS="${OWN_LIBS:-libllama_jni.so}"
 
 die() { echo "NATIVE AUDIT ERROR: $*" >&2; exit 2; }
 [ $# -gt 0 ] || { echo "usage: $0 <app.apk ...>" >&2; exit 2; }

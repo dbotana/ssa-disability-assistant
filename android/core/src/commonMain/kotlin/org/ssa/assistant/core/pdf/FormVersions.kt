@@ -12,9 +12,9 @@ import org.ssa.assistant.core.schema.Schema
 /**
  * Port of src/versions.js (Step 2 item 5): the two versions of a form in a
  * Lingala session (plan 4.7). Version A is the answers as given; version B
- * replaces each Lingala free-text answer on a `translate: true` question with
- * its English translation, marked [MT], and lists the originals in an
- * appendix. B exists only when a translation changes the plan.
+ * replaces each Lingala free-text answer with its English translation, marked
+ * [MT], except on `verbatim` questions (names and places, D12), and lists the
+ * originals in an appendix. B exists only when a translation changes the plan.
  *
  * Both versions are planned by FormDocuments, the path a single-version
  * export already takes, so each goes through the same FillPlanner and, in
@@ -61,6 +61,9 @@ object FormVersions {
 
     private class Translatable(val id: String, val loopId: String?, val prompt: String, val itemLabel: String?)
 
+    /** translates() in src/versions.js: a `text` question that is not `verbatim` (D12). */
+    private fun translates(q: Json.Obj): Boolean = q["type"]?.asString() == "text" && (q["verbatim"] as? Json.Str)?.value.isNullOrEmpty()
+
     private fun translatable(schema: Schema): List<Translatable> {
         val out = mutableListOf<Translatable>()
         for (section in schema.sections) {
@@ -70,9 +73,9 @@ object FormVersions {
                     val loopId = node["id"]?.asString() ?: continue
                     val label = node["itemLabel"]?.asString() ?: loopId
                     for (f in node["fields"]?.asArray()?.items?.mapNotNull { it.asObject() } ?: emptyList()) {
-                        if (f["translate"] === Json.True) out.add(Translatable(f["id"]!!.asString()!!, loopId, f["prompt"]?.asString() ?: "", label))
+                        if (translates(f)) out.add(Translatable(f["id"]!!.asString()!!, loopId, f["prompt"]?.asString() ?: "", label))
                     }
-                } else if (node["translate"] === Json.True) {
+                } else if (translates(node)) {
                     out.add(Translatable(node["id"]!!.asString()!!, null, node["prompt"]?.asString() ?: "", null))
                 }
             }

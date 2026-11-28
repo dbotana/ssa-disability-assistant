@@ -34,8 +34,8 @@ Open Android items stay in [TODO.md](TODO.md) and [android-to-do.md](android-to-
   (X1a, X1b). All eight Step 2 items are in `core`, plus the iOS MVP's `AppPorts`, `WriterJson`,
   `SessionGate`, `ExportJob`, `CaptureBuffer` and `Summary`. 122 JVM tests and 103 iOS simulator
   tests pass (2026-11-28; the 19 more on the JVM are the JVM-only `I18nTest`, `JsNumberOracleTest`
-  and `JvmCryptoVectorTest`). The `ssa35` device tests last ran in Run 9 (94 tests), before the
-  Kotlin upgrade.
+  and `JvmCryptoVectorTest`). On `ssa35`, `:core-device:connectedDebugAndroidTest` passes 123
+  tests after the Kotlin upgrade and the Setup-after-Start change (2026-11-28).
 - **`:models`:** runs on ORT 1.22.0 on the host JVM, `ssa35` and the iOS simulator, with 59 tests
   on each runtime. Every figure is from the host, the emulator or the simulator, not a phone.
   - **Whisper base.en:** 9/9 token ids equal to the reference and 9/9 kept values on each (Run 8,
@@ -86,10 +86,11 @@ Open Android items stay in [TODO.md](TODO.md) and [android-to-do.md](android-to-
     pass.
   - **Not yet:** a voice answer on a phone (the talk button, capture and Whisper), the full
     airplane-mode interview, App Privacy Report, and a VoiceOver pass by ear.
-  - **The `.app` audit (D1) fails, with no networking found:** it names dynamic-lookup imports
-    (`dlsym`, `NSClassFromString`) from Compose, Skia and the Kotlin runtime that no allowlist
-    entry covers yet, so `tests/ios-audit.js` fails 3 checks. The allowlist is the owner's
-    decision.
+  - **The `.app` audit (D1) passes** (2026-11-28, owner decision): the `dlsym` and
+    `NSClassFromString` imports from Compose, Skia, the Kotlin runtime, ONNX Runtime,
+    compiler-rt and Xcode's debug launcher are traced and allowlisted, and `tests/ios-audit.js`
+    pins each linked image's callers. The test plug-in, which calls `URLSession` on purpose,
+    must fail the audit (Progress, "Items 1 to 3 and the owner's answers").
 - **Next:** Run 10, NLLB, then Run 11, Simba. The owner answered Run 9's MMS questions on
   2026-11-27 ("Run 9 decisions" in Progress):
   - a phone runs q8;
@@ -98,6 +99,10 @@ Open Android items stay in [TODO.md](TODO.md) and [android-to-do.md](android-to-
     `:models`.
 
   A language-ID threshold still waits for Lingala recordings.
+- **Owner answers (2026-11-28):** every free-text answer is translated except names, dates and
+  addresses (D12, built the same day), losing a saved session on an iOS reinstall is acceptable
+  (D13), and there is one Lingala volunteer and no organisation yet, whose review alone is
+  enough to mark the catalogue reviewed (D14). The whisper.cpp probe and `stt_pack` are gone.
 
 ## Progress
 
@@ -3747,6 +3752,141 @@ Gradle and `xcodebuild` ran outside the command sandbox, as before.
 checked by hand. VoiceOver by ear: whether moving to the interview screen during the intro talks
 over it. The phone, and `:core-device:connectedDebugAndroidTest` on `ssa35`, were not run.
 
+### Items 1 to 3 and the owner's answers (2026-11-28, after commit ee041e13)
+
+The owner asked for three checks left by the iOS MVP and Setup-after-Start runs, and answered the
+plan's three open questions (Decisions D12 to D14).
+
+**1. Goldens.** `DEVELOPER_DIR=/Library/Developer/CommandLineTools node tools/golden/check.mjs`
+printed "goldens fresh", now that `appstate.json` is committed (`ee041e13`).
+
+**2. The `.app` audit allowlist (owner decision).** Every new hit was traced before it was
+allowlisted. Each archive member was taken out with `ar -x` and read with
+`xcrun objdump -d -r` and `strings`. Each linked image in the app was read with
+`xcrun otool -tvV`, with every instruction that references the symbol counted, not only calls:
+
+| Where | Symbol | Caller (what it looks up) |
+|---|---|---|
+| `CMPLayoutRegion.o` (Compose), both slices | `_NSClassFromString` | `-[CMPLayoutRegion edgeInsetsForLayoutRegionInView:]` (`UIViewLayoutRegion`) |
+| `libskia.SkCTFont.o`, both slices | `_dlsym` | `SkCTFontGetNSFontWeightMapping` (nine `UIFontWeight*` constants) |
+| `fontmgr_mac_ct.SkFontMgr_mac_ct.o`, both slices | `_dlsym` | the `SkFontMgr_Mac` constructor (`CTFontManagerCopyAvailableFontFamilyNames`) |
+| `fontmgr_mac_ct.SkTypeface_mac_ct.o`, both slices | `_dlsym` | `SkTypeface_Mac::onGetVariationDesignParameters` (`kCTFontVariationAxisHiddenKey`) |
+| `libskia_ganesh_ext.GrGLMakeNativeInterface_iOS.o`, both slices | `_dlsym` | `GrGLInterfaces::MakeIOS` (OpenGL ES functions in the dlopened system GL library) |
+| `libkotlin.native.internal.4fyzlt.a.o`, simulator slice | `_dlsym` | `TryInitializeCoreSymbolication`, 12 sites (CoreSymbolication, for stack traces) |
+| `SsaAssistant` | `_dlsym` | Xcode's debug-dylib launcher: `_getDebugDylibEntryPoint` (4), `_OUTLINED_FUNCTION_34` (1) |
+| `SsaAssistant.debug.dylib` | `_dlsym` | compiler-rt `__initializeAvailabilityCheck` (10) only |
+| `Frameworks/SsaKit_…_PackageProduct` | `_dlsym`, `_NSClassFromString` | the Compose, Skia and Kotlin callers above, ONNX Runtime's `PosixEnv::GetSymbolFromLibrary`, and compiler-rt's `__initializeAvailabilityCheck` |
+
+None of these names a networking framework, class or symbol. `Frameworks/SsaCore.framework`
+and `__preview.dylib` in the app have no hits.
+
+- `ios/tools/audit-binary.allowlist` gains 11 exact entries for the two XCFramework slices and 4
+  for the app, each with its reason. The script and its patterns are unchanged.
+- With Kotlin 2.4.21, the existing `libstdlib-cache.a.o` `_dlsym` entry no longer matches (the
+  audit prints "allowlist entry not used here"); its code moved to the
+  `libkotlin.native.internal` member. It was left in place.
+- `tests/ios-audit.js`:
+  - audits every top-level entry of `SsaAssistant.app` except `PlugIns/`, because an
+    installed app has no test bundle, so the labels are paths inside the `.app`;
+  - runs `xcrun otool -tvV` on `SsaAssistant`, `SsaAssistant.debug.dylib` and the `SsaKit`
+    framework, and fails unless the set of functions referencing `_dlsym` or
+    `_NSClassFromString` in each is exactly the traced set. A whole-image entry covers every
+    caller, so this check is what stops a new caller, ours or a library's, from passing
+    unnoticed;
+  - audits `PlugIns/SsaAssistantTests.xctest` on its own, when it exists, and requires it to
+    fail, naming `NSURLSession`: its `NetworkTrapTests` calls `URLSession` on purpose, as
+    `NetworkGuardTests` does in the package.
+
+**3. `:core-device` on `ssa35`.** The emulator was booted headless
+(`emulator -avd ssa35 -no-snapshot-save -no-audio -no-window`) and shut down afterwards.
+
+**Results.**
+
+| Check | Result |
+|---|---|
+| `DEVELOPER_DIR=/Library/Developer/CommandLineTools node tools/golden/check.mjs` | "goldens fresh" |
+| `node tests/ios-audit.js` | "ios-audit: all checks passed" (about 19 s); before the change it failed 3 checks |
+| `for f in tests/*.js; do node "$f"; done` | 28 files, 0 failed |
+| `node tools/smoke.mjs` | "Smoke test passed." |
+| `TZ=UTC ./gradlew :core-device:connectedDebugAndroidTest` (from `android/`) | BUILD SUCCESSFUL, "Finished 123 tests on ssa35(AVD) - 15", 0 failed, 0 skipped |
+
+`adb`, the emulator and Gradle ran outside the command sandbox: inside it, `adb` could not open
+its local listener ("could not install *smartsocket* listener: Operation not permitted").
+
+**Not done.** The app was not rebuilt: the audit ran on the `Debug-iphonesimulator` build from
+the Setup-after-Start run. A device (`iphoneos`) build of the app was not audited. The labels
+depend on Xcode's `SsaKit_1BC8669A2A8895` product name and on Kotlin's
+`libkotlin.native.internal.4fyzlt` member name; if either changes, the test fails and the entries
+must be traced again.
+
+**The owner's answers** (Decisions D12 to D14; 4.1, 4.7, 4.8 and Distribution updated):
+- every question gets `translate: true`, not implemented yet;
+- losing a saved session on an iOS reinstall is acceptable;
+- there are no outside organisations yet, and one Lingala speaker, a friend of the owner's mother.
+
+### The owner's follow-up decisions, carried out (2026-11-28)
+
+The owner answered the remaining smaller decisions:
+
+1. **The `test.kexe _dlsym` allowlist entry: confirmed.** Its comment now records that.
+2. **The stale `libstdlib-cache.a.o _dlsym` entry: removed,** with its comment block. The
+   comments that pointed at it now name Kotlin 2.0.21's `_Kotlin_getSourceInfo_core_symbolication`
+   directly.
+3. **The whisper.cpp probe and `stt_pack`: removed.**
+   - Deleted: `android/speech/src/main/cpp/` (`CMakeLists.txt`, `jni.map`, `whisper_jni.cpp`),
+     `WhisperNative.kt` (it had no callers), and `android/stt_pack/`.
+   - `:speech` lost its `externalNativeBuild` blocks; it keeps `ndk.abiFilters`, which limit ORT's
+     libraries to `arm64-v8a` and `x86_64`.
+   - `:app` has no asset packs, and `settings.gradle.kts` no longer includes `:stt_pack`.
+   - `tools/audit-native.sh`'s default `OWN_LIBS` is now `libllama_jni.so` alone.
+   - The git-ignored CMake cache `android/speech/.cxx/` was left in place.
+4. **The scratch files in `android/build/`: deleted,** after listing them: the four
+   `audit-*` files (including `audit-binary.before.allowlist`), the two `compile-debug-log*.txt`,
+   the two `models-test-kexe.*.txt` (about 205 MB together) and `run8-saved-results/`. The other
+   entries in `android/build/` were not touched.
+5. **One speaker's review is enough** to set `reviewedByNativeSpeaker: true` (D14, 4.1). The
+   flag stays `false` until that review is imported.
+6. **D12, built: translate every free-text answer except names, dates and addresses.** JS first:
+   - `src/schema.js`: the `translate: true` flags and `TRANSLATE_FLAG` are gone. 43 `text`
+     questions are marked `verbatim` (20 `name`, 21 `place`, 2 `identifier`), and
+     `VERBATIM_KINDS` lists the kinds. `tools/export-schema.mjs` exports `verbatimKinds` in
+     place of `translateFlag`.
+   - `src/versions.js`: `translates(q)` is `q.type === 'text' && !q.verbatim`, and
+     `translatableFields()` uses it. 46 questions are translated now; the draft list had 32.
+   - `tests/schema-data.js` lints the rule (4.8), and `tests/form-versions.js` checks the two new
+     fixture cases.
+   - `tests/fixtures/translations/ln-both.json` gains a condition name given in Lingala, which is
+     translated, and a first name given in Lingala with a translation, which is never used.
+   - The regenerated `fillplans.json` golden changed in its `versions` cases: both forms' version
+     B now write "[MT] Diabetes", with the Lingala in the appendix, and "Adah" appears nowhere. A
+     second regeneration gave the same diff.
+   - `ios/App/SsaResources.SHA256SUMS` is re-pinned to the new `tools/schema.json`, as
+     `ios/App/README.md` says.
+   - The port: `FormVersions.translates()` applies the same rule to the exported schema.
+
+**Results.**
+
+| Check | Result |
+|---|---|
+| `TZ=UTC ./gradlew :app:assembleDebug :app:assembleRelease :app:bundleRelease :speech:assembleDebugAndroidTest` (from `android/`) | BUILD SUCCESSFUL; neither APK has `libwhisper_jni.so`, and the AAB has no `stt_pack` |
+| `ANDROID_HOME=~/Library/Android/sdk ./tools/audit-native.sh` on the debug and release APKs | "native audit clean (9 libraries in 2 APKs)" |
+| `ANDROID_HOME=~/Library/Android/sdk ./tools/audit-permissions.sh` on both APKs and the merged manifests | "permission audit clean (5 artifacts)" |
+| `node tests/ios-audit.js` | "ios-audit: all checks passed" |
+| `TZ=UTC node tools/golden/index.mjs`, then `node tools/export-schema.mjs` | `fillplans.json` and `tools/schema.json` changed; a second run gave the same diff |
+| `for f in tests/*.js; do node "$f"; done` | 28 files, 0 failed (after the re-pin; before it, `vendor-integrity.js` failed on the schema pin) |
+| `node tools/smoke.mjs` | "Smoke test passed." |
+| `TZ=UTC ./gradlew :core:jvmTest` | BUILD SUCCESSFUL, 123 tests, 0 failures |
+| `SIMCTL_CHILD_GOLDEN_DIR=$PWD/core/build/ios-test-resources ./gradlew :core:iosSimulatorArm64Test` | BUILD SUCCESSFUL, 104 tests, 0 failures |
+
+Gradle and the two Android audits ran outside the command sandbox. Inside it, `mktemp` could
+not create a directory under the system temp folder.
+
+**Not done.** `check.mjs` was not run: it compares against `HEAD`, so it fails until the owner
+commits the new golden. `:speech:connectedDebugAndroidTest` and the iOS app's `xcodebuild test`
+were not re-run; the app would need `:ui:assembleSsaCoreDebugXCFramework` first, to pick up the
+port change. The Android permission audit did not cover the AAB, because the bundletool jar in
+the Gradle cache has no main class and no `BUNDLETOOL` was set.
+
 ## Remaining work to reach X8 (ordered)
 
 The mirror milestones (X1–X8) are the spine. X1a, X1b and X2 (3a, 3c,
@@ -3786,17 +3926,19 @@ The mirror milestones (X1–X8) are the spine. X1a, X1b and X2 (3a, 3c,
 
 **Still open from earlier runs (not blocking, but owed):**
 
-- Owner decisions: the `test.kexe _dlsym` allowlist entry (compiler-rt
-  caller), the `translate: true` question list, removing the whisper.cpp
-  probe and `stt_pack`, adding the new commands to AGENTS.md "Common
-  checks", and deleting the scratch files in `android/build/`.
+- Owner decisions: adding the new commands to AGENTS.md "Common checks", and
+  confirming that D12's `verbatim: 'identifier'` kind (the MaineCare and claim
+  numbers) is what the owner meant. Decided and done on 2026-11-28: the
+  `.app` allowlist, the `test.kexe _dlsym` entry (confirmed), the stale
+  `libstdlib-cache.a.o` entry (removed), the whisper.cpp probe and `stt_pack`
+  (removed), the `android/build/` scratch files (deleted) and D12 (built).
 - Verification owed: rebuild/audit release + staging manifests (X1a),
   real-phone timings on a low-end iPhone (an iPhone 15 ran the package tests on 2026-11-27,
   `ios/SPIKES.md` §8) and Whisper/MMS on any phone, the PDFKit preview,
   Acrobat/Chrome/Preview open, the device-`iosArm64` audit, CI, App Privacy
   Report, JVM peak memory. App-bundle resources now load in the iOS app
-  (2026-11-28). The `.app` audit ran and waits on the owner's allowlist
-  decision.
+  (2026-11-28). The `.app` audit passes on the simulator build (2026-11-28);
+  a device build of the app has not been audited.
 - Hardware: M0 (a 6–8 GB arm64 reference phone and a low-end phone).
 - Lingala content depends on volunteers for review, listening and recordings.
 
@@ -3822,6 +3964,9 @@ not moved, voice path and 3d open), X7 and X8 are open.
 | D9 | LLM parser | **Not on iOS, and never for Lingala input.** The deterministic-only build is the product. Android M6 is unaffected |
 | D10 | Distribution | **A local download.** On Android, an APK from GitHub Releases. On iOS, built from source with Xcode under a free Apple ID. The large Lingala models come as a separate, hash-pinned language pack file |
 | D11 | Minimum OS | **Android API 29, iOS 17** |
+| D12 | Which answers are translated | **Every free-text answer, except names, dates and addresses** (owner, 2026-11-28; first "every question", then refined the same day). There is no `translate` flag: a `text` question is translated unless it is marked `verbatim: 'name' \| 'place' \| 'identifier'`. Dates are never free text. Closed and typed answers are stored as values and written in English already. Built in `src/versions.js` and `FormVersions.kt` on 2026-11-28. See 4.7 and 4.8 |
+| D13 | iOS reinstall losing the saved session | **Acceptable** (owner, 2026-11-28). Saved sessions already expire after 7 days. Whether a reinstall loses it is still to be checked, so the README can say which |
+| D14 | Volunteers | **No outside organisations yet** (owner, 2026-11-28). One Lingala speaker, a friend of the owner's mother. One person can review the catalogue (X4), listen to Simba (X3) and rate translations, but not make a multi-speaker evaluation set (X5) or stand in for blind testers (X8). One speaker's review is enough to set `reviewedByNativeSpeaker: true` (owner, 2026-11-28) |
 
 Meta's MMS covers Lingala for ASR and language ID but not TTS. Simba-TTS-lin, from UBC-NLP, fills
 that gap. It is a 36.3M-parameter VITS model in the MMS-TTS architecture, 145 MB at fp32, with
@@ -4075,7 +4220,11 @@ now: it is the critical path.
 ### 4.1 The words
 
 - **Review by volunteers.** Ask Lingala speakers in the community the app will serve to review
-  the catalogue; Kinshasa and Brazzaville usage differ. Running
+  the catalogue; Kinshasa and Brazzaville usage differ. On 2026-11-28 there is one reviewer, a
+  friend of the owner's mother, and no organisation (D14). The owner decided on 2026-11-28 that
+  one speaker's review is enough: when it is imported, `reviewedByNativeSpeaker` becomes `true`
+  and the disclosure below stops. Until then it stays `false`. Record whose usage the review
+  reflects. Running
   `node tools/export-questions.mjs --lang ln` already makes the review sheet
   (`questions-translatable.ln.md`, plus the `.docx`).
 - **Import.** Add the way back: `tools/import-questions.mjs` reads the reviewed sheet into
@@ -4218,7 +4367,8 @@ form twice:
 | Agency fields, closed answers | English labels and values, `MM/DD/YYYY`, `$1,200` | The same |
 | Free-text answers given in Lingala | Written exactly as given | NLLB's English translation, marked `[MT]` |
 | Free-text answers given in English or French | Written as given | Written as given; French is not translated in v1 |
-| Names, addresses, medication and provider names, numbers | As given | As given; never translated |
+| Names, addresses, medication and provider names, numbers | As given | As given; never translated (`verbatim`, D12) |
+| Condition, diagnosis and test names, relationships, job titles | As given | Translated like any free-text answer (D12) and marked `[MT]` |
 | Addendum opens with | "Some answers were given in Lingala and are written as spoken. The applicant's preferred language is Lingala. Please provide an interpreter." | "Answers marked [MT] were translated from Lingala by software on the applicant's phone and have not been checked by a translator. The applicant's own words follow in the appendix." |
 | Appendix | — | Every translated answer in its original Lingala, next to its question |
 
@@ -4237,11 +4387,27 @@ form twice:
 
 ### 4.8 Translating on the device
 
-- **Which questions.** A new schema flag, `translate: true`, marks narrative text questions: how
-  a condition limits the person, a medication's reason, job duties, daily-living explanations,
-  and the like. Leave names, addresses, phone numbers, emails and identifiers unmarked.
-  `tests/schema-data.js` lints the flag. Choosing the list is a schema change, reviewed like any
-  other.
+- **Which questions: every free-text answer except names, dates and addresses** (D12, owner,
+  2026-11-28). The draft's `translate: true` flag on narrative questions only was dropped. A
+  `text` question is translated unless it carries `verbatim: <kind>` ([src/schema.js](src/schema.js),
+  `VERBATIM_KINDS`); `translates()` in `src/versions.js` and `FormVersions.kt` is the rule. Dates
+  are `date` and `monthyear` answers, never free text.
+  - **`verbatim: 'name'`** (20): the applicant's, a child's, a spouse's, a household member's, the
+    landlord's, the helper's, the guardian's, the emergency contact's and both references'
+    names, a provider's name, who ordered a test, who prescribed a medication, a medication's
+    name, an employer, a school and a training program.
+  - **`verbatim: 'place'`** (21): every street, mailing address, town, city, county and state;
+    a provider's address; the places of birth and marriage; where special education was given.
+  - **`verbatim: 'identifier'`** (2): the MaineCare number and the workers' compensation claim
+    number. They are text answers holding numbers; the owner's rule names only names, dates and
+    addresses, so this kind is Claude's reading of it, kept for the owner to confirm.
+  - **Translated** (46): the narrative answers the draft proposed, plus condition, diagnosis and
+    test names, relationships, job titles and business types, the income and resource kinds,
+    the source of a workers' compensation payment, the education level and the primary
+    language.
+  - `tests/schema-data.js` checks that no question has `translate`, that `verbatim` is only on
+    `text` answers with a known kind, and that every id shaped like a name, place or number is
+    `verbatim` except the condition, diagnosis and test names.
 - **When it runs.** In the background on reaching Review, and again for any answer changed later.
   Each translation is cached by the SHA-256 of its source text, stored in the encrypted session,
   and included in the JSON export.
@@ -4391,7 +4557,8 @@ The JavaScriptCore writer adds one rule. Only the template bytes and the plan go
   reinstalled from Xcode. A free account can install only a few apps this way at a time. In
   practice, iOS users need a helper with a Mac. Check whether saved sessions survive a reinstall
   over the same bundle ID; if they do not, the 7-day expiry already limits what is lost, and the
-  README says so.
+  README says so. The owner accepts that loss (D13, 2026-11-28); the check only decides what the
+  README says.
 - Building from source carries the web app's "no hosted copy" principle to iOS: no third party
   can change what the user runs. There is no published binary hash for iOS, because each user's
   build is their own.
@@ -4423,7 +4590,7 @@ Android milestones keep their numbers (M0–M8). Mirror milestones are X1–X8.
 |---|---|---|---|
 | X1a | `core` multiplatform, without Xcode | A JDK 21 on the host | The common-metadata compile passes, `:core:jvmTest` is green, the Android consumers compile, the JS tests are all green, and the iOS files have been reviewed by reading. **Status:** done 2026-11-21, run 2; Kotlin 2.0.21 has no common-test metadata task, so that half waits for X1b |
 | X1b | `core` on iOS | X1a, and Xcode with an iOS simulator runtime | The goldens and scenarios pass on the iOS simulator, and the XCFramework builds. The Swift `Crypto` decrypts the WebCrypto vector on the simulator. **Status:** done 2026-11-22. Run 4 ran it on Xcode 27.2 with Kotlin 2.0.21. Run 5 passed 71 tests on the simulator, built the XCFramework and ran the Swift `Crypto` tests against it |
-| X2 | Spikes | X1b, for the iOS parts; X1a for the Android parts | `ios/SPIKES.md` records: the PDF go-or-fallback decision with timings; the 3b table for every model on both platforms, including whether MMS fits low-end iPhones; an audit that fails on the canary; the 3d VoiceOver and TalkBack results, and which controls went native. **Status:** 3a ran on the iOS simulator in Run 6 (2026-11-22) and its provisional decision is fallback, with simulator timings only; 3c ran in Run 7 (2026-11-23): the audit fails on the canary and passes on the XCFramework, the package's products and the clean test bundles (simulator and host only; the `.app` audit first ran on 2026-11-28 and finds only dynamic-lookup imports from Compose, Skia and the Kotlin runtime, which wait for the owner's allowlist decision); 3b part 1 (Run 8, 2026-11-23 to 2026-11-25) is done on ORT 1.22.0: Whisper base.en runs through `:models` on the host JVM, `ssa35` and the iOS simulator with 9/9 token ids equal to the reference and 9/9 kept values on each, and ORT passes the Android and iOS audits (`ios/SPIKES.md` §3b.6; host, emulator and simulator only, no phone); 3b part 2 (Run 9, 2026-11-25 to 26) is done: MMS ASR (`lin`, `fra` and `eng`) and `mms-lid-126` language ID run through `:models` on the three runtimes. On fp32 they match the Python reference exactly on the host JVM and the simulator; the q8 copies run on `ssa35` and the simulator, are counted only, and peak at about 2.2 to 2.4 GB (`ios/SPIKES.md` §3b.7; no phone, no Lingala speech); the rest of 3b (NLLB, Simba, phones) and 3d are still open |
+| X2 | Spikes | X1b, for the iOS parts; X1a for the Android parts | `ios/SPIKES.md` records: the PDF go-or-fallback decision with timings; the 3b table for every model on both platforms, including whether MMS fits low-end iPhones; an audit that fails on the canary; the 3d VoiceOver and TalkBack results, and which controls went native. **Status:** 3a ran on the iOS simulator in Run 6 (2026-11-22) and its provisional decision is fallback, with simulator timings only; 3c ran in Run 7 (2026-11-23): the audit fails on the canary and passes on the XCFramework, the package's products and the clean test bundles (simulator and host only; the `.app` audit first ran on 2026-11-28 and found only dynamic-lookup imports from Compose, Skia and the Kotlin runtime; the same day they were traced and allowlisted by owner decision, and it passes); 3b part 1 (Run 8, 2026-11-23 to 2026-11-25) is done on ORT 1.22.0: Whisper base.en runs through `:models` on the host JVM, `ssa35` and the iOS simulator with 9/9 token ids equal to the reference and 9/9 kept values on each, and ORT passes the Android and iOS audits (`ios/SPIKES.md` §3b.6; host, emulator and simulator only, no phone); 3b part 2 (Run 9, 2026-11-25 to 26) is done: MMS ASR (`lin`, `fra` and `eng`) and `mms-lid-126` language ID run through `:models` on the three runtimes. On fp32 they match the Python reference exactly on the host JVM and the simulator; the q8 copies run on `ssa35` and the simulator, are counted only, and peak at about 2.2 to 2.4 GB (`ios/SPIKES.md` §3b.7; no phone, no Lingala speech); the rest of 3b (NLLB, Simba, phones) and 3d are still open |
 | X3 | Lingala voice | X2 (3b, for the on-phone part) | The normalizer and its golden are in place. Every fixed string is rendered with Simba into `audio-ln/`, and the audio-manifest test covers Lingala. Simba runs on both phones within budget. Volunteers have listened to a sample. The 4.5 fix has landed |
 | X4 | Lingala words | Nothing; start now | Volunteer review imported, with `reviewedByNativeSpeaker: true`. Until then, the disclosure in 4.1 ships |
 | X5 | Understanding spoken Lingala | X2 (3b) | Evaluation set recorded by volunteers. Scores per type, with language ID on and off. Input matrix narrowed |
@@ -4451,12 +4618,16 @@ The Android LLM (M6) is independent of all of this and changes nothing for Linga
 
 ## Open questions for the owner
 
-1. **Translated questions:** which questions get `translate: true`? The plan proposes narrative
-   answers only, never names, addresses or identifiers.
+All three were answered by the owner on 2026-11-28 (D12, D13 and D14 in Decisions).
+
+1. **Translated questions:** which questions get `translate: true`? The plan proposed narrative
+   answers only, never names, addresses or identifiers. **Answer: every question** (D12).
 2. **Reinstalls on iOS:** if a 7-day reinstall turns out to lose the saved session, is that
-   acceptable, given that saved sessions already expire after 7 days?
+   acceptable, given that saved sessions already expire after 7 days? **Answer: yes,
+   acceptable** (D13).
 3. **Volunteers:** is there a community organisation to ask for reviewers, listeners, test
-   speakers and blind testers?
+   speakers and blind testers? **Answer: no outside organisations yet.** One Lingala speaker,
+   a friend of the owner's mother, is available (D14).
 
 ## Out of scope
 

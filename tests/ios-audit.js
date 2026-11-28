@@ -8,7 +8,7 @@
 // skipped and exits 0.
 
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -73,9 +73,67 @@ check('the canary fails the audit with a finding (exit 1)', canary.status === 1,
 check('the canary finding names NetCanary.o and NSURLSession',
   /NetCanary\.o: imports \S*NSURLSession/.test(canary.stderr), verdict(canary));
 
+// The functions that reference _dlsym or _NSClassFromString in each linked image of the app, as
+// traced on 2026-11-28 (ios/tools/audit-binary.allowlist, "The iOS app"). An allowlist entry for a
+// linked image covers every caller of the symbol in it, so this pins the callers: a new one, ours
+// or a library's, fails here until it is traced and added to the allowlist and to this list.
+const SSAKIT = 'Frameworks/SsaKit_1BC8669A2A8895_PackageProduct.framework/SsaKit_1BC8669A2A8895_PackageProduct';
+const TRACED_CALLERS = {
+  SsaAssistant: [
+    '_OUTLINED_FUNCTION_34 _dlsym',
+    '_getDebugDylibEntryPoint _dlsym',
+  ],
+  'SsaAssistant.debug.dylib': [
+    '__initializeAvailabilityCheck _dlsym',
+  ],
+  [SSAKIT]: [
+    '-[CMPLayoutRegion edgeInsetsForLayoutRegionInView:] _NSClassFromString',
+    '__Z30SkCTFontGetNSFontWeightMappingv_skiko _dlsym',
+    '__ZN12_GLOBAL__N_130TryInitializeCoreSymbolicationEv _dlsym',
+    '__ZN5skiko13SkFontMgr_MacC2EPK18__CTFontCollection _dlsym',
+    '__ZNK11onnxruntime12_GLOBAL__N_18PosixEnv20GetSymbolFromLibraryEPvRKNSt3__112basic_stringIcNS3_11char_traitsIcEENS3_9allocatorIcEEEEPS2_ _dlsym',
+    '__ZNK14SkTypeface_Mac30onGetVariationDesignParametersE6SkSpanIN16SkFontParameters9Variation4AxisEE.cold.1 _dlsym',
+    '__ZZN14GrGLInterfaces7MakeIOSEvEN3$_08__invokeEPvPKc _dlsym',
+    '__initializeAvailabilityCheck _dlsym',
+  ],
+};
+// `otool -tvV` prints a function's name on its own line, ending in a colon, and annotates
+// every reference to an imported symbol (call, tail call or address) with the symbol's name
+// as the line's last field.
+const callers = file => {
+  const r = spawnSync('bash', ['-c',
+    'set -o pipefail; xcrun otool -tvV "$1" | awk \'/^[^ \\t].*:$/ { fn = substr($0, 1, length($0) - 1); next }'
+    + ' $NF == "_dlsym" || $NF == "_NSClassFromString" { print fn " " $NF }\' | LC_ALL=C sort -u', '_', file],
+  { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  return { status: r.status, list: r.stdout.split('\n').filter(Boolean), stderr: r.stderr };
+};
+
 if (existsSync(APP)) {
-  const app = audit([APP]);
-  check('the app bundle passes the audit', app.status === 0, verdict(app));
+  // An installed app has no PlugIns/: Xcode embeds the test bundle there only for
+  // `xcodebuild test`. So the app is audited entry by entry without it, and the labels are
+  // paths inside the .app.
+  const entries = readdirSync(APP).filter(e => e !== 'PlugIns').map(e => join(APP, e));
+  const app = audit(entries);
+  check('the app bundle (without PlugIns/) passes the audit', app.status === 0, verdict(app));
+
+  for (const [label, expected] of Object.entries(TRACED_CALLERS)) {
+    const got = callers(join(APP, label));
+    check(`otool ran on ${label}`, got.status === 0, got.stderr);
+    const want = [...expected].sort();
+    check(`the dynamic-lookup callers in ${label} are the traced ones`,
+      JSON.stringify(got.list) === JSON.stringify(want),
+      `expected ${JSON.stringify(want)}\n     got      ${JSON.stringify(got.list)}`);
+  }
+
+  // The app's NetworkTrapTests calls URLSession on purpose, so its bundle must fail the audit,
+  // like the canary: if it passed, the audit would no longer see URLSession.
+  const plugin = join(APP, 'PlugIns', 'SsaAssistantTests.xctest');
+  if (existsSync(plugin)) {
+    const trap = audit([plugin]);
+    check('the app test bundle fails the audit with a finding (exit 1)', trap.status === 1, verdict(trap));
+    check('the app test bundle finding names SsaAssistantTests and NSURLSession',
+      /SsaAssistantTests\.xctest\/SsaAssistantTests: imports \S*NSURLSession/.test(trap.stderr), verdict(trap));
+  }
 } else {
   console.log(`ios-audit: the app bundle is not built (${relative(ROOT, APP)}); skipping its audit`);
 }
