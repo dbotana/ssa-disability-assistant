@@ -107,5 +107,34 @@ for (const [code, language] of Object.entries(LANGUAGES)) {
   }
 }
 
+// The app's own pin file: the three generated files the iOS bundle copies
+// (schema.json and the two goldens) are checked against it at first use, so a
+// regenerated schema or golden that nobody re-pinned would ship a file the app
+// refuses at launch. Catching it here names the fix instead.
+{
+  const pinsPath = join(ROOT, 'ios', 'App', 'SsaResources.SHA256SUMS');
+  const text = await readFile(pinsPath, 'utf8').catch(() => null);
+  check('ios/App/SsaResources.SHA256SUMS exists', text !== null);
+  if (text !== null) {
+    const entries = [...text.matchAll(/^([0-9a-f]{64})\s+(\S+)$/gm)];
+    check('SsaResources.SHA256SUMS lists files', entries.length > 0);
+    const sources = {
+      'schema.json': join(ROOT, 'tools', 'schema.json'),
+      'golden/metrics.json': join(ROOT, 'android', 'core', 'src', 'commonMain', 'resources', 'golden', 'metrics.json'),
+      'golden/templateManifest.json': join(ROOT, 'android', 'core', 'src', 'commonMain', 'resources', 'golden', 'templateManifest.json')
+    };
+    for (const [, want, name] of entries) {
+      const source = sources[name];
+      check(`SsaResources.SHA256SUMS names a known file (${name})`, source !== undefined);
+      if (source === undefined) continue;
+      const got = await sha256(source).catch(() => null);
+      check(`the iOS bundle's ${name} matches its pin`, got === want,
+        got ? `got ${got}; re-pin with sha256sum (see ios/App/README.md)` : 'file is missing');
+    }
+    check('SsaResources.SHA256SUMS pins all three files',
+      Object.keys(sources).every(name => entries.some(e => e[2] === name)));
+  }
+}
+
 console.log(failures === 0 ? 'vendor-integrity: all checks passed' : `vendor-integrity: ${failures} failure(s)`);
 process.exit(failures === 0 ? 0 : 1);

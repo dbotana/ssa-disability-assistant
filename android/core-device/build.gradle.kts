@@ -34,9 +34,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
-    }
     packaging {
         resources {
             excludes += listOf("META-INF/LICENSE*", "META-INF/NOTICE*")
@@ -85,4 +82,13 @@ dependencies {
     androidTestImplementation(kotlin("test-junit"))
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.test.runner)
+}
+
+// Kotlin 2.2 and later reject `android { kotlinOptions { ... } }`, so the JVM
+// target lives in the Kotlin extension. This is the minimum change the Kotlin
+// 2.4.21 upgrade needs (plan, B1).
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
 }

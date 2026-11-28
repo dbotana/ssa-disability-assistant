@@ -7,6 +7,7 @@ plugins {
     alias(libs.plugins.kotlin.jvm) apply false
     alias(libs.plugins.kotlin.multiplatform) apply false
     alias(libs.plugins.kotlin.compose) apply false
+    alias(libs.plugins.compose.multiplatform) apply false
 }
 
 // ONNX Runtime 1.22.0 (spike 3b). The Android AAR and the desktop jar come from Maven Central

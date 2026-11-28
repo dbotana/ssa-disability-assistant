@@ -79,7 +79,7 @@ work only when the command matches an allowed pattern. So:
   around it with another tool.
 - Don't change Kotlin, Gradle, AGP or library versions unless the task says to. If an upgrade is
   needed, upgrade only that and what depends on it.
-- Don't create an iOS app target or `.xcodeproj` until the plan reaches X6.
+- Don't create an iOS app target or .xcodeproj until the plan reaches X6. The owner opened X6's app work on 2026-11-27: plans/ios-mvp.md may create the app under ios/App/, and nowhere else.
 
 Common checks:
 

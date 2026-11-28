@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Scheme LastUpgradeVersion = "2700" version = "1.7">
+   <BuildAction parallelizeBuildables = "YES" buildImplicitDependencies = "YES">
+      <BuildActionEntries>
+         <BuildActionEntry buildForTesting = "YES" buildForRunning = "YES" buildForProfiling = "NO" buildForArchiving = "NO" buildForAnalyzing = "NO">
+            <BuildableReference BuildableIdentifier = "primary" BlueprintIdentifier = "29C7B681C8D62CBAC94D51C0" BuildableName = "SsaAssistant.app" BlueprintName = "SsaAssistant" ReferencedContainer = "container:SsaAssistant.xcodeproj"></BuildableReference>
+         </BuildActionEntry>
+      </BuildActionEntries>
+   </BuildAction>
+   <TestAction buildConfiguration = "Debug" selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB" shouldUseLaunchSchemeArgsEnv = "YES">
+      <Testables>
+         <TestableReference skipped = "NO">
+            <BuildableReference BuildableIdentifier = "primary" BlueprintIdentifier = "7EC8F98B7A265120217712DE" BuildableName = "SsaAssistantTests.xctest" BlueprintName = "SsaAssistantTests" ReferencedContainer = "container:SsaAssistant.xcodeproj"></BuildableReference>
+         </TestableReference>
+         <TestableReference skipped = "NO">
+            <BuildableReference BuildableIdentifier = "primary" BlueprintIdentifier = "CEFEF1F5CE13C5A04BC4C468" BuildableName = "SsaAssistantUITests.xctest" BlueprintName = "SsaAssistantUITests" ReferencedContainer = "container:SsaAssistant.xcodeproj"></BuildableReference>
+         </TestableReference>
+      </Testables>
+   </TestAction>
+   <LaunchAction buildConfiguration = "Debug" launchStyle = "0" useCustomWorkingDirectory = "NO" debugDocumentVersioning = "YES">
+      <BuildableProductRunnable runnableDebuggingMode = "0">
+         <BuildableReference BuildableIdentifier = "primary" BlueprintIdentifier = "29C7B681C8D62CBAC94D51C0" BuildableName = "SsaAssistant.app" BlueprintName = "SsaAssistant" ReferencedContainer = "container:SsaAssistant.xcodeproj"></BuildableReference>
+      </BuildableProductRunnable>
+   </LaunchAction>
+</Scheme>

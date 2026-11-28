@@ -17,6 +17,10 @@ const AUDIT = join(ROOT, 'ios', 'tools', 'audit-binary.sh');
 const XCFRAMEWORK = join(ROOT, 'ios', 'CoreCrypto', 'debug', 'SsaCore.xcframework');
 const PRODUCTS = join(ROOT, 'ios', 'CoreCrypto', '.build', 'xcode', 'Build', 'Products', 'Debug-iphonesimulator');
 const product = name => join(PRODUCTS, name);
+// The iOS app's bundle and its built frameworks (spike 3c's D1 half, which
+// waits for the app). Absent until the owner builds ios/App/.
+const APP_PRODUCTS = join(ROOT, 'ios', 'App', 'build', 'Build', 'Products', 'Debug-iphonesimulator');
+const appProduct = name => join(APP_PRODUCTS, name);
 
 const skip = reason => {
   console.log(`ios-audit: skipped (${reason})`);
@@ -26,12 +30,16 @@ const skip = reason => {
 if (process.platform !== 'darwin') skip(`not macOS: ${process.platform}`);
 if (spawnSync('xcrun', ['--find', 'nm'], { encoding: 'utf8' }).status !== 0) skip('xcrun nm not available');
 
-const BUILD_XCFRAMEWORK = 'from android/: ./gradlew :core:assembleSsaCoreDebugXCFramework';
+const BUILD_XCFRAMEWORK = 'from android/: ./gradlew :ui:assembleSsaCoreDebugXCFramework';
 const BUILD_PRODUCTS = 'from ios/CoreCrypto/: xcodebuild build-for-testing -scheme CoreCrypto-Package'
   + " -destination 'platform=iOS Simulator,name=iPhone 18 Pro'"
   + ` -derivedDataPath ${join(ROOT, 'ios', 'CoreCrypto', '.build', 'xcode')}`;
 const CLEAN = [XCFRAMEWORK, ...['CoreCrypto.o', 'SsaPdf.o', 'CoreCryptoTests.xctest', 'SsaPdfTests.xctest'].map(product)];
 const CANARY = product('NetCanary.o');
+// The app is audited too when it has been built: the .app itself and every
+// framework inside it. It is optional so this test still passes on a host
+// that has not built the app.
+const APP = appProduct('SsaAssistant.app');
 
 for (const path of [...CLEAN, CANARY]) {
   if (!existsSync(path)) {
@@ -64,6 +72,13 @@ const canary = audit([CANARY]);
 check('the canary fails the audit with a finding (exit 1)', canary.status === 1, verdict(canary));
 check('the canary finding names NetCanary.o and NSURLSession',
   /NetCanary\.o: imports \S*NSURLSession/.test(canary.stderr), verdict(canary));
+
+if (existsSync(APP)) {
+  const app = audit([APP]);
+  check('the app bundle passes the audit', app.status === 0, verdict(app));
+} else {
+  console.log(`ios-audit: the app bundle is not built (${relative(ROOT, APP)}); skipping its audit`);
+}
 
 if (failures) {
   console.error(`ios-audit: ${failures} check(s) failed`);

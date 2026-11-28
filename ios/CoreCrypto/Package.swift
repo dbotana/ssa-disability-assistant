@@ -9,9 +9,11 @@ import PackageDescription
 // and the generated vendor/ssa-pdf-writer.js — in a JavaScriptCore JSContext,
 // and re-reads the result with a CGPDF PdfReadPort over the core PdfSelfCheck.
 //
-// The binary target is the :core framework, built by Gradle from android/:
+// The binary target is the single Kotlin framework the iOS app links, built by
+// Gradle from android/ by `:ui`, which exports `:core` and `:models` so the
+// app carries one Kotlin runtime (plan, Phase B3):
 //
-//   ./gradlew :core:assembleSsaCoreDebugXCFramework
+//   ./gradlew :ui:assembleSsaCoreDebugXCFramework
 //
 // and written to debug/SsaCore.xcframework beside this file, because SwiftPM
 // does not accept a local binary target outside the package. Then, from this

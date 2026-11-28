@@ -22,7 +22,7 @@ The web app stays the reference implementation. The Android plan,
 stays in force except where this plan replaces it: the UI, speech recognition, and distribution.
 Open Android items stay in [TODO.md](TODO.md) and [android-to-do.md](android-to-do.md).
 
-## Where things stand (2026-11-26, after Run 9)
+## Where things stand (2026-11-28, after the iOS MVP run)
 
 - **Web:** complete. English, French and Lingala are data, each chosen separately for input,
   output, screen and fill. The Lingala text is machine-authored and records
@@ -65,6 +65,18 @@ Open Android items stay in [TODO.md](TODO.md) and [android-to-do.md](android-to-
     26.6.2), through a throwaway host app outside the repository. The PDF spike's per-form totals
     are 0.83 to 1.18 s, with no cold-start cost on that launch (`ios/SPIKES.md` §8). The Kotlin
     `test.kexe` suites have not run on a phone.
+- **iOS MVP (2026-11-28, `plans/ios-mvp.md`, phases A to D):** written, not yet compiled.
+  - `core` has `AppPorts`/`PlatformServices`, `WriterJson`, `SessionGate`, `ExportJob` and
+    `CaptureBuffer`, with `commonTest` tests; the turn goldens now run through `AppPorts`.
+  - `android/ui` is the shared Compose Multiplatform UI (Kotlin 2.4.21, Compose Multiplatform
+    1.12.2): Setup, Interview, Review and Export in `commonMain`, and the iOS `ShellApp` bridge in
+    `iosMain`. It builds the single `SsaCore` XCFramework that exports `:core` and `:models`
+    (`:ui:assembleSsaCoreDebugXCFramework` → `ios/CoreCrypto/debug/`).
+  - `ios/App/` holds the Swift shell and adapters, the generated `SsaAssistant.xcodeproj`
+    (`ios/tools/gen-xcodeproj.py`, `--check` clean) and the tests. No file in it has been compiled
+    or run yet; the run's Progress entry lists every owner check as **not run (sandbox)**.
+  - The `.app` audit (D1), the Gradle tasks, both `xcodebuild test` commands and the phone run
+    are all still the owner's.
 - **Next:** Run 10, NLLB, then Run 11, Simba. The owner answered Run 9's MMS questions on
   2026-11-27 ("Run 9 decisions" in Progress):
   - a phone runs q8;
@@ -3270,6 +3282,253 @@ record the host results anyway; they still stand.
 
 **After Run 9:** Run 10 is NLLB, and Run 11 is Simba, as before.
 
+### iOS MVP (run of 2026-11-28): the shared UI, the app target, phases A to D
+
+The owner's `plans/ios-mvp.md` (written 2026-11-27) is the plan for this run:
+the shared Compose Multiplatform UI, English, voice, on an iPhone, with
+nothing leaving the phone. AGENTS.md's "no app target until X6" line now
+carries the owner's 2026-11-27 go-ahead for X6's app work under `ios/App/`, so
+this run created the app there and nowhere else.
+
+**What was built.** Phase A (`core`): `AppPorts` + `PlatformServices` (A1),
+`WriterJson` (A2), `SessionGate` (A3), `ExportJob` (A4) and `CaptureBuffer` /
+`BufferedStt` (A5), each with `commonTest` tests; `TurnHarness` now builds its
+ports through `AppPorts`, so the turn and appstate goldens exercise the
+production wiring. Phase B: Kotlin 2.4.21 and Compose Multiplatform 1.12.2;
+the `:ui` module (`android/ui`) with the four screens in `commonMain`, the iOS
+`ShellApp`/`IosServices` bridge in `iosMain`, and one `SsaCore` XCFramework
+built by `:ui` (exporting `:core` and `:models`). Phase C: `ios/tools/gen-xcodeproj.py`
+and the project it writes, the Swift shell (`ios/App/SsaAssistant/`) with the
+seven adapters, `ios/App/README.md` for the bundle layout and re-pinning, and
+the unit and UI tests. Phase D: records only; D1's audit cannot run here.
+
+**Versions (B1).** Recorded from these sources, read on 2026-11-28:
+- <https://www.jetbrains.com/help/kotlin-multiplatform-dev/multiplatform-compatibility-guide.html>
+  says "The current Stable version of Kotlin is 2.4.21", and its table row
+  "2.4.20–2.4.21 | 7.6.3–9.7.0 | 8.5.2–9.3.1 | 26.4" (Kotlin Multiplatform
+  plugin | Gradle | Android Gradle plugin | Xcode). The project's Gradle 8.13
+  and AGP 8.13.2 are inside those ranges.
+- <https://www.jetbrains.com/help/kotlin-multiplatform-dev/compose-compatibility-and-versioning.html>
+  says "Compose Multiplatform 1.12.2 supports the following platforms: …
+  iOS iOS 14" and "The latest Compose Multiplatform is always compatible with
+  the latest version of Kotlin". So the pair is Kotlin 2.4.21 + Compose
+  Multiplatform 1.12.2, and `iosArm64`/`iosSimulatorArm64` are supported.
+- <https://github.com/JetBrains/compose-multiplatform/releases/tag/v1.12.2>
+  lists "`org.jetbrains.compose` version `1.12.2`" and notes that its Material3
+  is `1.12.0-alpha03`. `:ui` therefore uses `compose.material` (Material 2,
+  stable at 1.12.2), not an alpha.
+
+Android's Compose BOM in `:app` is unchanged (2024.10.01). The Kotlin upgrade
+is **not** free, though: Kotlin 2.2 and later reject `android { kotlinOptions
+{ jvmTarget } }`, which `app`, `pdf`, `llm`, `core-device` and `speech` all
+used, so in revision 1 each of those five build files replaced it with a
+top-level `kotlin { compilerOptions { jvmTarget.set(JvmTarget.JVM_17) } }` —
+the minimum change B1 allows. Note for the owner: Kotlin 2.4.21 lists Xcode
+26.4 as its fully supported Xcode, and the Mac in `ios/SPIKES.md` §8 is on
+Xcode 27.2, so warnings or a Kotlin/Native incompatibility are possible there.
+
+**Commands that ran here, and their output.**
+- `for f in tests/*.js; do node "$f"; done` — all passed. `tests/ios-audit.js`
+  printed "ios-audit: skipped (not macOS: linux)".
+- `node tools/smoke.mjs` — "Smoke test passed."
+- `node tools/golden/check.mjs` — see the revision-1 entry below: it fails on
+  the one *new* golden (`summary.json`, untracked) and passes once the owner
+  commits that file. Every tracked golden and `tools/schema.json` is unchanged,
+  and regenerating twice produces identical bytes.
+- `python3 ios/tools/gen-xcodeproj.py --check` — "xcodeproj up to date",
+  exit 0.
+
+**not run (sandbox)**, because this machine is Linux with no JDK, Gradle cache,
+Android SDK or Xcode. The owner runs these in order:
+- `TZ=UTC ./gradlew :core:jvmTest`
+- `TZ=UTC ./gradlew :models:jvmTest`
+- `TZ=UTC ./gradlew :ui:compileKotlinIosSimulatorArm64 :ui:compileDebugKotlinAndroid`
+- `TZ=UTC ./gradlew :app:assembleDebug`, then `tools/audit-permissions.sh`
+- `SIMCTL_CHILD_GOLDEN_DIR=$PWD/core/build/ios-test-resources ./gradlew :core:iosSimulatorArm64Test`
+- `./gradlew :ui:assembleSsaCoreDebugXCFramework`
+- `xcodebuild test -scheme CoreCrypto-Package -destination 'platform=iOS Simulator,name=iPhone 18 Pro'` (from `ios/CoreCrypto/`)
+- `xcodebuild test -project SsaAssistant.xcodeproj -scheme SsaAssistant -destination 'platform=iOS Simulator,name=iPhone 18 Pro'` (from `ios/App/`)
+- `ios/tools/audit-binary.sh <the .app>` (D1)
+- the phone run: build, install, one full "both forms" interview by voice, tap
+  and typing in airplane mode, then App Privacy Report.
+
+**Known gaps and unverified behaviour**, all recorded rather than assumed:
+- **No Kotlin or Swift line here was compiled.** The `:ui` Compose code, the
+  `:models`/`:core` wiring in `iosMain` and every Swift file are unbuilt. The
+  first owner run of the commands above is the first compile.
+- **D1 (the `.app` audit) did not run.** If Compose or Skiko brings a
+  networking import, the audit will name it; that is a stop condition and
+  wants the owner's decision, not an allowlist entry added here.
+- **Compose text-field options.** `KeyboardOptions(autoCorrectEnabled = false)`
+  and `PasswordVisualTransformation` are the Compose-level settings; whether
+  each reaches the `UITextField` is exactly what spike 3d has to check on a
+  phone.
+- **Control labels.** The catalogue has messages but no button-label entries
+  ("Start", "Talk", "Export"), so the screens pass English source strings
+  through `I18n.translate`, which is the catalogue's own mechanism (English is
+  the key; a missing translation falls back to English, as on the web). A
+  proper label table is a wording pass, not a behaviour change.
+- **`SessionGate` off the main thread.** `SessionStore` derives the key
+  synchronously (PBKDF2, 600,000 rounds), so `IosBridge.openSession` calls the
+  gate on `Dispatchers.Default` and posts `onProgress`/`done` back to main;
+  every other `core` call stays on the main thread.
+- **The Swift package's simulator command** is unchanged
+  (`xcodebuild test -scheme CoreCrypto-Package …`), but it now links the
+  `:ui`-built framework: rebuild with `:ui:assembleSsaCoreDebugXCFramework`
+  first. `ios/CoreCrypto/Package.swift`'s comment was updated to say so.
+- **The app's unit tests** cover the session round trip, `ExportJob` on both
+  forms with the real writer and reader, and the `URLProtocol` trap. The
+  scripted interview through `AppController` is
+  `core/src/commonTest/.../app/ScriptedInterviewTest.kt` (revision 1): it runs
+  on the JVM with `:core:jvmTest` and on the iOS simulator with
+  `:core:iosSimulatorArm64Test`, and its speech-to-text side is the production
+  `CaptureBuffer` + `BufferedStt` wiring, not a fake. It is not in
+  `ios/App/SsaAssistantTests` because a Swift copy would have to implement
+  `Transcriber`, whose one function is `suspend`, which the plan's
+  "Swift implements only callback interfaces" rule forbids.
+- **`@UIApplicationDelegateAdaptor` and `shouldAllowExtensionPointIdentifier`**
+  are the standard route for refusing third-party keyboards; a SwiftUI-only
+  app has no delegate otherwise.
+
+**X6 status.** The eight `core` items and the shared UI's first cut exist; the
+app target exists. X6 is not done: nothing above has been compiled or run, the
+Android app has not moved to `:ui`, and 3d's VoiceOver results are still
+needed.
+
+### iOS MVP, revision 1 (2026-11-28): the review's fourteen items
+
+The review is `agent-loop-runs/2026-11-28-0006-ios-mvp/07-review-1.md`. Each
+numbered item and what changed:
+
+1. **Setup first, no snapshot before `start()`.** `AppController.isStarted()`
+   (with `TurnController.isStarted()`) is the gate. `UiRoot` reads it and only
+   calls `controller.state()` once it is true, so the first draw cannot reach
+   `engine!!`; `SetupScreen` now takes the screen language instead of a
+   `UiState`. `ScriptedInterviewTest` asserts `isStarted()` is false before
+   `start()` and true after.
+2. **The resource folder is set before the schema loads.** `ShellApp`'s
+   `init { IosResources.roots = … }` now runs before the `bridge` property.
+3. **The staging script no longer copies a file into a folder that does not
+   exist yet**; `rsync` brings `models/whisper-base.en/SHA256SUMS` with the
+   folder. Project regenerated, `--check` clean.
+4. **No JVM-only API in `commonTest`.** `ExportJobTest`'s fake page content is
+   built as bytes, not through a charset.
+5. **The five `kotlinOptions` blocks are gone** (see the versions paragraph
+   above); the Progress entry's claim that `:app` saw no other change was
+   wrong and is corrected.
+6. **Voice-path failures stay inside the turn loop.** `BufferedStt` turns an
+   empty capture into `SttError("empty")` and a too-long capture, a transcriber
+   failure or a model-load failure into `SttError("unknown")`, with no answer
+   text in the message. `CaptureBufferTest` and `ScriptedInterviewTest` pin it.
+7. **The blob size is bytes, not milliseconds** (`buffer.size * 4`, float32;
+   `src/turn.js:429` is the reference). The duration gate remains
+   `lastCaptureDurationMs() >= MIN_CAPTURE_MS`.
+8. **The Swift tests compile as written now**: the three module imports, the
+   package tests' `JsonKt.asObject(…get(key:))` pattern, `Int(file.bytes.size)`,
+   and no `XCTAssertThrowsError` around `unlock` (which has no `@Throws`; the
+   wrong-PIN branch stays covered by `SessionGateTest`). Adding `@Throws` would
+   have broken the existing `CoreCryptoTests` calls, which do not `try`.
+9. **The UI test answers the real questions**: tap the form option, three typed
+   answers, then type `finish` (a command, per `src/commands.js`) and Send to
+   open Review. The unused `SSA_UI_TEST` is gone.
+10. **Foundation category imports added** (`timeIntervalSince1970`,
+    `dataWithContentsOfFile`, `NSDate`, `NSTimeZone`,
+    `dateWithTimeIntervalSince1970`, `localTimeZone`), and the calls are
+    unqualified.
+11. **The summary is ported.** `buildReport`, `present` and `shortLabel` were
+    already in `core`'s `forms` package (the worksheet and addendum use them);
+    `org.ssa.assistant.core.app.Summary` is now the one place the app reaches
+    them, and it adds `maskDigits`, `summaryText`, `labels` and `isSensitive`.
+    A new `summary` golden (`tools/golden/index.mjs`) pins the report, the
+    read-back and the masking against `src/summary.js`; `SummaryGoldenTest`
+    compares them. `ReviewScreen` draws sections, fields and loop rows with the
+    last-four-digit mask unless `revealSensitive`; `onReadBack` speaks
+    `Summary.summaryText` **unmasked**, as the web does. `spokenSummary`,
+    `sensitiveIds`, `answerRows` and `renderValue` are deleted.
+12. **C5's scripted interview exists** as `ScriptedInterviewTest` (see above).
+13. **The smaller fixes:** the package products are linked into the app target
+    only (the test target keeps them as `packageProductDependencies` for its
+    `import`s but links nothing, so one Kotlin runtime); `Pdf.swift`'s
+    duplicate `KotlinByteArray` extension is gone in favour of `SsaPdf`'s;
+    `Speech.swift` answers a superseded `completion` before replacing it;
+    `Audio.swift` appends samples on one serial queue and drains it in
+    `stop()`; the talk button's state text comes from the catalogue
+    (`listening`) and is omitted when there is nothing to say; `onUp()` now
+    runs after a cancelled gesture too; and `tests/vendor-integrity.js` checks
+    `ios/App/SsaResources.SHA256SUMS` against the three files it pins.
+14. **Records and re-runs.** Below.
+
+**Revision-1 command results.**
+- `for f in tests/*.js; do node "$f"; done` — all 27 passed; `ios-audit:
+  skipped (not macOS: linux)`.
+- `node tools/smoke.mjs` — "Smoke test passed."
+- `node tools/golden/index.mjs` — wrote `summary.json` (257,891 bytes); two
+  runs produced identical bytes (sha256 `6b7b52df…03b577`), and no tracked
+  golden, `tools/schema.json` or core main resource changed.
+- `node tools/golden/check.mjs` — **fails**, and only because `summary.json` is
+  a new, untracked file: "goldens are stale: … not committed:
+  ?? …/summary.json". The loop does not commit, so the owner's commit is the
+  fix; nothing is stale.
+- `python3 ios/tools/gen-xcodeproj.py --check` — "xcodeproj up to date".
+- `node tests/vendor-integrity.js` — "vendor-integrity: all checks passed",
+  including the new `SsaResources.SHA256SUMS` checks.
+- **Still not run (sandbox):** every Gradle task, both `xcodebuild test` runs,
+  the `.app` audit and the phone run. The first Gradle run now also checks the
+  `summary` port: if `SummaryGoldenTest` disagrees with the JS golden, the
+  difference is in `core`'s `forms` port, not in the golden.
+
+### iOS MVP, revision 2 (2026-11-28): the review's four items
+
+The review is `agent-loop-runs/2026-11-28-0006-ios-mvp/12-review-2.md`.
+
+1. **The two gestures are guarded before a session starts.** `IosBridge`'s
+   `toggleTalk()` and `escape()` return at once when `!controller.isStarted()`,
+   before launching anything, so neither can reach `snapshot()`'s `engine!!`.
+   `ShellApp.isStarted()` is exposed, `Shell.magicTap()`/`escape()` return
+   false on Setup, and `GestureHost` returns that to VoiceOver, which then
+   plays its own default action. `ScriptedInterviewTest` has a new
+   `thereIsNoSessionForTheGesturesBeforeStart`, and the existing
+   `oneTypedAndOneSpokenAnswerReachTheEngine` still asserts the same false→true
+   transition.
+2. **Each completion is tied to its utterance.** `SpeechAdapter` keeps a
+   `generation` and a `current: AVSpeechUtterance?`; the VoiceOver observer,
+   the 2-second grace timer and both delegate callbacks all act only for the
+   generation/utterance that scheduled them, and `finish(ifGeneration:)` is a
+   no-op once a later `speak` has taken over. It also waits only when an
+   announcement this app posted is still in flight: `AppServices.announce`
+   calls `beginAnnouncement()`, and `announcementDidFinishNotification` clears
+   it, so an utterance with nothing pending finishes at once instead of
+   waiting two seconds. **Owner check:** the phone run with VoiceOver on.
+3. **The interruption is described honestly.** `Audio.swift`'s header and
+   `stop()` comment, `IosAudioCapture`'s KDoc and the scripted test (renamed
+   `anInterruptedCaptureIsCurrentlyReaskedAsNothingHeard`) now say that an
+   interrupted capture's empty blob makes `sendAudio` speak
+   `REASK.nothingHeard`, i.e. **C3's "an interruption is not 'nothing heard'"
+   is not met**. Meeting it is a JS-first change (`src/turn.js` needs an
+   interrupted-capture path and its own message, then the scenarios, the
+   goldens and the port); a `TODO.md` item records it. `core`'s behaviour is
+   unchanged in this run.
+4. **The three small ones.** `Body` now merges the caller's `TextStyle` over
+   the default, so `headingStyle()`'s 20 sp applies. Review's section titles
+   carry `Modifier.semantics { heading() }`, so VoiceOver's heading rotor can
+   move section to section. When `AppServices()` throws, the app shows a
+   VoiceOver-visible English message instead of a black screen (plain English,
+   because the catalogue rule is for the shared Kotlin UI, which never gets
+   that far; recorded here).
+
+**Revision-2 command results** (each run on its own from the repository root):
+- the 27 `tests/*.js` files — all passed; `tests/ios-audit.js` printed
+  "ios-audit: skipped (not macOS: linux)"
+- `node tools/smoke.mjs` — "Smoke test passed."
+- `node tools/golden/check.mjs` — still exit 1, only "not committed:
+  ?? …/golden/summary.json"; no tracked golden, `tools/schema.json` or core
+  resource changed. The owner's commit clears it.
+- `python3 ios/tools/gen-xcodeproj.py --check` — "xcodeproj up to date"
+- `node tests/turn-scenarios.js` — "turn scenarios: all passed" (step 3's
+  check; `core` is unchanged, so the scenarios are unaffected)
+- **Still not run (sandbox):** every Gradle task, both `xcodebuild test` runs,
+  the `.app` audit and the phone run, including step 2's VoiceOver check.
+
 ## Remaining work to reach X8 (ordered)
 
 The mirror milestones (X1–X8) are the spine. X1a, X1b and X2 (3a, 3c,
@@ -3945,7 +4204,7 @@ Android milestones keep their numbers (M0–M8). Mirror milestones are X1–X8.
 | X3 | Lingala voice | X2 (3b, for the on-phone part) | The normalizer and its golden are in place. Every fixed string is rendered with Simba into `audio-ln/`, and the audio-manifest test covers Lingala. Simba runs on both phones within budget. Volunteers have listened to a sample. The 4.5 fix has landed |
 | X4 | Lingala words | Nothing; start now | Volunteer review imported, with `reviewedByNativeSpeaker: true`. Until then, the disclosure in 4.1 ships |
 | X5 | Understanding spoken Lingala | X2 (3b) | Evaluation set recorded by volunteers. Scores per type, with language ID on and off. Input matrix narrowed |
-| X6 | Shared app layer and UI | X1a for the `core` items; X1b and X2 (3d) for the iOS UI | Step 2's eight items in `core`, with the JS reference updated first and goldens fresh. The shared UI runs on both platforms. The Lingala scenarios pass on both. **Status:** the eight `core` items are done (Run 3: 2, 3, 4, 5, 8; Run 5: 1, 6, 7). The UI has not started |
+| X6 | Shared app layer and UI | X1a for the `core` items; X1b and X2 (3d) for the iOS UI | Step 2's eight items in `core`, with the JS reference updated first and goldens fresh. The shared UI runs on both platforms. The Lingala scenarios pass on both. **Status:** the eight `core` items are done (Run 3: 2, 3, 4, 5, 8; Run 5: 1, 6, 7). The shared UI and the iOS app exist since the iOS MVP run (2026-11-28): `android/ui` with the four screens, the one `SsaCore` framework, `ios/App/` with its generated project and adapters, and `core`'s A1–A5 additions. None of it has been compiled or run yet; the Android app has not moved to `:ui`, and 3d's VoiceOver results are still needed |
 | X7 | Both apps, deterministic only | X2, X6, Android M4 | On both platforms, in English and Lingala, full "both forms" interviews by voice, tap and typing in airplane mode, exporting both versions. Privacy checklists pass. APK and pack published, and iOS build steps written and tried on a clean Mac |
 | X8 | Checks with people | X3, X5, X7 | Blind testers on VoiceOver and TalkBack in both languages. Volunteers rate the translations. App Privacy Report checked |
 

@@ -3,14 +3,13 @@ package org.ssa.assistant.core
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.ssa.assistant.core.app.AppPorts
+import org.ssa.assistant.core.app.PlatformServices
 import org.ssa.assistant.core.engine.Engine
 import org.ssa.assistant.core.json.Json
 import org.ssa.assistant.core.json.asString
-import org.ssa.assistant.core.parse.Correct
-import org.ssa.assistant.core.parse.Parse
 import org.ssa.assistant.core.schema.Schema
 import org.ssa.assistant.core.turn.TurnController
-import org.ssa.assistant.core.validate.Validate
 
 /**
  * Shared fake-port harness used by both TurnGoldenTest and AppControllerGoldenTest.
@@ -43,12 +42,13 @@ class TurnHarness(val schema: Schema, val scope: CoroutineScope) {
     var nextTimer = 1
 
     // -- the named ports, so callers build their own controller from them ----
+    //
+    // The device-facing ports are fakes; the pure ports come from the
+    // production AppPorts, so the turn goldens prove the real wiring and not a
+    // test-only copy of it (plan, Phase A1).
 
-    val ports: TurnController.Ports = object : TurnController.Ports {
-        override val say = Phrases(schema)
-        override val correct = Correct(schema)
-        override val i18n = I18n(schema)
-        override val store = object : TurnController.StorePort {
+    private val fakes: PlatformServices = object : PlatformServices {
+        override val store: TurnController.StorePort = object : TurnController.StorePort {
             override fun saveState(state: Json.Obj): Boolean { savedWrote += 1; return true }
             override suspend fun flush() {}
             override fun markWithheld(fields: List<Json.Obj>) {
@@ -60,14 +60,14 @@ class TurnHarness(val schema: Schema, val scope: CoroutineScope) {
             override fun clearState() {}
             override fun forgetKey() {}
         }
-        override val speech = object : TurnController.SpeechPort {
+        override val speech: TurnController.SpeechPort = object : TurnController.SpeechPort {
             override suspend fun speak(text: String, interrupt: Boolean, lang: String) {
                 spoken.add(text)
                 recordSpoken.add(text)
             }
             override fun cancel() {}
         }
-        override val audio = object : TurnController.AudioPort {
+        override val audio: TurnController.AudioPort = object : TurnController.AudioPort {
             override suspend fun startRecording(options: Json.Obj) { recording = true }
             override suspend fun stopRecording(): TurnController.Blob {
                 recording = false
@@ -81,11 +81,11 @@ class TurnHarness(val schema: Schema, val scope: CoroutineScope) {
             override fun releaseMic() {}
             override fun earcon(name: String) {}
         }
-        override val stt = object : TurnController.SttPort {
+        override val stt: TurnController.SttPort = object : TurnController.SttPort {
             override suspend fun transcribe(blob: TurnController.Blob): String =
                 blob.text ?: nextTranscript ?: ""
         }
-        override val timers = object : TurnController.TimersPort {
+        override val timers: TurnController.TimersPort = object : TurnController.TimersPort {
             override fun setTimeout(fn: suspend () -> Unit, ms: Long): String {
                 if (ms < FAKE_TIMER_MS) {
                     scope.launch { delay(ms); fn() }
@@ -112,28 +112,9 @@ class TurnHarness(val schema: Schema, val scope: CoroutineScope) {
             exports.add(forms)
         }
         override val onReadBack: suspend (Json.Obj) -> Unit = {}
-
-        override fun createEngine(saved: Json.Obj?, now: () -> Double): Engine =
-            Engine(schema, saved, now)
-
-        override fun parseLocal(
-            question: Question,
-            transcript: String,
-            typed: Boolean,
-            now: CivilDate,
-            lang: String,
-            readBack: Boolean,
-        ) = Parse.parseLocal(question, transcript, typed, now, lang, i18n, readBack)
-
-        override fun normalize(result: org.ssa.assistant.core.parse.ParsedValue?, question: Question) =
-            Validate.normalize(result, question)
-
-        override fun speakable(value: Any?, type: String, options: List<Option>?, lang: String) =
-            speakableValue(value, type, options, lang)
-
-        override fun formatTimeRemaining(seconds: Int?, lang: String) =
-            org.ssa.assistant.core.formatTimeRemaining(seconds, lang)
     }
+
+    val ports: TurnController.Ports = AppPorts(schema, fakes)
 
     val turn: TurnController = TurnController(ports, schema)
 

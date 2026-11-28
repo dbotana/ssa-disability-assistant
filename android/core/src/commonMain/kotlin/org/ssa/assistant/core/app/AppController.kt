@@ -20,6 +20,13 @@ class AppController(
         chosen[channel] = lang
     }
 
+    /**
+     * Whether `start()` has built the state machine. The UI must show Setup,
+     * and must not call [state], while this is false: `state()` reads a
+     * snapshot that needs the engine.
+     */
+    fun isStarted(): Boolean = turn.isStarted()
+
     fun state(): UiState {
         val s = turn.snapshot()
         val screen = turn.languageSettings().screen

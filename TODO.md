@@ -234,6 +234,53 @@ output. In short:
 
 ## Open
 
+- [ ] **An interrupted capture still says "I did not hear anything" (plan C3).**
+      C3 says an interruption "is not 'nothing heard'". Today
+      `AVAudioSession`'s interruption pauses the engine and `CaptureAdapter`
+      reports a capture with no samples, so `sendAudio` hits its
+      `blob.size < 800` branch (`TurnController.kt`) and speaks
+      `REASK.nothingHeard` before the transcriber runs. The comments in
+      `Audio.swift`, `IosServices.kt`'s `IosAudioCapture` and
+      `ScriptedInterviewTest` now say so, and a test pins today's behaviour.
+      Fixing it is a JS-first change: add an interrupted-capture path with its
+      own message in `src/turn.js`, extend the turn scenarios, regenerate the
+      goldens, then port it. Do not change `core` first.
+- [ ] **Commit `android/core/src/commonTest/resources/golden/summary.json`.**
+      Revision 1 added the `summary` golden (the port of `src/summary.js`);
+      `node tools/golden/check.mjs` fails with "not committed" until that one
+      new file is in git. Nothing else is stale: regenerating twice gives
+      identical bytes and no tracked golden changed.
+- [ ] **The iOS MVP's first compile and run (plan `plans/ios-mvp.md`).**
+      Written on 2026-11-28 in a Linux sandbox, so nothing here has been
+      compiled: `TZ=UTC ./gradlew :core:jvmTest`, `:models:jvmTest`,
+      `:ui:compileKotlinIosSimulatorArm64 :ui:compileDebugKotlinAndroid`,
+      `:app:assembleDebug`, `:ui:assembleSsaCoreDebugXCFramework`, both
+      `xcodebuild test` commands and `ios/tools/audit-binary.sh <the .app>`.
+      Revision 1 removed the known blockers it could find by reading (the
+      pre-`start()` snapshot, the resource-folder order, the staging script,
+      the JVM-only `Charsets` call, the `kotlinOptions` DSL, the Foundation
+      category imports), so what is left is what only a compiler can show:
+      a Compose API name (`KeyboardOptions(autoCorrectEnabled = false)`,
+      `LocaleList`, the `semantics { onClick }` action), a Kotlin/Native
+      bridging detail, or a Kotlin/Compose version conflict. The `summary`
+      port is the one behavioural risk: `SummaryGoldenTest` is the first thing
+      to check against `src/summary.js`. If the `.app` audit names a
+      networking symbol in Compose or Skiko, that is the plan's stop
+      condition: the owner decides, and no allowlist entry is added for it.
+- [ ] **`:core`'s `Crypto` is synchronous, so Setup blocks while PBKDF2
+      runs.** `IosBridge.openSession` moves `SessionGate` to
+      `Dispatchers.Default` for that reason and posts progress back to the
+      main thread, which is the one documented exception to "every `core`
+      call on the main thread". If the UI must stay responsive during the
+      half second, the Swift `Crypto` adapter needs to do the derivation off
+      the caller's thread with its own completion, which changes the
+      callback-only `Crypto` shape Run 4 fixed.
+- [ ] **The `:ui` label catalogue.** The screens pass English source strings
+      through `I18n.translate` because the catalogue has messages but no
+      button labels. A wording pass should add real keys (Start, Talk, Export,
+      Save or share, Change an answer, Erase everything) and their French and
+      Lingala strings, with `src/i18n/messages.js` changed first and the
+      goldens regenerated, as the JS-first rule requires.
 - [ ] **Run the new CI once and fix what it finds.** Not yet run anywhere:
       the `device-tests` job, the canary job against real artifacts, and the
       bundletool download. Verified locally 2026-10-08, so only the emulator

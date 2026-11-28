@@ -30,6 +30,8 @@
 //                    withheld repair, and a WebCrypto test vector
 //   exportnames      export file names, with and without the version suffix
 //   transcripts      cleanTranscript and the silence-filler rule
+//   summary          buildReport() and summaryText() for the answer fixtures, and
+//                    maskDigits() - the Review screen and the spoken read-back
 
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
@@ -56,6 +58,7 @@ import { worksheetContent } from '../../src/pdf.js';
 import { parseExport } from '../../src/importer.js';
 import { canonical } from '../../src/ttshash.js';
 import { cleanTranscript } from '../../src/localstt.js';
+import { buildReport as buildSummaryReport, summaryText, maskDigits } from '../../src/summary.js';
 import { isEmptyTranscript, QUIET_PEAK } from '../../src/turn.js';
 import { collectCorpus } from '../tts-corpus.mjs';
 import * as ssaKit from '../../src/forms/ssa-starter-kit.js';
@@ -1118,6 +1121,34 @@ async function goldenStore() {
 // export file names
 // ---------------------------------------------------------------------------
 
+async function goldenSummary() {
+  const cases = [];
+  for (const name of ['both', 'ds-only', 'minimal', 'starter-kit']) {
+    const answers = fixture(name);
+    for (const lang of ['en']) {
+      cases.push({
+        fixture: name,
+        lang,
+        report: buildSummaryReport(answers, { lang }),
+        text: summaryText(answers, { lang })
+      });
+    }
+  }
+  const masks = [
+    '987-65-4321',
+    '9 8 7, 6 5, 4 3 2 1',
+    '555-12-3456',
+    '1234',
+    '12345',
+    '12',
+    '',
+    'no digits here',
+    'routing 021000021 and account 123456789012',
+    'March 3, 2020'
+  ].map(input => ({ input, keep: 4, out: maskDigits(input, 4) }));
+  write('summary', { cases, masks });
+}
+
 async function goldenExportNames() {
   const cases = [];
   const people = [
@@ -1189,6 +1220,7 @@ async function main() {
   await goldenExportNames();
   await goldenStore();
   await goldenTranscripts();
+  await goldenSummary();
   console.log('all goldens written to', DEST);
 }
 

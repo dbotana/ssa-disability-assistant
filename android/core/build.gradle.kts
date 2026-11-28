@@ -6,9 +6,12 @@
 // :pdf and :core-device instrumented tests) under Android's ICU. Android
 // modules consume the JVM variant, so their dependency lines are unchanged.
 //
-// The iOS targets are declared, but the iOS simulator run and the
-// XCFramework build have not been verified: the sandbox this was written in
-// is Linux, with no Xcode.
+// The iOS targets are declared here; the framework is built by `:ui`, which
+// exports this module so the app links one Kotlin runtime (plan, Phase B3).
+// `:core` itself no longer produces an XCFramework: `:ui`'s
+// `assembleSsaCoreDebugXCFramework` writes SsaCore.xcframework to
+// ios/CoreCrypto/ (the path the Swift package's binary target reads), and
+// ios/CoreCrypto/Package.swift names that task.
 //
 // On iOS the test binary has no bundle holding the test resources, so the
 // tests read them from the host's disk (golden/TestPlatform.ios.kt).
@@ -25,20 +28,14 @@ plugins {
     alias(libs.plugins.kotlin.multiplatform)
 }
 
-// The framework the iOS shell (and, for now, the ios/CoreCrypto Swift package)
-// links. It exports the Kotlin `Crypto` and `SessionKey` interfaces as
-// Objective-C protocols, which is why the iOS implementation of the crypto is
-// Swift: CryptoKit has no C or Objective-C API. The XCFramework is written
-// beside the Swift package's Package.swift (not under build/) because SwiftPM
-// will not accept a local binary target outside its own directory; it is a
-// build product and is gitignored.
-//
-// The name is SsaCore, not Core: the Kotlin classes are exported with the
-// framework's name as their Objective-C prefix, and `CoreColor` (the exported
-// `Color` in AddendumLayout.kt) collides with SwiftUICore's private class of
-// the same name, which the ObjC runtime warns may cause spurious casts and
-// crashes in any app that imports SwiftUI.
-val iosFramework = org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFrameworkConfig(project, "SsaCore")
+// The Kotlin interfaces the iOS shell implements (`Crypto` and `SessionKey`)
+// are exported as Objective-C protocols, which is why the iOS implementation
+// of the crypto is Swift: CryptoKit has no C or Objective-C API. The framework
+// itself is built by `:ui` (plan, Phase B3), whose name is also SsaCore: the
+// Kotlin classes are exported with the framework's name as their Objective-C
+// prefix, and `CoreColor` (the exported `Color` in AddendumLayout.kt) collides
+// with SwiftUICore's private class of the same name, which the ObjC runtime
+// warns may cause spurious casts and crashes in any app that imports SwiftUI.
 
 // The interview schema is data, exported by the JS reference: the app loads
 // the same file the goldens and the web app answer from. It is copied into
@@ -88,26 +85,16 @@ tasks.matching { it.name == "iosSimulatorArm64Test" }.configureEach {
 }
 
 // ios/CoreCrypto/Package.swift takes the debug XCFramework as a local binary
-// target. Release builds keep Gradle's default location under build/.
-tasks.withType<org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFrameworkTask>().configureEach {
-    if (buildType == org.jetbrains.kotlin.gradle.plugin.mpp.NativeBuildType.DEBUG) {
-        outputDir = file("${rootProject.projectDir}/../ios/CoreCrypto")
-    }
-}
+// target; that XCFramework is `:ui`'s `assembleSsaCoreDebugXCFramework`, which
+// exports this module (plan, Phase B3). `:core` builds no framework of its own.
 
 kotlin {
     jvmToolchain(21)
 
     jvm()
-    // Declared only; see the note at the top of this file.
-    val iosTargets = listOf(iosArm64(), iosSimulatorArm64())
-    iosTargets.forEach { target ->
-        target.binaries.framework {
-            baseName = "SsaCore"
-            isStatic = true
-            iosFramework.add(this)
-        }
-    }
+    // The iOS targets are consumed by `:ui`'s framework.
+    iosArm64()
+    iosSimulatorArm64()
 
     sourceSets {
         commonMain {

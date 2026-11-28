@@ -13,9 +13,9 @@ import org.ssa.assistant.core.json.asArray
 import org.ssa.assistant.core.json.asObject
 import org.ssa.assistant.core.json.asString
 import org.ssa.assistant.core.pdf.ExportNames
-import org.ssa.assistant.core.pdf.FillPlan
 import org.ssa.assistant.core.pdf.FormDocuments
 import org.ssa.assistant.core.pdf.FormVersions
+import org.ssa.assistant.core.pdf.WriterJson
 import org.ssa.assistant.core.schema.SchemaLoader
 
 /**
@@ -31,30 +31,6 @@ class FormVersionsGoldenTest {
     private val i18n = I18n(schema)
     private val today = CivilDate(2026, 9, 19)
 
-    private fun planTree(plan: FillPlan): Json = Json.Obj().also { o ->
-        o["fields"] = Json.Arr(plan.fields.mapTo(mutableListOf()) { f ->
-            Json.Obj().also { e ->
-                e["name"] = Json.Str(f.name)
-                e["value"] = Json.Str(f.value)
-                e["fit"] = Json.Obj().also { fit ->
-                    fit["size"] = Json.Num(f.fit.size)
-                    fit["text"] = Json.Str(f.fit.text)
-                    fit["cut"] = Json.bool(f.fit.cut)
-                    fit["lines"] = Json.Arr(f.fit.lines.mapTo(mutableListOf()) { Json.Str(it) })
-                }
-                e["label"] = Json.Str(f.label)
-            }
-        })
-        o["missing"] = Json.Arr(plan.missing.mapTo(mutableListOf()) { Json.Str(it) })
-        o["overflowText"] = Json.Arr(plan.overflowText.mapTo(mutableListOf()) { (label, value) ->
-            Json.Obj().also { e -> e["label"] = Json.Str(label); e["value"] = Json.Str(value) }
-        })
-        o["radios"] = Json.Obj().also { r -> plan.radios.forEach { (k, v) -> r[k] = Json.Str(v) } }
-        o["checks"] = Json.Arr(plan.checks.mapTo(mutableListOf()) { Json.Str(it) })
-        o["tables"] = Json.Arr(plan.tables.toMutableList())
-        o["sections"] = Json.Arr(plan.sections.toMutableList())
-    }
-
     private fun assertVersion(where: String, form: String, actual: FormVersions.Version?, expected: Json) {
         if (expected === Json.Null) {
             assertNull(actual, "$where: JS made no version, Kotlin did")
@@ -63,7 +39,7 @@ class FormVersionsGoldenTest {
         assertNotNull(actual, "$where: JS made this version, Kotlin did not")
         val e = expected.asObject()!!
         Golden.assertTree("fillplans", "$where answers", actual.answers, e["answers"]!!)
-        Golden.assertTree("fillplans", "$where plan", planTree(actual.plan), e["plan"]!!)
+        Golden.assertTree("fillplans", "$where plan", WriterJson.plan(actual.plan), e["plan"]!!)
         assertEquals(e["notes"]!!.asArray()!!.items.map { it.asString() }, actual.notes, "$where notes")
         assertEquals(
             e["appendix"]!!.asArray()!!.items.map { it.asObject()!!.let { r -> r["label"]!!.asString() to r["value"]!!.asString() } },

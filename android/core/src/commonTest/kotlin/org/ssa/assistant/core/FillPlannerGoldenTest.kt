@@ -8,9 +8,9 @@ import org.ssa.assistant.core.json.Json
 import org.ssa.assistant.core.json.asArray
 import org.ssa.assistant.core.json.asObject
 import org.ssa.assistant.core.json.asString
-import org.ssa.assistant.core.pdf.FillPlan
 import org.ssa.assistant.core.pdf.HelveticaMetrics
 import org.ssa.assistant.core.pdf.TemplateManifest
+import org.ssa.assistant.core.pdf.WriterJson
 import org.ssa.assistant.core.pdf.planFill
 import org.ssa.assistant.core.schema.SchemaLoader
 
@@ -28,35 +28,6 @@ class FillPlannerGoldenTest {
     private val metrics = WrappedMetrics(HelveticaMetrics.HELVETICA)
     private val today = CivilDate(2026, 9, 19)   // NOW() in index.mjs, as a local date
 
-    private fun planTree(plan: FillPlan): Json = Json.Obj().also { o ->
-        o["fields"] = Json.Arr(plan.fields.mapTo(mutableListOf()) { f ->
-            Json.Obj().also { e ->
-                e["name"] = Json.Str(f.name)
-                e["value"] = Json.Str(f.value)
-                e["fit"] = Json.Obj().also { fit ->
-                    fit["size"] = Json.Num(f.fit.size)
-                    fit["text"] = Json.Str(f.fit.text)
-                    fit["cut"] = Json.bool(f.fit.cut)
-                    fit["lines"] = Json.Arr(f.fit.lines.mapTo(mutableListOf()) { Json.Str(it) })
-                }
-                e["label"] = Json.Str(f.label)
-            }
-        })
-        o["missing"] = Json.Arr(plan.missing.mapTo(mutableListOf()) { Json.Str(it) })
-        o["overflowText"] = Json.Arr(plan.overflowText.mapTo(mutableListOf()) { (label, value) ->
-            Json.Obj().also { e ->
-                e["label"] = Json.Str(label)
-                e["value"] = Json.Str(value)
-            }
-        })
-        o["radios"] = Json.Obj().also { r ->
-            plan.radios.forEach { (k, v) -> r[k] = Json.Str(v) }
-        }
-        o["checks"] = Json.Arr(plan.checks.mapTo(mutableListOf()) { Json.Str(it) })
-        o["tables"] = Json.Arr(plan.tables.toMutableList())
-        o["sections"] = Json.Arr(plan.sections.toMutableList())
-    }
-
     @Test
     fun fillplans() {
         val plans = golden.asObject()!!["plans"]!!.asArray()!!.items
@@ -73,7 +44,7 @@ class FillPlannerGoldenTest {
                 else -> mapDsIntake(schema, answers, today, lang, i18n)
             }
             val plan = planFill(mapping, TemplateManifest.forForm(form), metrics)
-            Golden.assertTree("fillplans", where, planTree(plan), p["plan"]!!)
+            Golden.assertTree("fillplans", where, WriterJson.plan(plan), p["plan"]!!)
         }
     }
 

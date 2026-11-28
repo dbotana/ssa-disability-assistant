@@ -1577,6 +1577,13 @@ class TurnController(private val ports: Ports, schema: Schema) {
 
     fun snapshot(): Json.Obj = snapshot(focus = null)
 
+    /**
+     * Whether `start()` has built the engine. `snapshot()` needs it, so a UI
+     * must not ask for state before this is true (plan, Phase B2; the first
+     * draw happens before Setup).
+     */
+    fun isStarted(): Boolean = engine != null
+
     fun engineState(): Json.Obj = engine!!.getState(correcting?.restore)
 
     fun touch() = touchActivity()

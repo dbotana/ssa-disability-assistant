@@ -1149,3 +1149,41 @@ figures.
   `adapter.<lang>.safetensors` hash to the values in `adapters/SHA256SUMS`. So the exports used
   the pinned bytes; only the route was unpinned. A future `--lang` export should pass the
   revision, or feed the pinned files, as `--swap` does.
+
+## 3d: what the iOS MVP now lets us test (2026-11-28)
+
+Spike 3d is the VoiceOver pass: which controls work under it, and which had to
+stay native. Until the iOS MVP run there was no app to run it in. `ios/App/`
+now builds one (`xcodebuild test -project SsaAssistant.xcodeproj -scheme
+SsaAssistant …`), so 3d can check, on a phone with VoiceOver on:
+
+- **The talk control.** It is one Compose node with two routes: a
+  press-and-hold gesture (`pointerInput` + `detectTapGestures(onPress:)`) and an
+  `onClick` semantics action that a VoiceOver double-tap activates, toggling
+  start and stop. Check that both reach `AppController.onTalkDown`/`onTalkUp`,
+  that a double-tap does not also start a zero-length press, and that the
+  announcement says "recording"/"idle" as the state changes.
+- **The text field.** `KeyboardOptions(autoCorrectEnabled = false)` plus
+  `PasswordVisualTransformation` for masked types. Check that the predictive
+  bar is absent, that the SSN and bank fields show dots, that the dictation key
+  is gone on a masked field, and that VoiceOver reads the field's value (not
+  the dots) only when the user asks.
+- **Language.** Each text run carries a `LocaleList` from `UiState.runs`. Check
+  that VoiceOver switches voice with the run (English today; the run machinery
+  is what 4.9 needs).
+- **Magic Tap and escape.** `accessibilityPerformMagicTap` on the hosting
+  controller toggles talk; `accessibilityPerformEscape` closes a read-back or
+  goes back one question. Check both with the rotor, and that they do not fire
+  while a modal share sheet is up.
+- **Speech and VoiceOver.** `SpeechAdapter` waits for
+  `UIAccessibility.announcementDidFinishNotification` (with a 2 s guard) before
+  reporting an utterance finished. Check there is no double speech and no
+  wedge when an announcement never reports back.
+- **The privacy cover** in the app switcher, and that a third-party keyboard
+  cannot be selected in any field.
+- **`XCUIApplication().performAccessibilityAudit()`**, run by the UI test with
+  no failures waived.
+
+The `.app` binary audit (`ios/tools/audit-binary.sh <the .app>`) is the other
+half: if Compose or Skiko brings a networking import, it names it and that is
+the plan's stop condition.
